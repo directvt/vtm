@@ -71,6 +71,21 @@
                               { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }]
     },
     {
+      "name":                "2.WSL-x64-Debug (clang)",
+      "generator":           "Unix Makefiles",
+      "configurationType":   "Debug",
+      "wslPath":             "${defaultWSLPath}",
+      "buildRoot":           "${workspaceRoot}/.vs/build/${name}",
+      "installRoot":         "${workspaceRoot}/.vs/build/install/${name}",
+      "intelliSenseMode":    "linux-gcc-x64",
+      "inheritEnvironments": [ "linux_x64" ],
+      "environments":        [{ "CXX": "/usr/bin/clang++-16",
+                                "CC" : "/usr/bin/clang-16" }],
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
+                              { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
+                              { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }]
+    },
+    {
       "name":                "3.Win-x32-Debug",
       "generator":           "Visual Studio 17 2022",
       "configurationType":   "Debug",

@@ -1224,7 +1224,7 @@ namespace netxs::ui
             return shadow().substr(start, width);
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
-        si32 length() const { return lyric->size().x; } // para: Return printable length. //todo Apple clang doesn't get auto return.
+        si32 length() const { return lyric->size().x; } // para: Return printable length.
         auto  empty() const { return !length();       } // para: Return true if empty.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.

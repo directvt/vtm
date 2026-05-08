@@ -4619,6 +4619,7 @@ namespace netxs::os
                     auto cmd = text{};
                     if constexpr (std::is_same_v<decltype(connect_fx), noop>)
                     {
+                        (void)connect_fx; // Suppress clang-16's complains.
                         if (!create_dtvt_process(appcfg, std_link))
                         {
                             shutdown_fx();

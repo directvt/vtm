@@ -124,7 +124,7 @@ namespace netxs::app::terminal
                         auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
                         for (auto gear_id : gear_id_list)
                         {
-                            if (auto gear_ptr = boss.base::template getref<hids>(gear_id)) //todo Apple clang requires template
+                            if (auto gear_ptr = boss.base::template getref<hids>(gear_id)) //todo clang-16 requires template
                             {
                                 auto& gear = *gear_ptr;
                                 boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
@@ -229,7 +229,7 @@ namespace netxs::app::terminal
         auto menu = object->attach(slot::_1, slot1)
             ->shader(window_clr);
 
-        cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        cover->invoke([&](auto& boss)
         {
             auto& bar = boss.base::field(cell{ "▀"sv }.link(slot1->id));
             auto& winsz = boss.base::field(dot_00);

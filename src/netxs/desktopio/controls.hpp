@@ -2062,7 +2062,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 is_leaf = faux;
-                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo Apple clang requires template
+                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo clang-16 requires template
                                 nexthop_focus.for_first_focused_leaf(gear, proc);
                                 return faux;
                             }
@@ -2451,7 +2451,7 @@ namespace netxs::ui
                     seed.digest = ++digest;
                     for (auto& [gear_id, chain] : gears)
                     {
-                        chain.next.remove_if([&, gear_id = gear_id](auto& next) // Drop all downlinks (toward inside) from the boss. //todo Apple clang can't capture gear_id by ref.
+                        chain.next.remove_if([&](auto& next) // Drop all downlinks (toward inside) from the boss.
                         {
                             auto match = next.next_wptr.lock() == seed.item;
                             if (match && gear_id && next.status == state::live)

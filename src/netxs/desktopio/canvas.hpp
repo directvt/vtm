@@ -2817,6 +2817,194 @@ namespace netxs
         {
             return gc == c.gc && st.xy() == c.st.xy();
         }
+        // cell: Reset grapheme cluster.
+        void set_gc()
+        {
+            gc.wipe();
+            st.xy(0);
+        }
+        // cell: Copy view of the cell (preserve ID).
+        auto& set(cell const& c) { uv = c.uv;
+                                   st = c.st;
+                                   gc = c.gc;
+                                   px = c.px;
+                                   p2 = c.p2;              return *this; }
+        auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
+        auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
+        auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
+        auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set foreground alpha/transparency.
+        auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
+                                   uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
+        // cell: Set/Reset bold attribute. //todo ? SGR22: If b=faux and st.bld()=faux then un-dim fg color.
+        auto& bld(bool b)
+        {
+            //if (st.bld() == faux && b == faux) // Un-dim fg color.
+            //{
+            //    uv.fg.bright(2);
+            //}
+            st.bld(b);
+            return *this;
+        }
+        auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set italic attribute.
+        auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set underline attribute.
+        auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
+        auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
+        auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
+        auto& img(ui96 p)        { px = p.u64; p2 = p.u32; return *this; } // cell: Set attached image.
+        auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
+        auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
+        auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
+        auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
+        auto& hid(bool b)        { st.hid(b);              return *this; } // cell: Set hidden attribute.
+        auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
+        auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
+        auto& xy(si32 x, si32 y) { st.xy(x, y);            return *this; } // cell: Set glyph fragment.
+        auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
+        auto& cursor0(si32 i)    { st.cursor0(i);          return *this; } // cell: Set cursor inside the cell.
+        auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
+        // cell: Set cluster unidata width.
+        auto& wdt(si32 vs)
+        {
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
+            gc.mtx(w, h);
+            st.xy(x, y);
+            return *this;
+        }
+        auto& wdt(si32 w, si32 h, si32 x, si32 y)
+        {
+            gc.mtx(w, h);
+            st.xy(x, y);
+            return *this;
+        }
+        auto& txt(view utf8, si32 vs)
+        {
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
+            gc.set_direct(utf8, w, h);
+            st.xy(x, y);
+            return *this;
+        }
+        auto& txt(view utf8, si32 w, si32 h, si32 x, si32 y)
+        {
+            gc.set_direct(utf8, w, h);
+            st.xy(x, y);
+            return *this;
+        }
+        cell& txt(view utf8)
+        {
+            if (utf8.empty())
+            {
+                gc.token = 0;
+                st.xy(0);
+            }
+            else
+            {
+                auto cluster = utf::cluster(utf8);
+                auto [w, h, x, y] = utf::matrix::whxy(cluster.attr.cmatrix);
+                gc.set_direct(cluster.text, w, h);
+                st.xy(x, y);
+            }
+            return *this;
+        }
+        cell& txt2(view utf8, si32 vs)
+        {
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
+            gc.set_direct(utf8, w, h);
+            st.xy(x, y);
+            return *this;
+        }
+        auto& txt(char c)        { gc.set(c); st.mosaic(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
+        auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
+        auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
+        auto& rst() // cell: Reset view attributes of the cell to zero.
+        {
+            static auto empty = cell{ whitespace };
+            uv = empty.uv;
+            st = empty.st;
+            gc = empty.gc;
+            px = empty.px;
+            p2 = empty.p2;
+            return *this;
+        }
+
+        constexpr auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
+        constexpr auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
+        constexpr auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
+        constexpr auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
+                  bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
+        constexpr ui64   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
+        template<svga Mode = svga::vtrgb>
+        constexpr auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
+        constexpr auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
+        constexpr auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
+        constexpr auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
+        constexpr auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
+        constexpr auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
+        constexpr auto& bgc()        { return uv.bg;         } // cell: Return background color.
+        constexpr auto& fgc()        { return uv.fg;         } // cell: Return foreground color.
+        constexpr auto& bgc() const  { return uv.bg;         } // cell: Return background color.
+        constexpr auto& fgc() const  { return uv.fg;         } // cell: Return foreground color.
+        constexpr auto  bld() const  { return st.bld();      } // cell: Return bold attribute.
+        constexpr auto  itc() const  { return st.itc();      } // cell: Return italic attribute.
+        constexpr auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
+        constexpr auto  unc() const  { return st.unc();      } // cell: Return underline color.
+        constexpr auto  cur() const  { return st.cur();      } // cell: Return cursor style.
+        constexpr auto  img()        { return ui96{ px,p2 }; } // cell: Return attached image.
+        constexpr auto  img() const  { return ui96{ px,p2 }; } // cell: Return attached image.
+        constexpr auto  size_of_img() const { return (si32)(sizeof(px) + sizeof(p2)); } // cell: Return image metadata size.
+        constexpr auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
+        constexpr auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
+        constexpr auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
+        constexpr auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
+        constexpr auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
+        constexpr auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
+        constexpr auto& stl()        { return st.token;      } // cell: Return style token.
+        constexpr auto& stl() const  { return st.token;      } // cell: Return style token.
+        constexpr auto link() const  { return id;            } // cell: Return object ID.
+        constexpr auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace (null included).
+        constexpr auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
+        auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
+        {
+            if (gc == c.gc || (isspc() && c.isspc()))
+            {
+                if (uv.bg == c.uv.bg)
+                {
+                    if (xy() == 0 || isspc())
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return uv.fg == c.uv.fg;
+                    }
+                }
+            }
+            return faux;
+        }
+        auto set_cursor(si32 style, cell color = {})
+        {
+            st.cur(style);
+            st.cursor_color(color.uv.bg, color.uv.fg);
+        }
+        auto cursor_color() const
+        {
+            //todo support for multiple cursor inside the cell
+            return st.cursor_color();
+        }
+        // cell: Return whitespace cell.
+        cell spc() const
+        {
+            return cell{ *this }.txt(whitespace);
+        }
+        // cell: Return empty cell.
+        cell nul() const
+        {
+            return cell{ *this }.txt('\0');
+        }
+        // cell: Return dry empty cell.
+        cell dry() const
+        {
+            return cell{ '\0' }.clr(*this);
+        }
         // cell: Find the text_only_cells{ what, size } inside the canvas and place the result offset to the &from.
         static auto lookup(auto canvas_begin, auto canvas_end, auto what_begin, auto size, auto& from)
         {
@@ -3064,194 +3252,7 @@ namespace netxs
             start -= rev ? count + 1 : -count;
             return found;
         }
-        // cell: Reset grapheme cluster.
-        void set_gc()
-        {
-            gc.wipe();
-            st.xy(0);
-        }
-        // cell: Copy view of the cell (preserve ID).
-        auto& set(cell const& c) { uv = c.uv;
-                                   st = c.st;
-                                   gc = c.gc;
-                                   px = c.px;
-                                   p2 = c.p2;              return *this; }
-        auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
-        auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
-        auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
-        auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set foreground alpha/transparency.
-        auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
-                                   uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
-        // cell: Set/Reset bold attribute. //todo ? SGR22: If b=faux and st.bld()=faux then un-dim fg color.
-        auto& bld(bool b)
-        {
-            //if (st.bld() == faux && b == faux) // Un-dim fg color.
-            //{
-            //    uv.fg.bright(2);
-            //}
-            st.bld(b);
-            return *this;
-        }
-        auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set italic attribute.
-        auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set underline attribute.
-        auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
-        auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
-        auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
-        auto& img(ui96 p)        { px = p.u64; p2 = p.u32; return *this; } // cell: Set attached image.
-        auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
-        auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
-        auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
-        auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
-        auto& hid(bool b)        { st.hid(b);              return *this; } // cell: Set hidden attribute.
-        auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
-        auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
-        auto& xy(si32 x, si32 y) { st.xy(x, y);            return *this; } // cell: Set glyph fragment.
-        auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
-        auto& cursor0(si32 i)    { st.cursor0(i);          return *this; } // cell: Set cursor inside the cell.
-        auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
-        // cell: Set cluster unidata width.
-        auto& wdt(si32 vs)
-        {
-            auto [w, h, x, y] = utf::matrix::whxy(vs);
-            gc.mtx(w, h);
-            st.xy(x, y);
-            return *this;
-        }
-        auto& wdt(si32 w, si32 h, si32 x, si32 y)
-        {
-            gc.mtx(w, h);
-            st.xy(x, y);
-            return *this;
-        }
-        auto& txt(view utf8, si32 vs)
-        {
-            auto [w, h, x, y] = utf::matrix::whxy(vs);
-            gc.set_direct(utf8, w, h);
-            st.xy(x, y);
-            return *this;
-        }
-        auto& txt(view utf8, si32 w, si32 h, si32 x, si32 y)
-        {
-            gc.set_direct(utf8, w, h);
-            st.xy(x, y);
-            return *this;
-        }
-        cell& txt(view utf8)
-        {
-            if (utf8.empty())
-            {
-                gc.token = 0;
-                st.xy(0);
-            }
-            else
-            {
-                auto cluster = utf::cluster(utf8);
-                auto [w, h, x, y] = utf::matrix::whxy(cluster.attr.cmatrix);
-                gc.set_direct(cluster.text, w, h);
-                st.xy(x, y);
-            }
-            return *this;
-        }
-        cell& txt2(view utf8, si32 vs)
-        {
-            auto [w, h, x, y] = utf::matrix::whxy(vs);
-            gc.set_direct(utf8, w, h);
-            st.xy(x, y);
-            return *this;
-        }
-        auto& txt(char c)        { gc.set(c); st.mosaic(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
-        auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
-        auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
-        auto& rst() // cell: Reset view attributes of the cell to zero.
-        {
-            static auto empty = cell{ whitespace };
-            uv = empty.uv;
-            st = empty.st;
-            gc = empty.gc;
-            px = empty.px;
-            p2 = empty.p2;
-            return *this;
-        }
 
-        constexpr auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
-        constexpr auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
-        constexpr auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
-        constexpr auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
-                  bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        constexpr ui64   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
-        template<svga Mode = svga::vtrgb>
-        constexpr auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
-        constexpr auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
-        constexpr auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
-        constexpr auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
-        constexpr auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
-        constexpr auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
-        constexpr auto& bgc()        { return uv.bg;         } // cell: Return background color.
-        constexpr auto& fgc()        { return uv.fg;         } // cell: Return foreground color.
-        constexpr auto& bgc() const  { return uv.bg;         } // cell: Return background color.
-        constexpr auto& fgc() const  { return uv.fg;         } // cell: Return foreground color.
-        constexpr auto  bld() const  { return st.bld();      } // cell: Return bold attribute.
-        constexpr auto  itc() const  { return st.itc();      } // cell: Return italic attribute.
-        constexpr auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
-        constexpr auto  unc() const  { return st.unc();      } // cell: Return underline color.
-        constexpr auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        constexpr auto  img()        { return ui96{ px,p2 }; } // cell: Return attached image.
-        constexpr auto  img() const  { return ui96{ px,p2 }; } // cell: Return attached image.
-        constexpr auto  size_of_img() const { return (si32)(sizeof(px) + sizeof(p2)); } // cell: Return image metadata size.
-        constexpr auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
-        constexpr auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
-        constexpr auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
-        constexpr auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
-        constexpr auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
-        constexpr auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
-        constexpr auto& stl()        { return st.token;      } // cell: Return style token.
-        constexpr auto& stl() const  { return st.token;      } // cell: Return style token.
-        constexpr auto link() const  { return id;            } // cell: Return object ID.
-        constexpr auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace (null included).
-        constexpr auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
-        auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
-        {
-            if (gc == c.gc || (isspc() && c.isspc()))
-            {
-                if (uv.bg == c.uv.bg)
-                {
-                    if (xy() == 0 || isspc())
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return uv.fg == c.uv.fg;
-                    }
-                }
-            }
-            return faux;
-        }
-        auto set_cursor(si32 style, cell color = {})
-        {
-            st.cur(style);
-            st.cursor_color(color.uv.bg, color.uv.fg);
-        }
-        auto cursor_color() const
-        {
-            //todo support for multiple cursor inside the cell
-            return st.cursor_color();
-        }
-        // cell: Return whitespace cell.
-        cell spc() const
-        {
-            return cell{ *this }.txt(whitespace);
-        }
-        // cell: Return empty cell.
-        cell nul() const
-        {
-            return cell{ *this }.txt('\0');
-        }
-        // cell: Return dry empty cell.
-        cell dry() const
-        {
-            return cell{ '\0' }.clr(*this);
-        }
         friend auto& operator << (std::ostream& s, cell const& c)
         {
             return s << "\n\tfgc " << c.fgc()

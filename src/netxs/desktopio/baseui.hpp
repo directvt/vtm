@@ -1330,7 +1330,7 @@ namespace netxs::ui
         template<si32 Tier = tier::release, class Event>
         auto& bind_property(qiew property_name, base& boss, Event event)
         {
-            auto& prop = base::property<typename Event::type>(property_name);
+            auto& prop = base::property<typename Event::type>(property_name); //todo clang-16 requires typename
             boss.LISTEN(Tier, event, new_value)
             {
                 if (prop != new_value)

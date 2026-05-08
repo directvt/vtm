@@ -5,7 +5,7 @@
 ### Unix
 
 Build-time dependencies
- - `C++20 compiler`: [GCC 12](https://gcc.gnu.org/projects/cxx-status.html) or [Clang 14](https://clang.llvm.org/cxx_status.html)
+ - `C++20 compiler`: [GCC 12](https://gcc.gnu.org/projects/cxx-status.html) or [Clang 16](https://clang.llvm.org/cxx_status.html)
  - `cmake` (minimum version v3.22)
  - `git`
  - `FreeType`

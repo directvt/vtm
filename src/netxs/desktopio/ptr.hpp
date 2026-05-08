@@ -82,7 +82,7 @@ namespace netxs
         }
 
         template<class F>
-        using arg0 = typename _function<F>::arg0;
+        using arg0 = _function<F>::arg0;
 
         template<class F, class FxType = _function<F>::type>
         auto sharedfx(F lambda) // Don't use lambdas/functions with auto args here.
@@ -114,7 +114,7 @@ namespace netxs
             using new_type = C<NewArgs...>;
         };
         template<class C, class T>
-        using change_value_type = typename change_value_type_helper<C>::template new_type<T>;
+        using change_value_type = change_value_type_helper<C>::template new_type<T>;
 
         template<class T, class Allocator = std::allocator<T>>
         struct raw_allocator : Allocator
@@ -125,7 +125,7 @@ namespace netxs
             template<class R>
             struct rebind
             {
-                using other = raw_allocator<R, typename allocator_traits::template rebind_alloc<R>>;
+                using other = raw_allocator<R, typename allocator_traits::template rebind_alloc<R>>; //todo clang-16 requires typename
             };
             template<class R>
             void construct(R* p) noexcept(std::is_nothrow_default_constructible_v<R>)

@@ -3969,12 +3969,12 @@ namespace netxs::gui
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
                 auto shade2 = shade + 0x00'09'09'09 * std::popcount((ui32)stream.m.buttons);
-                fill_grips(side_x, [&, &side_x = side_x](auto& canvas, auto r) //todo &side_x: Apple clang still disallows capturing structured bindings
+                fill_grips(side_x, [&](auto& canvas, auto r)
                 {
                     netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
-                fill_grips(side_y, [&, &side_y = side_y](auto& canvas, auto r) //todo &side_y: Apple clang still disallows capturing structured bindings
+                fill_grips(side_y, [&](auto& canvas, auto r)
                 {
                     netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.

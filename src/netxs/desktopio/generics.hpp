@@ -391,7 +391,7 @@ namespace netxs::generics
     template<class vect, bool UseUndock = faux>
     struct ring
     {
-        using type = typename vect::value_type;
+        using type = vect::value_type;
 
         si32 step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
         si32 head; // ring: Front index.
@@ -413,7 +413,7 @@ namespace netxs::generics
         struct iter
         {
             using iterator_category = std::random_access_iterator_tag;
-            using value_type        = typename Ring::type;
+            using value_type        = Ring::type;
             using difference_type   = si32;
             using pointer           = std::conditional_t<std::is_const_v<Ring>, value_type const*, value_type*>;
             using reference         = std::conditional_t<std::is_const_v<Ring>, value_type const&, value_type&>;
@@ -937,7 +937,7 @@ namespace netxs::generics
         struct iter
         {
             using it_t = decltype(Imap{}.forward.begin());
-            using type = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by clang 13.0.0
+            using type = std::iterator_traits<it_t>::difference_type;
 
             Imap& buff;
             it_t  addr;

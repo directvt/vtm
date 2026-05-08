@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.05.07";
+    static const auto version = "v2026.05.08";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1190,7 +1190,7 @@ namespace netxs::app::shared
         auto ui_lock = indexer.unique_lock();
         auto gui_config = app::shared::get_gui_config(config);
         app::shared::get_tui_config(config, ui::skin::globals());
-        auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        auto thread = std::thread{ [&]
         {
             app::shared::splice(client, gui_config);
         }};
