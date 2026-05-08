@@ -761,7 +761,7 @@ R"==(
             brush_l.set_image_index(image_l.index);
             brush_r.set_image_WH(size.x, size.y).set_image_ontop(1);
             brush_l.set_image_WH(size.x, size.y);
-            canvas_r.core::template size<true>(size, brush_r); // clang requires template
+            canvas_r.core::template size<true>(size, brush_r); //todo clang-16 requires template
             canvas_l.core::template size<true>(size, brush_l); //
             auto head_r = canvas_r.begin();
             auto head_l = canvas_l.begin();

@@ -1190,7 +1190,7 @@ namespace netxs::app::shared
         auto ui_lock = indexer.unique_lock();
         auto gui_config = app::shared::get_gui_config(config);
         app::shared::get_tui_config(config, ui::skin::globals());
-        auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        auto thread = std::thread{ [&]
         {
             app::shared::splice(client, gui_config);
         }};

@@ -6696,14 +6696,7 @@ namespace netxs::ui
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(escx& yield, si32 selmod)
             {
-                //todo Clang 15 don't get it
-                //auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                auto tempvr = selection_get_it();
-                auto i_top = std::get<0>(tempvr);
-                auto i_end = std::get<1>(tempvr);
-                auto upcur = std::get<2>(tempvr);
-                auto dncur = std::get<3>(tempvr);
-
+                auto [i_top, i_end, upcur, dncur] = selection_get_it();
                 if (i_top == -1) return;
 
                 auto use_true_color = selmod == mime::richtext || selmod == mime::htmltext;
@@ -6857,11 +6850,7 @@ namespace netxs::ui
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     clip.trimby(scrolling_region);
-                    //todo Clang 15 don't get it
-                    //auto [curtop, curend] = selection_take_grips();
-                    auto tempvr = selection_take_grips();
-                    auto curtop = tempvr.first;
-                    auto curend = tempvr.second;
+                    auto [curtop, curend] = selection_take_grips();
                     auto grip_1 = rect{ curtop, dot_11 };
                     auto grip_2 = rect{ curend, dot_11 };
                     if (selection_selbox())

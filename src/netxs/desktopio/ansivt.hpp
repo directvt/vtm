@@ -1509,7 +1509,7 @@ namespace netxs::ansi
     template<class T>
     auto& get_parser()
     {
-        static auto vt_parser = typename T::template vt_parser<T>{};
+        static auto vt_parser = typename T::template vt_parser<T>{}; //todo clang-16 requires typename
         return vt_parser;
     }
     template<class T> void parse(view utf8, T*&  dest)

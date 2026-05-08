@@ -11176,7 +11176,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                             void tp_tap_notify(time stamp, si32 nfingers, si32 state)
                                             {
-                                                assert((si32)tp.tap.use_lmr_map < std::size(lixx::tap_button_map));
+                                                assert((si32)tp.tap.use_lmr_map < (si32)std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
                                                 auto button = lixx::tap_button_map[tp.tap.use_lmr_map][nfingers - 1];
@@ -14650,15 +14650,15 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         tp_impl_t tp_impl{ *this };
-        void                  process(evdev_event& ev, time stamp)                           { tp_impl.        tp_interface_process(ev, stamp); }
-        void                  suspend()                                                      { tp_impl.              tp_clear_state(); }
-        void                   remove()                                                      { tp_impl.         tp_interface_remove(); }
-        void             device_added(libinput_device_sptr added_li_device)                  { tp_impl.   tp_interface_device_added(added_li_device); }
-        void           device_removed(libinput_device_sptr removed_li_device)                { tp_impl. tp_interface_device_removed(removed_li_device); }
-        void       left_handed_toggle(bool left_handed_enabled)                              { tp_impl.touchpad_left_handed_toggled(left_handed_enabled); }
-        void touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect, time now) { tp_impl.   tp_interface_toggle_touch(which, now); }
-        void         device_suspended(libinput_device_sptr suspended_li_device)              { device_removed(suspended_li_device); }
-        void           device_resumed(libinput_device_sptr resumed_li_device)                { device_added(resumed_li_device); }
+        void                  process(evdev_event& ev, time stamp)                           override { tp_impl.        tp_interface_process(ev, stamp); }
+        void                  suspend()                                                      override { tp_impl.              tp_clear_state(); }
+        void                   remove()                                                      override { tp_impl.         tp_interface_remove(); }
+        void             device_added(libinput_device_sptr added_li_device)                  override { tp_impl.   tp_interface_device_added(added_li_device); }
+        void           device_removed(libinput_device_sptr removed_li_device)                override { tp_impl. tp_interface_device_removed(removed_li_device); }
+        void       left_handed_toggle(bool left_handed_enabled)                              override { tp_impl.touchpad_left_handed_toggled(left_handed_enabled); }
+        void touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect, time now) override { tp_impl.   tp_interface_toggle_touch(which, now); }
+        void         device_suspended(libinput_device_sptr suspended_li_device)              override { device_removed(suspended_li_device); }
+        void           device_resumed(libinput_device_sptr resumed_li_device)                override { device_added(resumed_li_device); }
         virtual ui32 sendevents_get_modes() override
         {
             auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
@@ -15382,8 +15382,8 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         pad_impl_t pad_impl{ *this };
-        void process(evdev_event& ev, time stamp) { pad_impl.pad_process(ev, stamp); }
-        void suspend()                            { pad_impl.pad_suspend(); }
+        void process(evdev_event& ev, time stamp) override { pad_impl.pad_process(ev, stamp); }
+        void suspend()                            override { pad_impl.pad_suspend(); }
         virtual ui32 sendevents_get_modes() override
         {
             return LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
