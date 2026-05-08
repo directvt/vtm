@@ -7685,7 +7685,7 @@ namespace netxs::ui
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
-        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(+move text cursor to the beginning of next line after image)/disable scroll(default)(+don't move text cursor and trim sixel image by the scrolling region).
+        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(default) (+move text cursor to the beginning of next line after image)/disable scroll (+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -7753,11 +7753,13 @@ namespace netxs::ui
             }
         }
         // term: Print specified block (scroll/wrap in normal; crop by the altbuf viewport).
-        auto draw_block(core const& image_buffer, auto fx)
+        auto draw_block(core const& image_buffer, auto fx, bool trim_hz = faux, bool trim_vt = faux)
         {
             if (target == &normal)
             {
-                print_block(normal, image_buffer, {}, fx);
+                auto trim_by_viewport = twod{ trim_hz ? target->panel.x : dot_mx.x,
+                                              trim_vt ? target->panel.y : dot_mx.y };
+                print_block(normal, image_buffer, trim_by_viewport, fx);
             }
             else
             {
@@ -7812,7 +7814,7 @@ namespace netxs::ui
             }
             //todo image cell accounting
             //todo respect decsdm (trim image + don't move cursor)
-            draw_block(image_buffer, cell::shaders::full);
+            draw_block(image_buffer, cell::shaders::full, true, !decsdm);
             data_in("\n\r");
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
