@@ -1607,6 +1607,9 @@ namespace netxs::ui
             r_2_l = line_style.rtl();
             image = {};
         }
+        auto get_image_sixel()       { return image; }
+        auto set_image_sixel(si32 n) { image = n; }
+        auto  or_image_sixel(si32 n) { image |= n; }
         void deallocate()
         {
             body().swap(cells);

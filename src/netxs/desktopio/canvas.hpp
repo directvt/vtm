@@ -2362,6 +2362,7 @@ namespace netxs
         }
         auto& set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); return *this; }
         auto& set_image_sixel(si32 n) { netxs::set_field<p2_sixel_1_mask>(n, p2); return *this; }
+        auto&  or_image_sixel(si32 n) { netxs::set_field<p2_sixel_1_mask>(n | netxs::get_field<p2_sixel_1_mask>(p2), p2); return *this; }
         auto& set_image_ontop(si32 n) { netxs::set_field<p2_ontop_1_mask>(n, p2); return *this; }
         auto& set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); return *this; }
         auto& inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); return *this; }
@@ -3934,6 +3935,7 @@ namespace netxs
         body canvas; // core: Cell data.
         cell marker; // core: Current brush.
         si32 digest = 0; // core: Resize stamp.
+        si32 hasimg{}; // core: Canvas contains Sixel cells.
 
     public:
         core()                         = default;
@@ -3959,6 +3961,9 @@ namespace netxs
               marker{ fill }
         { }
 
+        auto get_image_sixel()       { return hasimg; }
+        auto set_image_sixel(si32 n) { hasimg = n; }
+        auto  or_image_sixel(si32 n) { hasimg |= n; }
         template<class P>
         auto same(core const& c, P compare) const // core: Compare content.
         {

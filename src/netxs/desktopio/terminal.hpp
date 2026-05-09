@@ -1300,12 +1300,9 @@ namespace netxs::ui
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
-                owner.LISTEN(tier::general, e2::data::image::remove, image_indexes, image_update_token)
+                owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, image_update_token)
                 {
-                    if (owner.image_alive)
-                    {
-                        wipe_image_index(image_indexes);
-                    }
+                    wipe_image_index(image_indexes);
                 };
             }
 
@@ -2863,6 +2860,8 @@ namespace netxs::ui
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
+                auto has_sixel = proto.front().get_image_sixel();
+                canvas.or_image_sixel(has_sixel);
                 auto start = coord;
                 coord.x += count;
                 //todo apply line adjusting (necessity is not clear)
@@ -3332,12 +3331,12 @@ namespace netxs::ui
             struct buff : public ring
             {
                 static constexpr auto sizea_size = 65536;
-                using ring::ring;
                 using type = deco::type;
                 using mapa = std::array<si32, sizea_size>[type::count];
                 using maps = std::map<si32, si32>[type::count];
                 using maxl = std::array<si32, type::count>;
 
+                term& owner;
                 si32 caret{}; // buff: Current line cursor horizontal position.
                 si32 vsize{}; // buff: Scrollback vertical size (height).
                 si32 width{}; // buff: Viewport width.
@@ -3352,6 +3351,10 @@ namespace netxs::ui
                 bool round{}; // buff: Is the slide position approximate.
                 bool rolls{}; // buff: The scrollback buffer ring was scrolled.
 
+                buff(term& boss)
+                    : ring{ boss.defcfg.def_length, boss.defcfg.def_growdt, boss.defcfg.def_growmx },
+                      owner{ boss }
+                { }
                 // buff: Decrease height.
                 void dec_height(si32& block_vsize, si32 line_kind, si32 line_size)
                 {
@@ -3494,20 +3497,35 @@ namespace netxs::ui
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void _clear_line(line& l, bool deallocate)
                 {
-                    if (l.image) 
+                    if (l.get_image_sixel())
                     {
-                        l.image = {};
-                        //for (auto& c : l.cells) 
-                        //{
-                        //    if (auto index = c.get_image_index())
-                        //    {
-                        //        //todo
-                        //        //if (--owner.image_ref_count[index] == 0) 
-                        //        //{
-                        //        //    release index
-                        //        //}
-                        //    }
-                        //}
+                        auto removed_image_indexes = e2::data::image::remove.param();
+                        l.set_image_sixel(faux);
+                        if constexpr (debugmode) log("line with sixels");
+                        for (auto& c : l.cells) 
+                        {
+                            if (auto index = c.get_image_index())
+                            {
+                                if constexpr (debugmode)
+                                {
+                                    if (owner.image_ref_count[index] == 0) 
+                                    {
+                                        log("%%Sixel image ref accounting is broken. Image index=%%", prompt::term, index);
+                                        removed_image_indexes.push_back(index);
+                                        continue;
+                                    }
+                                }
+                                if (--owner.image_ref_count[index] == 0) 
+                                {
+                                    if constexpr (debugmode) log("\trelease sixel image index: ", index);
+                                    removed_image_indexes.push_back(index);
+                                }
+                            }
+                        }
+                        if (removed_image_indexes.size())
+                        {
+                            owner.remove_sixel_images(removed_image_indexes);
+                        }
                     }
                     l.cells.clear();
                     if (deallocate || l.cells.capacity() > 256) // Deallocate long lines (256*sizeof(cell)=10240bytes).
@@ -3661,7 +3679,7 @@ namespace netxs::ui
 
             scroll_buf(term& boss)
                 : bufferbase{ boss },
-                       batch{ boss.defcfg.def_length, boss.defcfg.def_growdt, boss.defcfg.def_growmx },
+                       batch{ boss },
                        index{ 1    },
                        place{      },
                        shore{ boss.defcfg.def_margin }
@@ -5100,6 +5118,7 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
 
+                auto has_sixel = proto.front().get_image_sixel();
                 if (coord.y < y_top)
                 {
                     auto start = coord;
@@ -5126,6 +5145,7 @@ namespace netxs::ui
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
+                    upbox.or_image_sixel(has_sixel);
                     // Note: coord can be unsync due to scroll regions.
                 }
                 else if (coord.y <= y_end)
@@ -5135,9 +5155,9 @@ namespace netxs::ui
                     auto  start = batch.caret;
                     batch.caret += count;
                     coord.x     += count;
+                    auto old_state = curln.get_state();
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        auto old_state = curln.get_state();
                         curln.splice<Copy>(start, count, proto, fuse, brush.spare.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
@@ -5146,6 +5166,7 @@ namespace netxs::ui
                             mapln.width = coord.x;
                             batch.recalc(curln, old_state);
                         }
+                        curln.or_image_sixel(has_sixel);
                     } // case 0 - done.
                     else
                     {
@@ -5165,7 +5186,6 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            auto old_state = curln.get_state();
                             curln.resize(batch.caret, brush.spare.spc());
                             batch.recalc(curln, old_state);
                             if (auto n = (si32)(batch.back().index - curid))
@@ -5211,7 +5231,6 @@ namespace netxs::ui
                         } // case 3 done
                         else
                         {
-                            auto old_state = curln.get_state();
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
@@ -5292,7 +5311,9 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice<Copy>(start, count, proto, fuse, brush.spare.spc());
+                        auto& final_run = batch.current();
+                        final_run.splice<Copy>(start, count, proto, fuse, brush.spare.spc());
+                        final_run.or_image_sixel(has_sixel);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -5320,6 +5341,7 @@ namespace netxs::ui
                         rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
+                    dnbox.or_image_sixel(has_sixel);
                     // Note: coord can be unsync due to scroll regions.
                 }
                 assert(test_coord());
@@ -7371,6 +7393,24 @@ namespace netxs::ui
             }
         };
 
+        void remove_sixel_image(ui16 removed_image_index, bool notify)
+        {
+            auto images = cell::images(); // Lock.
+            images.remove(removed_image_index);
+            if (notify)
+            {
+                base::signal(tier::general, e2::data::image::remove, { removed_image_index }); // Signal to outside.
+            }
+        }
+        void remove_sixel_images(std::vector<ui16>& removed_image_indexes)
+        {
+            auto images = cell::images(); // Lock.
+            for (auto index : removed_image_indexes)
+            {
+                images.remove(index);
+            }
+            base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
+        }
         // term: Take data until ST. Don't touch q if sequence is broken.
         static qiew read_until_st_or_giveup(qiew& q)
         {
@@ -7713,7 +7753,6 @@ namespace netxs::ui
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
         //utf::unordered_map<text, netxs::sptr<imagens::image>> sixel_cache; // term: Sixel cache.
         face                                                  image_buffer; // term: Image temporary buffer.
-        bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
         std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
@@ -7722,6 +7761,7 @@ namespace netxs::ui
         template<class S, class P>
         auto print_block(S& scrollback, core const& block, twod trim_by_viewport, P fuse)
         {
+            auto cells_printed = ui64{};
             auto size = block.size();
             auto head = block.begin();
             auto tail = block.end();
@@ -7730,7 +7770,7 @@ namespace netxs::ui
             if (trim_by_viewport)
             {
                 auto crop = std::min(trim_by_viewport, coor + size) - coor;
-                if (crop.x <= 0 || crop.y <= 0) return;
+                if (crop.x <= 0 || crop.y <= 0) return cells_printed;
                 step = crop.x;
                 tail = head + size.x * crop.y;
             }
@@ -7740,6 +7780,7 @@ namespace netxs::ui
                 auto next = head + step;
                 auto cell_run = std::span(head, next);
                 scrollback.template _data<true>(step, cell_run, fuse);
+                cells_printed += step;
                 head = next + rest;
                 if (head != tail)
                 {
@@ -7751,21 +7792,24 @@ namespace netxs::ui
                     break;
                 }
             }
+            return cells_printed;
         }
         // term: Print specified block (scroll/wrap in normal; crop by the altbuf viewport).
         auto draw_block(core const& image_buffer, auto fx, bool trim_hz = faux, bool trim_vt = faux)
         {
+            auto cells_printed = ui64{};
             if (target == &normal)
             {
                 auto trim_by_viewport = twod{ trim_hz ? target->panel.x : dot_mx.x,
                                               trim_vt ? target->panel.y : dot_mx.y };
-                print_block(normal, image_buffer, trim_by_viewport, fx);
+                cells_printed = print_block(normal, image_buffer, trim_by_viewport, fx);
             }
             else
             {
                 auto& target_buffer = *(alt_screen*)target;
-                print_block(target_buffer, image_buffer, target->panel, fx);
+                cells_printed = print_block(target_buffer, image_buffer, target->panel, fx);
             }
+            return cells_printed;
         }
         // term: Place rectangle block to the scrollback buffer.
         template<class S, class P>
@@ -7813,9 +7857,15 @@ namespace netxs::ui
                     (*head++).set_image_cr(col, row);
                 }
             }
-            //todo image cell accounting
+            auto cells_expected = image_buffer.volume();
+            image_ref_count[image.index] += cells_expected;
+            auto cells_printed = draw_block(image_buffer, cell::shaders::full, true, !decsdm);
+            image_ref_count[image.index] -= cells_expected - cells_printed;
+            if (image_ref_count[image.index] == 0) // A case where nothing is printed.
+            {
+                remove_sixel_image(image.index, faux);
+            }
             //todo respect decsdm (trim image + don't move cursor)
-            draw_block(image_buffer, cell::shaders::full, true, !decsdm);
             data_in("\n\r");
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
@@ -8084,7 +8134,8 @@ namespace netxs::ui
                         images.remove(image.index);
                     }
                     image_cache.clear();
-                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    base::signal(tier::release, e2::data::image::remove, removed_image_indexes); // Remove image cells from the local scrollback.
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
                     if (io_log) log("%%All registered objects are successfully unregistered (count=%%)", prompt::term, removed_image_indexes.size());
                 }
                 else if (auto iter = image_cache.find(id_str); iter != image_cache.end())
@@ -8094,7 +8145,8 @@ namespace netxs::ui
                     auto removed_image_indexes = e2::data::image::remove.param({ image.index });
                     image_cache.erase(iter);
                     images.remove(image.index);
-                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    base::signal(tier::release, e2::data::image::remove, removed_image_indexes); // Remove image cells from the local scrollback.
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
@@ -9558,7 +9610,6 @@ namespace netxs::ui
     public:
         ~term()
         {
-            image_alive = faux;
             //if (image_cache.size() || sixel_cache.size()) // Signal to wipe all image references.
             if (image_cache.size()) // Signal to wipe all image references.
             {
