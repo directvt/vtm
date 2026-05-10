@@ -763,7 +763,7 @@ namespace netxs
         }
     };
 
-    // intmath: Forward/Reverse (bool template arg) copy the specified
+    // intmath: Forward/Reverse (RtoL) copy the specified
     //          sequence of cells onto the canvas at the specified offset
     //          and return count of copied cells.
     template<bool RtoL>

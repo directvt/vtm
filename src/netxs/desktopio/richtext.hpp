@@ -862,7 +862,7 @@ namespace netxs::ui
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
-        void scroll(si32 top, si32 end, si32 gap, cell const& clr)
+        void scroll(si32 top, si32 end, si32 gap, auto fuse, cell const& clr)
         {
             auto data = core::begin();
             auto size = core::size();
@@ -879,12 +879,12 @@ namespace netxs::ui
                     auto head = data + size.x * cut;
                     auto dest = head + step;
                     auto tail = src;
-                    while (head != tail) *--dest = *--head;
+                    while (head != tail) fuse(*--dest, *--head);
                 }
                 else step *= end - top;
 
                 auto dst = src + step;
-                while (dst != src) *src++ = clr;
+                while (dst != src) fuse(*src++, clr);
             }
             else
             {
@@ -896,12 +896,12 @@ namespace netxs::ui
                     auto head = data + size.x * cut;
                     auto dest = head + step;
                     auto tail = src;
-                    while (head != tail) *dest++ = *head++;
+                    while (head != tail) fuse(*dest++, *head++);
                 }
                 else step *= top - end;
 
                 auto dst = src + step;
-                while (dst != src) *--src = clr;
+                while (dst != src) fuse(*--src, clr);
             }
         }
         // rich: Shift 1D substring inside the line.
@@ -1609,7 +1609,7 @@ namespace netxs::ui
         }
         auto get_image_sixel()       { return image; }
         auto set_image_sixel(si32 n) { image = n; }
-        auto  or_image_sixel(si32 n) { image |= n; }
+        auto  or_image_sixel(si32 n) { image = image || n; }
         void deallocate()
         {
             body().swap(cells);
