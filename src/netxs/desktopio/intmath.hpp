@@ -1178,6 +1178,43 @@ namespace netxs
             iter += stride;
         }
     }
+    // intmath: Get minimal rectangular area if 'is_visible(...)'.
+    template<class Rect>
+    auto get_minimal_area_if(auto size, auto get_row, auto is_visible)
+    {
+        auto crop = Rect{};
+        auto w = size.x;
+        auto h = size.y;
+        auto y0 = 0;
+        while (y0 < h && std::none_of(get_row(y0).begin(), get_row(y0).end(), is_visible)) // Top bound.
+        {
+            y0++;
+        }
+        if (y0 != h)
+        {
+            auto y1 = h - 1;
+            while (y1 > y0 && std::none_of(get_row(y1).begin(), get_row(y1).end(), is_visible)) // Bottom bound.
+            {
+                y1--;
+            }
+            auto x0 = w;
+            auto x1 = -1;
+            for (auto y = y0; y <= y1; ++y) // Look inside [y0, y1].
+            {
+                auto row = get_row(y);
+                auto first = std::find_if(row.begin(), row.end(), is_visible);
+                if (first != row.end())
+                {
+                    x0 = std::min(x0, (si32)std::distance(row.begin(), first)); // Left.
+                    auto last = std::find_if(row.rbegin(), row.rend(), is_visible);
+                    x1 = std::max(x1, (si32)(w - 1 - std::distance(row.rbegin(), last))); // Right.
+                }
+                if (x0 == 0 && x1 == w - 1) break; // Maximum possible found.
+            }
+            crop = {{ x0, y0 }, { x1 - x0 + 1, y1 - y0 + 1 }};
+        }
+        return crop;
+    }
 
     static inline
     bool liang_barsky(fp32 xmin, fp32 ymin, fp32 xmax, fp32 ymax,

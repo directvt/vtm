@@ -7581,8 +7581,22 @@ namespace netxs::ui
             }
             return param_count;
         }
-        static text rgba_to_svg(std::vector<argb>& pixels, twod size)
+        static text rgba_to_svg(std::vector<argb>& pixels, twod& size, bool implicit_size, argb transparent_pixel)
         {
+            if (implicit_size) // Trim transparent borders (get minimal non transparent area - dropping right+bottom).
+            {
+                auto data = std::span{ pixels };
+                auto w = size.x;
+                auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
+                auto is_visible = [=](argb p){ return p != transparent_pixel; };
+                auto crop = netxs::get_minimal_area_if<rect>(size, get_row, is_visible);
+                auto raster = netxs::raster{ data, rect{ dot_00, size }};
+                crop.size += std::exchange(crop.coor, dot_00); // Keep Top+Left.
+                auto iter = pixels.begin();
+                netxs::onrect(raster, crop, [&](auto p){ *iter++ = p; }); // Copy crop to the pixels itself (dropping Right+Bottom borders).
+                size = crop.size;
+                pixels.resize(size.x * size.y);
+            }
             for (auto& c : pixels) c.swap_rb();
             auto file_data = std::vector<byte>{};
             file_data.reserve(size.x * size.y);
@@ -7628,7 +7642,8 @@ namespace netxs::ui
                 // n
                 //auto hz_grid_size = params[2];
                 auto size = owner.target->panel * cellsz;
-                size.y *= aspect_ratio;
+                auto implicit_size = true;
+                //size.y *= aspect_ratio; // Don't scale max image size.
                 auto stride = size.x * aspect_ratio * 6;
                 auto palette = owner.ctrack.color; // Copy terminal palette.
                 auto cur_map = 0;
@@ -7731,10 +7746,10 @@ namespace netxs::ui
                         tail = q2.end();
                         auto dy = std::max(1, std::abs(params2[0]));
                         auto dx = std::max(1, std::abs(params2[1]));
-                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
-                        size.y = std::clamp(std::abs(params2[3]), 1, std::max(4096, owner.target->panel.y * cellsz.y));
                         aspect_ratio = (si32)std::round((fp32)dy / dx);
-                        size.y *= aspect_ratio;
+                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
+                        size.y = std::clamp(std::abs(params2[3]) * aspect_ratio, 1, std::max(4096, owner.target->panel.y * cellsz.y));
+                        implicit_size = faux;
                         coor = 0;
                         line = 0;
                         maxx = size.x;
@@ -7778,7 +7793,7 @@ namespace netxs::ui
                 q = qiew{ head, tail };
                 if (ok) // Show image.
                 {
-                    auto doc_str = term::rgba_to_svg(bitmap, size);
+                    auto doc_str = term::rgba_to_svg(bitmap, size, implicit_size, transparency ? argb{} : cur_bgc);
                     auto fp_wh = fp2d{ size } / fp2d{ cellsz };
                     auto wh = twod{ std::ceil(fp_wh) };
                     auto c = owner.target->cell_under_cursor();
@@ -8110,7 +8125,7 @@ namespace netxs::ui
             //       " [attrs] + doc "                Register empty id.
             //       " [id] "                         Find by id and print.
             //       " [id] + attrs "                 Find by id and print applying new attrs.
-            //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
+            //       " [id] + explicit-empty-doc "    Find by id and unregister. (doc=<tag></tag>)
             while (attrs_str)
             {
                 if (attrs_str.front() == '<') // Extract document body <tag1 ...> ... </tag2>
