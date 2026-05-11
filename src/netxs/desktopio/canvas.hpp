@@ -1717,7 +1717,7 @@ namespace netxs
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
             using uset = std::vector<ui16>;//std::unordered_set<ui16>;
-            using pool = generics::indexer<ui16>;
+            using pool = generics::indexer_fifo<ui16>;
 
             lock mutex; // Object map mutex.
             depo store; // Object map.
