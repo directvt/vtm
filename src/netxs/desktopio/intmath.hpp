@@ -131,10 +131,13 @@ namespace netxs
     template<bool PredicateReturn>
     struct base_noop
     {
+        constexpr auto operator () (auto&&...) const
+        {
+            return PredicateReturn;
+        }
         constexpr auto operator () (auto&&...)
         {
             return PredicateReturn;
-            //return *this;
         }
         constexpr operator bool () const { return faux; }
         constexpr base_noop(auto&&...) { }

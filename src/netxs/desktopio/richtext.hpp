@@ -1028,7 +1028,7 @@ namespace netxs::ui
             }
         }
         // rich: Put n blanks on top of the chars and cut them off with the right edge.
-        void splice(twod at, si32 count, cell const& blank)
+        void splice3(twod at, si32 count, auto fx)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1037,7 +1037,7 @@ namespace netxs::ui
             auto ptr = begin();
             auto dst = ptr + at.x + at.y * len.x;
             auto end = dst + vol;
-            while (dst != end) *dst++ = blank;
+            while (dst != end) fx(*dst++);
         }
         // rich: Put n blanks on top of the chars and wrap them at the right edge.
         void backsp(twod at, si32 count, cell const& blank)
@@ -1756,7 +1756,7 @@ namespace netxs::ui
         }
         // line: Place a number of blank cells at specified position.
         template<bool AutoGrow = faux>
-        void splice(si32 at, si32 count, cell const& blank)
+        void splice2(si32 at, si32 count, auto fx)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1772,7 +1772,7 @@ namespace netxs::ui
             auto ptr = cells.begin();
             auto dst = ptr + at;
             auto end = dst + count;
-            while (dst != end) *dst++ = blank;
+            while (dst != end) fx(*dst++);
         }
         // line: Place the specified fragment to the specified position.
         void splice(si32 at, std::span<cell const> fragment, auto fuse, cell const& c = {})
