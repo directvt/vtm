@@ -5916,7 +5916,13 @@ namespace netxs::ui
                     {
                         auto& tmpln = batch[after];
                         auto old_state = tmpln.get_state();
-                        tmpln.copy_piece(tmpln, start);
+                        auto head = tmpln.cells.begin();
+                        auto tail = head + start;
+                        if (tmpln.get_image_sixel())
+                        {
+                            std::ranges::for_each(head, tail, owner.sixel_decrement_accounting());
+                        }
+                        tmpln.cells.erase(head, tail);
                         batch.recalc(tmpln, old_state);
                         return;
                     }
