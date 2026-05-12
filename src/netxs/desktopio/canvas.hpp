@@ -4062,6 +4062,24 @@ namespace netxs
             digest++;
         }
         template<bool BottomAnchored = faux>
+        void crop(twod new_size, cell const& c, auto dec_accounting) // core: Resize preserving bitmap.
+        {
+            auto old_size = size();
+            if (new_size.y < old_size.y) // Check bottom field.
+            {
+                auto r = rect{{ 0, BottomAnchored ? 0 : new_size.y }, { old_size.x, old_size.y - new_size.y }};
+                r.coor += coor();
+                netxs::onrect(*this, r, dec_accounting);
+            }
+            if (new_size.x < old_size.x) // Check right field.
+            {
+                auto r = rect{{ new_size.x, BottomAnchored ? std::max(0, old_size.y - new_size.y) : 0 }, { old_size.x - new_size.x, std::min(old_size.y, new_size.y) }};
+                r.coor += coor();
+                netxs::onrect(*this, r, dec_accounting);
+            }
+            crop<BottomAnchored>(new_size, c);
+        }
+        template<bool BottomAnchored = faux>
         void crop(twod new_size) // core: Resize preserving bitmap.
         {
             crop<BottomAnchored>(new_size, marker);

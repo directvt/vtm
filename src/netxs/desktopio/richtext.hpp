@@ -2916,15 +2916,9 @@ namespace netxs::ui
             return core::size();
         }
         template<bool BottomAnchored = faux>
-        void crop(twod new_size, cell const& c) // face: Resize while saving the bitmap.
+        void crop(twod new_size, auto... args) // face: Resize while saving the bitmap.
         {
-            core::crop<BottomAnchored>(new_size, c);
-            flow::size(new_size);
-        }
-        template<bool BottomAnchored = faux>
-        void crop(twod new_size) // face: Resize while saving the bitmap.
-        {
-            core::crop<BottomAnchored>(new_size, core::mark());
+            core::crop<BottomAnchored>(new_size, args...);
             flow::size(new_size);
         }
         // face: Double boxblur the face background.

@@ -2766,7 +2766,17 @@ namespace netxs::ui
                 remove_sixel_images(removed_image_indexes);
             }
         }
-        auto _sixel_decrement_accounting(cell const& dst)
+        void _sixel_inc_accounting(cell const& src)
+        {
+            if (src.get_image_sixel())
+            if (auto index = src.get_image_index())
+            {
+                auto& count = image_ref_count[index];
+                if constexpr (debugmode) log("\tinc image index: %% cell_count: %% -> %%", index, count, count + 1);
+                count++;
+            }
+        }
+        void _sixel_dec_accounting(cell const& dst)
         {
             if (dst.get_image_sixel())
             if (auto index = dst.get_image_index())
@@ -2794,11 +2804,20 @@ namespace netxs::ui
             }
         }
         template<class P = netxs::noop>
-        auto sixel_decrement_accounting(P fx = {})
+        auto sixel_inc_accounting(P fx = {})
+        {
+            return [&, fx](auto& src)
+            {
+                _sixel_inc_accounting(src);
+                fx(src);
+            };
+        }
+        template<class P = netxs::noop>
+        auto sixel_dec_accounting(P fx = {})
         {
             return [&, fx](auto& dst)
             {
-                _sixel_decrement_accounting(dst);
+                _sixel_dec_accounting(dst);
                 fx(dst);
             };
         }
@@ -2806,14 +2825,8 @@ namespace netxs::ui
         {
             return [&, fx](cell& dst, cell const& src)
             {
-                if (src.get_image_sixel())
-                if (auto index = src.get_image_index())
-                {
-                    auto& count = image_ref_count[index];
-                    if constexpr (debugmode) log("\tinc image index: %% cell_count: %% -> %%", index, count, count + 1);
-                    count++;
-                }
-                _sixel_decrement_accounting(dst);
+                _sixel_inc_accounting(src);
+                _sixel_dec_accounting(dst);
                 fx(dst, src);
             };
         }
@@ -2838,27 +2851,11 @@ namespace netxs::ui
             // alt_screen: Resize viewport.
             void resize_viewport(twod new_sz, bool /*forced*/ = faux) override
             {
-                auto old_panel = panel;
                 bufferbase::resize_viewport(new_sz);
-                auto new_panel = panel;
-                auto has_sixels = canvas.get_image_sixel();
-                if (has_sixels)
-                {
-                    if (new_panel.y < old_panel.y) // Check bottom field.
-                    {
-                        auto area = rect{{ 0, new_panel.y }, { old_panel.x, old_panel.y - new_panel.y }};
-                        area.coor += canvas.coor();
-                        netxs::onrect(canvas, area, owner.sixel_decrement_accounting());
-                    }
-                    if (new_panel.x < old_panel.x) // Check right field.
-                    {
-                        auto area = rect{{ new_panel.x, 0 }, { old_panel.x - new_panel.x, std::min(old_panel.y, new_panel.y) }};
-                        area.coor += canvas.coor();
-                        netxs::onrect(canvas, area, owner.sixel_decrement_accounting());
-                    }
-                }
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel, brush.spare.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.crop(panel, brush.spare.dry(), owner.sixel_dec_accounting())
+                           : canvas.crop(panel, brush.spare.dry());
                 if (has_sixels)
                 {
                     has_sixels = faux;
@@ -2923,8 +2920,8 @@ namespace netxs::ui
             {
                 bufferbase::flush();
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? _el(n, canvas, coord, panel, owner.sixel_decrement_accounting(cell::shaders::full(brush.spc()))) // ok
-                           : _el(n, canvas, coord, panel,                                  cell::shaders::full(brush.spc()));
+                has_sixels ? _el(n, canvas, coord, panel, owner.sixel_dec_accounting(cell::shaders::full(brush.spc()))) // ok
+                           : _el(n, canvas, coord, panel,                            cell::shaders::full(brush.spc()));
             }
             // alt_screen: CSI n @  ICH. Insert n colored blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -2955,8 +2952,8 @@ namespace netxs::ui
                     wrapup();
                 }
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.backsp(coord, n, owner.sixel_decrement_accounting(cell::shaders::full(brush.spare.spc())))
-                           : canvas.backsp(coord, n,                                  cell::shaders::full(brush.spare.spc()));
+                has_sixels ? canvas.backsp(coord, n, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.spc())))
+                           : canvas.backsp(coord, n,                            cell::shaders::full(brush.spare.spc()));
                 if (coord.y < 0) coord = dot_00;
             }
             void del(si32 n) override
@@ -2981,16 +2978,17 @@ namespace netxs::ui
                 auto blank = brush;
                 blank.txt(c);
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.splice3(coord, n, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                           : canvas.splice3(coord, n,                                  cell::shaders::full(blank));
+                has_sixels ? canvas.splice3(coord, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                           : canvas.splice3(coord, n,                            cell::shaders::full(blank));
             }
             // alt_screen: Proceed new text using specified cell shader.
-            template<bool Copy = faux, class Span, class Shader>
-            void _data(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy = faux>
+            void _data(si32 count, auto const& proto, auto fuse, bool forceSixelAccounting = faux)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
-                auto add_sixels = proto.front().get_image_sixel();
+                auto add_sixels = forceSixelAccounting ? std::ranges::any_of(proto, [](auto& c){ return c.get_image_sixel(); })
+                                                       : proto.front().get_image_sixel();
                 auto has_sixels = add_sixels || canvas.get_image_sixel();
                 canvas.set_image_sixel(has_sixels);
                 auto start = coord;
@@ -3162,8 +3160,8 @@ namespace netxs::ui
             void del_below() override
             {
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.del_below2(coord, owner.sixel_decrement_accounting(cell::shaders::full(brush.dry())))
-                           : canvas.del_below2(coord,                                  cell::shaders::full(brush.dry()));
+                has_sixels ? canvas.del_below2(coord, owner.sixel_dec_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_below2(coord,                            cell::shaders::full(brush.dry()));
             }
             // alt_screen: Clear all lines from the viewport top line to the current line by the current brush.
             void del_above() override
@@ -3171,8 +3169,8 @@ namespace netxs::ui
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.del_above2(coord, owner.sixel_decrement_accounting(cell::shaders::full(brush.dry())))
-                           : canvas.del_above2(coord,                                  cell::shaders::full(brush.dry()));
+                has_sixels ? canvas.del_above2(coord, owner.sixel_dec_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_above2(coord,                            cell::shaders::full(brush.dry()));
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -3213,8 +3211,8 @@ namespace netxs::ui
                     scroll_region(0, panel.y - 1, -coord.y);
                 }
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.del_below2({ 0, 1 }, owner.sixel_decrement_accounting(cell::shaders::full(brush.spare.dry())))
-                           : canvas.del_below2({ 0, 1 },                                  cell::shaders::full(brush.spare.dry()));
+                has_sixels ? canvas.del_below2({ 0, 1 }, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.dry())))
+                           : canvas.del_below2({ 0, 1 },                            cell::shaders::full(brush.spare.dry()));
                 set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
@@ -5005,8 +5003,8 @@ namespace netxs::ui
                     if (count)
                     {
                         auto has_sixels = curln.get_image_sixel();
-                        has_sixels ? curln.splice2<true>(start, count, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                                   : curln.splice2<true>(start, count,                                  cell::shaders::full(blank));
+                        has_sixels ? curln.splice2<true>(start, count, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(start, count,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                         width = curln.length();
                         auto& mapln = index[coord.y];
@@ -5023,8 +5021,8 @@ namespace netxs::ui
                 else
                 {
                     auto has_sixels = ctx.block.get_image_sixel();
-                    has_sixels ? alt_screen::_el(n, ctx.block, coord, panel, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : alt_screen::_el(n, ctx.block, coord, panel,                                  cell::shaders::full(blank));
+                    has_sixels ? alt_screen::_el(n, ctx.block, coord, panel, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : alt_screen::_el(n, ctx.block, coord, panel,                            cell::shaders::full(blank));
                 }
             }
             // scroll_buf: CSI n @  ICH. Insert n colored blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
@@ -5195,8 +5193,8 @@ namespace netxs::ui
                     _fwd(-n);
                     auto& curln = batch.current();
                     auto has_sixels = curln.get_image_sixel();
-                    has_sixels ? curln.splice2<faux>(batch.caret, n, owner.sixel_decrement_accounting(cell::shaders::full(brush.spare.spc())))
-                               : curln.splice2<faux>(batch.caret, n,                                  cell::shaders::full(brush.spare.spc()));
+                    has_sixels ? curln.splice2<faux>(batch.caret, n, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.spc())))
+                               : curln.splice2<faux>(batch.caret, n,                            cell::shaders::full(brush.spare.spc()));
                 }
             }
             void del(si32 n) override
@@ -5225,8 +5223,8 @@ namespace netxs::ui
                     //if (c == whitespace) curln.splice2<faux>(batch.caret, n, blank);
                     //else                 curln.splice2<true>(batch.caret, n, blank);
                     auto has_sixels = curln.get_image_sixel();
-                    has_sixels ? curln.splice2<true>(batch.caret, n, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : curln.splice2<true>(batch.caret, n,                                  cell::shaders::full(blank));
+                    has_sixels ? curln.splice2<true>(batch.caret, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : curln.splice2<true>(batch.caret, n,                            cell::shaders::full(blank));
                     batch.recalc(curln, old_state);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
@@ -5237,8 +5235,8 @@ namespace netxs::ui
                 else
                 {
                     auto has_sixels = ctx.block.get_image_sixel();
-                    has_sixels ? ctx.block.splice3(coord, n, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : ctx.block.splice3(coord, n,                                  cell::shaders::full(blank));
+                    has_sixels ? ctx.block.splice3(coord, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : ctx.block.splice3(coord, n,                            cell::shaders::full(blank));
                 }
             }
             // scroll_buf: Merge curln with its neighbors.
@@ -5273,16 +5271,17 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Proceed new text using specified cell shader.
-            template<bool Copy = faux, class Span, class Shader>
-            void _data(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy = faux>
+            void _data(si32 count, auto const& proto, auto fuse, bool forceSixelAccounting = faux)
             {
-                static constexpr auto mixer = !std::is_same_v<Shader, decltype(cell::shaders::full)>;
+                static constexpr auto mixer = !std::is_same_v<decltype(fuse), decltype(cell::shaders::full)>;
 
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
                 assert(test_coord());
 
-                auto add_sixels = proto.front().get_image_sixel();
+                auto add_sixels = forceSixelAccounting ? std::ranges::any_of(proto, [](auto& c){ return c.get_image_sixel(); })
+                                                       : proto.front().get_image_sixel();
                 if (coord.y < y_top)
                 {
                     auto has_sixels = add_sixels || upbox.get_image_sixel();
@@ -5834,8 +5833,8 @@ namespace netxs::ui
                         {
                             mapln.width = panel.x;
                             auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
-                            has_sixels ? curln.splice2<true>(start + x, panel.x - x, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                                       : curln.splice2<true>(start + x, panel.x - x,                                  cell::shaders::full(blank));
+                            has_sixels ? curln.splice2<true>(start + x, panel.x - x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                       : curln.splice2<true>(start + x, panel.x - x,                            cell::shaders::full(blank));
                             new_size = start + panel.x;
                         }
                         else
@@ -5850,7 +5849,7 @@ namespace netxs::ui
                         if (has_sixels)
                         {
                             auto cut = curln.substr(new_size);
-                            std::ranges::for_each(cut, owner.sixel_decrement_accounting());
+                            std::ranges::for_each(cut, owner.sixel_dec_accounting());
                         }
                         curln.trimto(new_size);
                         batch.recalc(curln, old_state);
@@ -5868,8 +5867,8 @@ namespace netxs::ui
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
                     auto has_sixels = upbox.get_image_sixel();
-                    has_sixels ? upbox.del_below2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : upbox.del_below2(coor,                                  cell::shaders::full(blank));
+                    has_sixels ? upbox.del_below2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : upbox.del_below2(coor,                            cell::shaders::full(blank));
                     clear(dot_00);
                 }
                 else if (coor.y <= y_end)
@@ -5883,8 +5882,8 @@ namespace netxs::ui
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
                     auto has_sixels = dnbox.get_image_sixel();
-                    has_sixels ? dnbox.del_below2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : dnbox.del_below2(coor,                                  cell::shaders::full(blank));
+                    has_sixels ? dnbox.del_below2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_below2(coor,                            cell::shaders::full(blank));
                 }
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -5902,8 +5901,8 @@ namespace netxs::ui
                         auto old_state = curln.get_state();
                         mapln.width = panel.x;
                         auto has_sixels = curln.get_image_sixel();
-                        has_sixels ? curln.splice2<true>(mapln.start, panel.x, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                                   : curln.splice2<true>(mapln.start, panel.x,                                  cell::shaders::full(blank));
+                        has_sixels ? curln.splice2<true>(mapln.start, panel.x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(mapln.start, panel.x,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                     }
                     if (from.x > 0)
@@ -5913,8 +5912,8 @@ namespace netxs::ui
                         auto old_state = curln.get_state();
                         mapln.width = std::max(mapln.width, from.x);
                         auto has_sixels = curln.get_image_sixel();
-                        has_sixels ? curln.splice2<true>(mapln.start, from.x, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                                   : curln.splice2<true>(mapln.start, from.x,                                  cell::shaders::full(blank));
+                        has_sixels ? curln.splice2<true>(mapln.start, from.x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(mapln.start, from.x,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                     }
                     upbox.wipe(blank);
@@ -5926,8 +5925,8 @@ namespace netxs::ui
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
                     auto has_sixels = upbox.get_image_sixel();
-                    has_sixels ? upbox.del_above2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : upbox.del_above2(coor,                                  cell::shaders::full(blank));
+                    has_sixels ? upbox.del_above2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : upbox.del_above2(coor,                            cell::shaders::full(blank));
                 }
                 else if (coor.y <= y_end)
                 {
@@ -5940,8 +5939,8 @@ namespace netxs::ui
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
                     auto has_sixels = dnbox.get_image_sixel();
-                    has_sixels ? dnbox.del_above2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
-                               : dnbox.del_above2(coor,                                  cell::shaders::full(blank));
+                    has_sixels ? dnbox.del_above2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_above2(coor,                            cell::shaders::full(blank));
                     clear(twod{ panel.x , arena - 1 });
                 }
             }
@@ -5961,7 +5960,7 @@ namespace netxs::ui
                         auto tail = head + start;
                         if (tmpln.get_image_sixel())
                         {
-                            std::ranges::for_each(head, tail, owner.sixel_decrement_accounting());
+                            std::ranges::for_each(head, tail, owner.sixel_dec_accounting());
                         }
                         tmpln.cells.erase(head, tail);
                         batch.recalc(tmpln, old_state);
@@ -8034,9 +8033,8 @@ namespace netxs::ui
                 print_block(target_buffer, image_buffer, target->panel, fx);
             }
         }
-        // term: Place rectangle block to the scrollback buffer.
-        template<class S, class P>
-        auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
+        // term: Place rectangle block to the scrollback buffer (forced sixel accounting).
+        auto write_block(auto& scrollback, core const& block, twod coor, rect trim, auto fuse, bool forceSixelAccounting)
         {
             auto size = block.size();
             auto clip = block.clip();
@@ -8055,7 +8053,7 @@ namespace netxs::ui
                 auto next = head + clip.size.x;
                 auto cell_run = std::span(head, next);
                 scrollback.cup2(coor);
-                scrollback.template _data<true>(clip.size.x, cell_run, fuse);
+                scrollback.template _data<true>(clip.size.x, cell_run, fuse, forceSixelAccounting);
                 head = next + rest;
                 coor.y++;
             }
@@ -8119,23 +8117,28 @@ namespace netxs::ui
             auto src_area = rect{ dot_00, size };
             area.trimby(src_area);
             fragment.full(src_area);
-            auto empty_cells = cell{}.link(defclr.link());
-            fragment.core::crop(area.size, empty_cells);
+            auto empty_cell = cell{}.link(defclr.link());
+            fragment.core::crop(area.size, empty_cell);
             fragment.core::area(area);
             // Take fragment.
             if (srcBuffIndex == -1) console.do_viewport_copy(fragment);
             else                    netxs::onbody(fragment, pocket[srcBuffIndex], cell::shaders::full);
+            auto has_sixels = faux;
+            fragment.each(sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); }));
             // Put fragment.
             auto coor = twod{ dstLeft, dstTop };
             if (dstBuffIndex == -1) // Dst is real buffer.
             {
                 area.coor = {};
                 fragment.area(area);
-                if (target == &normal) write_block(normal, fragment, coor, src_area, cell::shaders::full);
+                if (target == &normal)
+                {
+                    write_block(normal, fragment, coor, src_area, cell::shaders::full, has_sixels);
+                }
                 else
                 {
                     auto& target_buffer = *(alt_screen*)target;
-                    write_block(target_buffer, fragment, coor, src_area, cell::shaders::full);
+                    write_block(target_buffer, fragment, coor, src_area, cell::shaders::full, has_sixels);
                 }
             }
             else
@@ -8143,9 +8146,10 @@ namespace netxs::ui
                 area.coor = coor;
                 fragment.area(area);
                 auto& dst = pocket[dstBuffIndex];
-                dst.crop(console.panel, empty_cells);
-                dst.plot(fragment, cell::shaders::full);
+                dst.crop(console.panel, empty_cell, sixel_dec_accounting());
+                dst.plot(fragment, sixel_accounting(cell::shaders::full));
             }
+            if (has_sixels) fragment.each(sixel_dec_accounting());
         }
         // term: Set semantic marker (OSC 133).
         void osc_marker(view data)

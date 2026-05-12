@@ -648,8 +648,8 @@ namespace netxs::ansi
             if (legacy_color)
             {
                 save_palette();
-                argb::set_vtm16_palette([&](auto ...Args){ escx::old_palette(Args...); });
-                argb::set_vtm16_palette([&](auto ...Args){ escx::osc_palette(Args...); });
+                argb::set_vtm16_palette([&](auto... args){ escx::old_palette(args...); });
+                argb::set_vtm16_palette([&](auto... args){ escx::osc_palette(args...); });
             }
             return *this;
         }

@@ -3436,7 +3436,7 @@ struct impl : consrv
             auto success = direct(packet.target, [&](auto& scrollback)
             {
                 scrollback.flush_data();
-                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnulls for transparency?
+                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full, faux); // cell::shaders::skipnulls for transparency?
                 return true;
             });
             if (!success) crop = {};
@@ -4251,8 +4251,11 @@ struct impl : consrv
         direct(packet.target, [&](auto& scrollback)
         {
             scrollback.flush_data();
-            uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
-            uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
+            auto has_sixels = faux;
+            mirror.each(uiterm.sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); }));
+            uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full, faux);
+            uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full, has_sixels);
+            if (has_sixels) mirror.each(uiterm.sixel_dec_accounting());
             return true;
         });
     }
