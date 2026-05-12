@@ -960,7 +960,7 @@ namespace netxs::ui
             while (dst != end) *--dst = blank;
         }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert2(twod at, si32 count, cell const& blank)
+        void insert2(twod at, si32 count, cell const& blank, auto fuse)
         {
             if (count <= 0) return;
             auto len = size();
@@ -971,8 +971,8 @@ namespace netxs::ui
             auto dst = pos + len.x;
             auto end = pos + at.x;
             auto src = dst - vol;
-            while (src != end) *--dst = *--src;
-            while (dst != end) *--dst = blank;
+            while (src != end) fuse(*--dst, *--src);
+            while (dst != end) fuse(*--dst, blank);
         }
         // rich: Insert fragment with shifting chars to the right.
         void insert3(si32 at, rich const& fragment)

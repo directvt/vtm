@@ -2932,7 +2932,9 @@ namespace netxs::ui
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                canvas.insert2(coord, n, brush.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.insert2(coord, n, brush.spc(), owner.sixel_accounting(cell::shaders::full))
+                           : canvas.insert2(coord, n, brush.spc(),                        cell::shaders::full);
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor by defclr.
             void dch(si32 n) override
@@ -5036,7 +5038,9 @@ namespace netxs::ui
                 }
                 else
                 {
-                    ctx.block.insert2(coord, n, blank);
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? ctx.block.insert2(coord, n, blank, owner.sixel_accounting(cell::shaders::full))
+                               : ctx.block.insert2(coord, n, blank,                        cell::shaders::full);
                 }
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by defclr. Length is preserved. No wrapping.
