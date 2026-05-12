@@ -3060,8 +3060,8 @@ namespace netxs::ui
                 return canvas.subline2(coord.x + coord.y * panel.x, left_cells);
             }
             // alt_screen: .
-            template<bool Copy, class Span, class Shader>
-            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy>
+            void _data_direct_fill(si32 count, auto const& proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -3074,8 +3074,7 @@ namespace netxs::ui
                 fill(canvas.begin(), coord.x + coord.y * panel.x);
             }
             // alt_screen: Insert new text using the specified cell shader.
-            template<class Span, class Shader>
-            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            void _data_insert(si32 count, auto const& proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
@@ -5527,8 +5526,8 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: .
-            template<bool Copy, class Span, class Shader>
-            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy>
+            void _data_direct_fill(si32 count, auto const& proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -5581,8 +5580,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Insert text using the specified cell shader.
-            template<class Span, class Shader>
-            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            void _data_insert(si32 count, auto const& proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
