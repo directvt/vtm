@@ -1104,23 +1104,23 @@ namespace netxs::ui
             while (dst != end) blank_fx(*dst++);
         }
         // rich: Clear from the specified coor to the bottom.
-        void del_below2(twod pos, cell const& blank)
+        void del_below2(twod pos, auto blank_fx)
         {
             auto len = size();
             auto ptr = begin();
             auto dst = ptr + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
             auto end = core::end();
-            while (dst != end) *dst++ = blank;
+            while (dst != end) blank_fx(*dst++);
         }
         // rich: Clear from the top to the specified coor.
-        void del_above2(twod pos, cell const& blank)
+        void del_above2(twod pos, auto blank_fx)
         {
             auto len = size();
             auto dst = begin();
             auto end = dst + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
-            while (dst != end) *dst++ = blank;
+            while (dst != end) blank_fx(*dst++);
         }
         //todo make it 2D
         // rich: Pop glyph matrix.

@@ -3161,14 +3161,18 @@ namespace netxs::ui
             // alt_screen: Clear all lines below except the current by the current brush . "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below2(coord, brush.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_below2(coord, owner.sixel_decrement_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_below2(coord,                                  cell::shaders::full(brush.dry()));
             }
             // alt_screen: Clear all lines from the viewport top line to the current line by the current brush.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above2(coord, brush.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_above2(coord, owner.sixel_decrement_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_above2(coord,                                  cell::shaders::full(brush.dry()));
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -3208,7 +3212,9 @@ namespace netxs::ui
                 {
                     scroll_region(0, panel.y - 1, -coord.y);
                 }
-                canvas.del_below2({ 0, 1 }, brush.spare.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_below2({ 0, 1 }, owner.sixel_decrement_accounting(cell::shaders::full(brush.spare.dry())))
+                           : canvas.del_below2({ 0, 1 },                                  cell::shaders::full(brush.spare.dry()));
                 set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
@@ -5847,7 +5853,9 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_below2(coor, blank);
+                    auto has_sixels = upbox.get_image_sixel();
+                    has_sixels ? upbox.del_below2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
+                               : upbox.del_below2(coor,                                  cell::shaders::full(blank));
                     clear(dot_00);
                 }
                 else if (coor.y <= y_end)
@@ -5860,7 +5868,9 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_below2(coor, blank);
+                    auto has_sixels = dnbox.get_image_sixel();
+                    has_sixels ? dnbox.del_below2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_below2(coor,                                  cell::shaders::full(blank));
                 }
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -5901,7 +5911,9 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_above2(coor, blank);
+                    auto has_sixels = upbox.get_image_sixel();
+                    has_sixels ? upbox.del_above2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
+                               : upbox.del_above2(coor,                                  cell::shaders::full(blank));
                 }
                 else if (coor.y <= y_end)
                 {
@@ -5913,7 +5925,9 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_above2(coor, blank);
+                    auto has_sixels = dnbox.get_image_sixel();
+                    has_sixels ? dnbox.del_above2(coor, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_above2(coor,                                  cell::shaders::full(blank));
                     clear(twod{ panel.x , arena - 1 });
                 }
             }
