@@ -8652,12 +8652,22 @@ namespace netxs::ui
                 }
             }
         }
+        // term: Reset DECCRA pockets.
+        void reset_pockets()
+        {
+            for (auto& p : pocket)
+            {
+                p.each(sixel_dec_accounting());
+                p.reset_face();
+            }
+        }
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
             target->parser::flush();
             normal.clear_all();
             altbuf.clear_all();
+            reset_pockets();
             target = &normal;
             invert = faux;
             decckm = faux;

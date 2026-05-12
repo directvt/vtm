@@ -2609,6 +2609,12 @@ namespace netxs::ui
         }
 
     public:
+        void reset_face()
+        {
+            auto tmp = core{};
+            core::swap(tmp);
+            flow::reset();
+        }
         //todo revise
         bool caret = faux; // face: Cursor visibility.
         bool moved = faux; // face: Is reflow required.
