@@ -582,28 +582,6 @@ namespace netxs::ui
             if (width == netxs::si32max) width = length() - at;
             return rich{ core::crop(at, width) };
         }
-        auto copy_piece(auto& dest, si32 from, si32 width) const
-        {
-            auto my_size = size();
-            if (from >= my_size.x * my_size.y)
-            {
-                dest.crop(0);
-                return;
-            }
-            auto new_width = from % my_size.x + width;
-            if (new_width > my_size.x)
-            {
-                width = my_size.x - from;
-            }
-            dest.crop(width);
-            auto src = begin() + from;
-            auto dst = dest.begin();
-            auto end = dest.end();
-            while (dst != end)
-            {
-                *dst++ = *src++;
-            }
-        }
         auto empty()
         {
             return canvas.empty();
@@ -1123,7 +1101,7 @@ namespace netxs::ui
             while (dst != end) blank_fx(*dst++);
         }
         //todo make it 2D
-        // rich: Pop glyph matrix.
+        // rich: Pop glyph matrix (ui::para).
         auto pop_cluster(bool peek = faux)
         {
             auto cluster = netxs::text{};
@@ -1831,12 +1809,6 @@ namespace netxs::ui
                 while (src != end) *dst++ = *src++;
                 while (dst != end) *dst++ = blank;
             }
-        }
-        // line: Copy the specified sub-line to the dest.
-        auto copy_piece(line& dest, si32 from, si32 width = netxs::si32max) const
-        {
-            auto s = substr(from, width);
-            dest.cells.assign(s.begin(), s.end());
         }
         // line: Find the substring and place its offset in &from.
         auto find(line const& what, auto&& from, feed dir = feed::fwd) const
