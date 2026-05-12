@@ -1087,7 +1087,7 @@ namespace netxs::ui
             }
         }
         // rich: Put n blanks on top of the chars and wrap them at the right edge.
-        void backsp(twod at, si32 count, cell const& blank)
+        void backsp(twod at, si32 count, auto blank_fx)
         {
             auto len = size();
             if (at.y >= len.y || (at.y == len.y - 1 && at.x >= len.x)) return;
@@ -1101,7 +1101,7 @@ namespace netxs::ui
             auto ptr = begin();
             auto dst = ptr + d2;
             auto end = dst + vol;
-            while (dst != end) *dst++ = blank;
+            while (dst != end) blank_fx(*dst++);
         }
         // rich: Clear from the specified coor to the bottom.
         void del_below2(twod pos, cell const& blank)

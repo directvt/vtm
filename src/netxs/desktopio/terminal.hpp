@@ -2954,7 +2954,9 @@ namespace netxs::ui
                 {
                     wrapup();
                 }
-                canvas.backsp(coord, n, brush.spare.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.backsp(coord, n, owner.sixel_decrement_accounting(cell::shaders::full(brush.spare.spc())))
+                           : canvas.backsp(coord, n,                                  cell::shaders::full(brush.spare.spc()));
                 if (coord.y < 0) coord = dot_00;
             }
             void del(si32 n) override
