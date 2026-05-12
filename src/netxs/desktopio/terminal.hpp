@@ -2932,13 +2932,13 @@ namespace netxs::ui
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                canvas.insert(coord, n, brush.spc());
+                canvas.insert2(coord, n, brush.spc());
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor by defclr.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                canvas.cutoff(coord, n, brush.spare.spc());
+                canvas.cutoff3(coord, n, brush.spare.spc());
             }
             // alt_screen: '\x7F'  Delete letter backward.
             void _del(si32 n)
@@ -3155,14 +3155,14 @@ namespace netxs::ui
             // alt_screen: Clear all lines below except the current by the current brush . "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below(coord, brush.dry());
+                canvas.del_below2(coord, brush.dry());
             }
             // alt_screen: Clear all lines from the viewport top line to the current line by the current brush.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.dry());
+                canvas.del_above2(coord, brush.dry());
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -3202,7 +3202,7 @@ namespace netxs::ui
                 {
                     scroll_region(0, panel.y - 1, -coord.y);
                 }
-                canvas.del_below({ 0, 1 }, brush.spare.dry());
+                canvas.del_below2({ 0, 1 }, brush.spare.dry());
                 set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
@@ -5034,7 +5034,10 @@ namespace netxs::ui
                     mapln.width = wraps ? std::min(panel.x, width - mapln.start)
                                         : width;
                 }
-                else ctx.block.insert(coord, n, blank);
+                else
+                {
+                    ctx.block.insert2(coord, n, blank);
+                }
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by defclr. Length is preserved. No wrapping.
             void dch(si32 n) override
@@ -5048,7 +5051,7 @@ namespace netxs::ui
                     curln.cutoff(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state);
                 }
-                else ctx.block.cutoff(coord, n, blank);
+                else ctx.block.cutoff3(coord, n, blank);
             }
             // scroll_buf: Move internal caret by count with wrapping.
             void _fwd(si32 count)
@@ -5831,7 +5834,7 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_below(coor, blank);
+                    upbox.del_below2(coor, blank);
                     clear(dot_00);
                 }
                 else if (coor.y <= y_end)
@@ -5844,7 +5847,7 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_below(coor, blank);
+                    dnbox.del_below2(coor, blank);
                 }
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -5885,7 +5888,7 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_above(coor, blank);
+                    upbox.del_above2(coor, blank);
                 }
                 else if (coor.y <= y_end)
                 {
@@ -5897,7 +5900,7 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_above(coor, blank);
+                    dnbox.del_above2(coor, blank);
                     clear(twod{ panel.x , arena - 1 });
                 }
             }

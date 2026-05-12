@@ -841,9 +841,21 @@ namespace netxs::ui
                 iter += w;
             }
         }
+        // rich: Put n blanks on top of the chars and cut them off with the right edge.
+        void splice3(twod at, si32 count, auto fx)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = begin();
+            auto dst = ptr + at.x + at.y * len.x;
+            auto end = dst + vol;
+            while (dst != end) fx(*dst++);
+        }
         // rich: Splice proto with auto grow.
-        template<bool Copy = faux, class Span>
-        void splice4(si32 at, si32 count, Span const& proto, auto fuse, cell const& c = {})
+        template<bool Copy = faux>
+        void splice4(si32 at, si32 count, auto const& proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
             rich::resize(at + count, c);
@@ -852,8 +864,8 @@ namespace netxs::ui
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
-        template<bool Copy = faux, class Span>
-        void splice5(twod at, si32 count, Span const& proto, auto fuse)
+        template<bool Copy = faux>
+        void splice5(twod at, si32 count, auto const& proto, auto fuse)
         {
             if (count <= 0) return;
             auto end = begin() + at.x + at.y * size().x;
@@ -932,7 +944,7 @@ namespace netxs::ui
             }
         }
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
-        void insert(si32 at, si32 count, cell const& blank, si32 margin)
+        void insert1_not_used(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0 || margin == 0) return;
             auto len = length();
@@ -948,7 +960,7 @@ namespace netxs::ui
             while (dst != end) *--dst = blank;
         }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert(twod at, si32 count, cell const& blank)
+        void insert2(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -998,7 +1010,7 @@ namespace netxs::ui
             while (src != end) *src++ = blank;
         }
         // rich: (current segment) Delete n chars and add blanks at the right margin.
-        void cutoff(si32 at, si32 count, cell const& blank, si32 margin)
+        void cutoff1_not_used(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0 || margin == 0) return;
             auto len = length();
@@ -1015,7 +1027,7 @@ namespace netxs::ui
             }
         }
         // rich: (current segment) Delete n chars.
-        void cutoff(si32 at, si32 count)
+        void cutoff2(si32 at, si32 count)
         {
             if (count <= 0) return;
             auto len = length();
@@ -1030,8 +1042,23 @@ namespace netxs::ui
                 crop(len - vol);
             }
         }
+        // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
+        void cutoff3(twod at, si32 count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = begin();
+            auto pos = ptr + at.y * len.x;
+            auto dst = pos + at.x;
+            auto end = pos + len.x;
+            auto src = dst + vol;
+            while (src != end) *dst++ = *src++;
+            while (dst != end) *dst++ = blank;
+        }
         // rich: (whole line) Delete n chars and add blanks at the right margin.
-        void cutoff_full(si32 at, si32 count, cell const& blank, si32 margin)
+        void cutoff_full_not_used(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0 || margin == 0) return;
             auto len = length();
@@ -1059,18 +1086,6 @@ namespace netxs::ui
                 }
             }
         }
-        // rich: Put n blanks on top of the chars and cut them off with the right edge.
-        void splice3(twod at, si32 count, auto fx)
-        {
-            if (count <= 0) return;
-            auto len = size();
-            auto vol = std::min(count, len.x - at.x);
-            assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = begin();
-            auto dst = ptr + at.x + at.y * len.x;
-            auto end = dst + vol;
-            while (dst != end) fx(*dst++);
-        }
         // rich: Put n blanks on top of the chars and wrap them at the right edge.
         void backsp(twod at, si32 count, cell const& blank)
         {
@@ -1088,23 +1103,8 @@ namespace netxs::ui
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
         }
-        // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
-        void cutoff(twod at, si32 count, cell const& blank)
-        {
-            if (count <= 0) return;
-            auto len = size();
-            auto vol = std::min(count, len.x - at.x);
-            assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = begin();
-            auto pos = ptr + at.y * len.x;
-            auto dst = pos + at.x;
-            auto end = pos + len.x;
-            auto src = dst + vol;
-            while (src != end) *dst++ = *src++;
-            while (dst != end) *dst++ = blank;
-        }
         // rich: Clear from the specified coor to the bottom.
-        void del_below(twod pos, cell const& blank)
+        void del_below2(twod pos, cell const& blank)
         {
             auto len = size();
             auto ptr = begin();
@@ -1114,7 +1114,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the top to the specified coor.
-        void del_above(twod pos, cell const& blank)
+        void del_above2(twod pos, cell const& blank)
         {
             auto len = size();
             auto dst = begin();
@@ -1275,7 +1275,7 @@ namespace netxs::ui
                 caret_check();
                 auto oldpos = caret;
                 auto& line = content();
-                line.cutoff(0, oldpos);
+                line.cutoff2(0, oldpos);
             }
             caret = 0;
         }
@@ -1347,7 +1347,7 @@ namespace netxs::ui
             {
                 auto newpos = caret;
                 auto& line = content();
-                line.cutoff(newpos, oldpos - newpos);
+                line.cutoff2(newpos, oldpos - newpos);
                 return true;
             }
             else return faux;
@@ -1387,7 +1387,7 @@ namespace netxs::ui
             {
                 auto newpos = caret;
                 auto& line = content();
-                line.cutoff(oldpos, newpos - oldpos);
+                line.cutoff2(oldpos, newpos - oldpos);
                 caret = oldpos;
                 return true;
             }
@@ -1467,7 +1467,7 @@ namespace netxs::ui
             {
                 auto newpos = caret;
                 auto& line = content();
-                line.cutoff(newpos, oldpos - newpos);
+                line.cutoff2(newpos, oldpos - newpos);
                 return true;
             }
             else return faux;
@@ -1494,7 +1494,7 @@ namespace netxs::ui
             {
                 auto newpos = caret;
                 auto& line = content();
-                line.cutoff(oldpos, newpos - oldpos);
+                line.cutoff2(oldpos, newpos - oldpos);
                 caret = oldpos;
                 return true;
             }
