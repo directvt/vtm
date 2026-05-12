@@ -608,8 +608,8 @@ namespace netxs::ui
         {
             return canvas.empty();
         }
-        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
-        static void forward_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt>
+        static void forward_fill_proc(SrcIt data, DstIt dest, DstIt tail, auto fuse)
         {
             if constexpr (Copy)
             {
@@ -674,8 +674,8 @@ namespace netxs::ui
                 }
             }
         }
-        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
-        static void unlimit_fill_proc(SrcIt data, si32 size, DstIt dest, DstIt tail, si32 back, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt>
+        static void unlimit_fill_proc(SrcIt data, si32 size, DstIt dest, DstIt tail, si32 back, auto fuse)
         {
             if constexpr (Copy)
             {
@@ -746,8 +746,8 @@ namespace netxs::ui
                 }
             }
         }
-        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
-        static void reverse_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt>
+        static void reverse_fill_proc(SrcIt data, DstIt dest, DstIt tail, auto fuse)
         {
             if constexpr (Copy)
             {
@@ -842,8 +842,8 @@ namespace netxs::ui
             }
         }
         // rich: Splice proto with auto grow.
-        template<bool Copy = faux, class Span, class Shader>
-        void splice(si32 at, si32 count, Span const& proto, Shader fuse, cell const& c = {})
+        template<bool Copy = faux, class Span>
+        void splice(si32 at, si32 count, Span const& proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
             rich::resize(at + count, c);
@@ -852,8 +852,8 @@ namespace netxs::ui
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
-        template<bool Copy = faux, class Span, class Shader>
-        void splice(twod at, si32 count, Span const& proto, Shader fuse)
+        template<bool Copy = faux, class Span>
+        void splice(twod at, si32 count, Span const& proto, auto fuse)
         {
             if (count <= 0) return;
             auto end = begin() + at.x + at.y * size().x;
