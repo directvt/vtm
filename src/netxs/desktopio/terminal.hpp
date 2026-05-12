@@ -5038,7 +5038,7 @@ namespace netxs::ui
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.insert(batch.caret, n, blank, panel.x);
+                    curln.insert4(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state); // Line front is filled by blanks. No wrapping.
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -5062,7 +5062,7 @@ namespace netxs::ui
                 {
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.cutoff(batch.caret, n, blank, panel.x);
+                    curln.cutoff4(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state);
                 }
                 else
@@ -5248,8 +5248,8 @@ namespace netxs::ui
                 auto splice = [&](auto& cell_run, auto fuse)
                 {
                     //todo respect line alignment
-                    if (cell_run.wrapped()) curln.splice(coor, cell_run,                    fuse, brush.spc());
-                    else                    curln.splice(coor, cell_run.substr(0, panel.x), fuse, brush.spc());
+                    if (cell_run.wrapped()) curln.splice1(coor, cell_run,                    fuse, brush.spc());
+                    else                    curln.splice1(coor, cell_run.substr(0, panel.x), fuse, brush.spc());
                     coor += cell_run.height(panel.x) * panel.x;
                 };
                 if (has_sixels)
@@ -5325,8 +5325,8 @@ namespace netxs::ui
                     auto has_sixels = add_sixels || curln.get_image_sixel();
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        has_sixels ? curln.splice<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
-                                   : curln.splice<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
+                        has_sixels ? curln.splice6<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
+                                   : curln.splice6<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -5354,7 +5354,7 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            curln.resize(batch.caret, brush.spare.spc());
+                            curln.resize_if_need(batch.caret, brush.spare.spc());
                             batch.recalc(curln, old_state);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
@@ -5402,7 +5402,7 @@ namespace netxs::ui
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                curln.resize(batch.caret, brush.spare.spc());
+                                curln.resize_if_need(batch.caret, brush.spare.spc());
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -5428,11 +5428,14 @@ namespace netxs::ui
                                 auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
-                                if constexpr (mixer) curln.resize(batch.caret + (si32)shadow.size(), brush.spare.spc());
+                                if constexpr (mixer)
+                                {
+                                    curln.resize_if_need(batch.caret + (si32)shadow.size(), brush.spare.spc());
+                                }
                                 else
                                 {
-                                    has_sixels ? curln.splice(batch.caret, shadow, owner.sixel_accounting(cell::shaders::full), brush.spare.spc())
-                                               : curln.splice(batch.caret, shadow,                        cell::shaders::full,  brush.spare.spc());
+                                    has_sixels ? curln.splice6(batch.caret, shadow, owner.sixel_accounting(cell::shaders::full), brush.spare.spc())
+                                               : curln.splice6(batch.caret, shadow,                        cell::shaders::full,  brush.spare.spc());
                                 }
 
                                 batch.recalc(curln, old_state);
@@ -5485,8 +5488,8 @@ namespace netxs::ui
                             } // case 2 done.
                         }
                         auto& final_run = batch.current();
-                        has_sixels ? final_run.splice<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
-                                   : final_run.splice<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
+                        has_sixels ? final_run.splice6<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
+                                   : final_run.splice6<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
                         final_run.set_image_sixel(has_sixels);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
@@ -5958,7 +5961,7 @@ namespace netxs::ui
                     auto& newln = *curit;
                     auto& tmpln = *(curit - 1);
                     newln.reinitialize(tmpln.index, tmpln.get_style(), parser::brush);
-                    newln.splice(0, tmpln.substr(start), cell::shaders::full, brush.spc());
+                    newln.splice1(0, tmpln.substr(start), cell::shaders::full, brush.spc());
                     auto old_state = tmpln.get_state();
                     tmpln.trimto(start);
                     batch.recalc(tmpln, old_state);
