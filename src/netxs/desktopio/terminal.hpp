@@ -3125,7 +3125,7 @@ namespace netxs::ui
                 auto dry_brush = brush.dry(); // ok
                 auto has_sixels = canvas.get_image_sixel();
                 has_sixels ? owner.sixel_run_accounting(canvas, cell::shaders::full(dry_brush))
-                           : canvas.wipe(dry_brush);
+                           : std::fill(canvas.begin(), canvas.end(), dry_brush);
                 canvas.set_image_sixel(faux);
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();

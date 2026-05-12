@@ -4073,13 +4073,13 @@ namespace netxs
             canvas.resize(0);
             digest++;
         }
-        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
-        void wipe()              { wipe(marker); } // core: Fill canvas with default color.
-        void wipe(id_t id)                         // core: Fill canvas with specified id.
+        void wipe2(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
+        void wipe2()              { wipe2(marker); } // core: Fill canvas with default color.
+        void wipe2(id_t id)                         // core: Fill canvas with specified id.
         {
             auto my_id = marker.link();
             marker.link(id);
-            wipe(marker);
+            wipe2(marker);
             marker.link(my_id);
         }
         auto each(auto proc) // core: Exec a proc for each cell.

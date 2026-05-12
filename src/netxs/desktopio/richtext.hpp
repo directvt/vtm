@@ -2773,7 +2773,7 @@ namespace netxs::ui
         template<class ...Args>
         void wipe(Args&&... args) // Optional args.
         {
-            core::wipe(args...);
+            core::wipe2(args...);
             flow::reset();
         }
         // face: Change current 2D context. Return old 2D context.
