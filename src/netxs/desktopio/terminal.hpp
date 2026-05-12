@@ -2940,7 +2940,9 @@ namespace netxs::ui
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                canvas.cutoff3(coord, n, brush.spare.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.cutoff3(coord, n, brush.spare.spc(), owner.sixel_accounting(cell::shaders::full))
+                           : canvas.cutoff3(coord, n, brush.spare.spc(),                        cell::shaders::full);
             }
             // alt_screen: '\x7F'  Delete letter backward.
             void _del(si32 n)
@@ -5055,7 +5057,12 @@ namespace netxs::ui
                     curln.cutoff(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state);
                 }
-                else ctx.block.cutoff3(coord, n, blank);
+                else
+                {
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? ctx.block.cutoff3(coord, n, blank, owner.sixel_accounting(cell::shaders::full))
+                               : ctx.block.cutoff3(coord, n, blank,                        cell::shaders::full);
+                }
             }
             // scroll_buf: Move internal caret by count with wrapping.
             void _fwd(si32 count)

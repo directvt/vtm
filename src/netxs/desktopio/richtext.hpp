@@ -974,7 +974,7 @@ namespace netxs::ui
             while (src != end) fuse(*--dst, *--src);
             while (dst != end) fuse(*--dst, blank);
         }
-        // rich: Insert fragment with shifting chars to the right.
+        // rich: Insert fragment with shifting chars to the right (ui::para).
         void insert3(si32 at, rich const& fragment)
         {
             auto add = fragment.length();
@@ -991,7 +991,7 @@ namespace netxs::ui
             while (src != end) *dst++ = *src++;
             if (at < len) scroll3(at, len - at, add);
         }
-        // rich: (whole line) Insert n blanks at the specified position. Autogrow.
+        // rich: (whole line) Insert n blanks at the specified position (ui::para). Autogrow.
         void insert_full(si32 at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
@@ -1026,7 +1026,7 @@ namespace netxs::ui
                 while (dst != end) *dst++ = blank;
             }
         }
-        // rich: (current segment) Delete n chars.
+        // rich: (current segment) Delete n chars (ui::para).
         void cutoff2(si32 at, si32 count)
         {
             if (count <= 0) return;
@@ -1043,7 +1043,7 @@ namespace netxs::ui
             }
         }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
-        void cutoff3(twod at, si32 count, cell const& blank)
+        void cutoff3(twod at, si32 count, cell const& blank, auto fuse)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1054,8 +1054,8 @@ namespace netxs::ui
             auto dst = pos + at.x;
             auto end = pos + len.x;
             auto src = dst + vol;
-            while (src != end) *dst++ = *src++;
-            while (dst != end) *dst++ = blank;
+            while (src != end) fuse(*dst++, *src++);
+            while (dst != end) fuse(*dst++, blank);
         }
         // rich: (whole line) Delete n chars and add blanks at the right margin.
         void cutoff_full_not_used(si32 at, si32 count, cell const& blank, si32 margin)
