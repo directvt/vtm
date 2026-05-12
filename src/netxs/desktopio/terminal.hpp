@@ -2993,8 +2993,8 @@ namespace netxs::ui
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
                     auto n = std::min(count, panel.x - std::max(0, start.x));
-                    has_sixels ? canvas.splice<Copy>(start, n, proto, owner.sixel_accounting(fuse))
-                               : canvas.splice<Copy>(start, n, proto,                        fuse);
+                    has_sixels ? canvas.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                               : canvas.splice5<Copy>(start, n, proto,                        fuse);
                 }
                 else
                 {
@@ -3021,8 +3021,8 @@ namespace netxs::ui
                         {
                             auto dy = y_end - coord.y;
                             coord.y = y_end;
-                            has_sixels ? canvas.scroll(y_top, y_end + 1, dy, owner.sixel_accounting(cell::shaders::full), brush.spare)
-                                       : canvas.scroll(y_top, y_end + 1, dy,                        cell::shaders::full,  brush.spare);
+                            has_sixels ? canvas.scroll2(y_top, y_end + 1, dy, owner.sixel_accounting(cell::shaders::full), brush.spare)
+                                       : canvas.scroll2(y_top, y_end + 1, dy,                        cell::shaders::full,  brush.spare);
                         }
 
                         auto seek = coord.x + coord.y * panel.x;
@@ -3171,8 +3171,8 @@ namespace netxs::ui
                 seltop.y += n;
                 selend.y += n;
                 auto has_sixels = canvas.get_image_sixel();
-                has_sixels ? canvas.scroll(top, end + 1, n, owner.sixel_accounting(cell::shaders::full), cell{ '\0' }.bgc(brush.bgc()))
-                           : canvas.scroll(top, end + 1, n,                        cell::shaders::full,  cell{ '\0' }.bgc(brush.bgc())); // We use "BCE on scrolling" in altbuf mode only (vim).
+                has_sixels ? canvas.scroll2(top, end + 1, n, owner.sixel_accounting(cell::shaders::full), cell{ '\0' }.bgc(brush.bgc()))
+                           : canvas.scroll2(top, end + 1, n,                        cell::shaders::full,  cell{ '\0' }.bgc(brush.bgc())); // We use "BCE on scrolling" in altbuf mode only (vim).
             }
             // alt_screen: Horizontal tab.
             void tab(si32 n) override
@@ -5269,8 +5269,8 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, start.x));
-                        has_sixels ? upbox.splice<Copy>(start, n, proto, owner.sixel_accounting(fuse))
-                                   : upbox.splice<Copy>(start, n, proto,                        fuse);
+                        has_sixels ? upbox.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                                   : upbox.splice5<Copy>(start, n, proto,                        fuse);
                     }
                     else
                     {
@@ -5480,8 +5480,8 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, start.x));
-                        has_sixels ? dnbox.splice<Copy>(start, n, proto, owner.sixel_accounting(fuse))
-                                   : dnbox.splice<Copy>(start, n, proto,                        fuse);
+                        has_sixels ? dnbox.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                                   : dnbox.splice5<Copy>(start, n, proto,                        fuse);
                     }
                     else
                     {

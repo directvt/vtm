@@ -843,7 +843,7 @@ namespace netxs::ui
         }
         // rich: Splice proto with auto grow.
         template<bool Copy = faux, class Span>
-        void splice(si32 at, si32 count, Span const& proto, auto fuse, cell const& c = {})
+        void splice4(si32 at, si32 count, Span const& proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
             rich::resize(at + count, c);
@@ -853,7 +853,7 @@ namespace netxs::ui
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         template<bool Copy = faux, class Span>
-        void splice(twod at, si32 count, Span const& proto, auto fuse)
+        void splice5(twod at, si32 count, Span const& proto, auto fuse)
         {
             if (count <= 0) return;
             auto end = begin() + at.x + at.y * size().x;
@@ -862,7 +862,7 @@ namespace netxs::ui
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
-        void scroll(si32 top, si32 end, si32 gap, auto fuse, cell const& clr)
+        void scroll2(si32 top, si32 end, si32 gap, auto fuse, cell const& clr)
         {
             auto data = core::begin();
             auto size = core::size();
@@ -905,7 +905,7 @@ namespace netxs::ui
             }
         }
         // rich: Shift 1D substring inside the line.
-        void scroll(si32 from, si32 size, si32 step)
+        void scroll3(si32 from, si32 size, si32 step)
         {
             if (step == 0 || size == 0) return;
             if (step < 0)
@@ -946,6 +946,38 @@ namespace netxs::ui
             auto end = ptr + at;
             while (src != end) *--dst = *--src;
             while (dst != end) *--dst = blank;
+        }
+        // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
+        void insert(twod at, si32 count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = begin();
+            auto pos = ptr + at.y * len.x;
+            auto dst = pos + len.x;
+            auto end = pos + at.x;
+            auto src = dst - vol;
+            while (src != end) *--dst = *--src;
+            while (dst != end) *--dst = blank;
+        }
+        // rich: Insert fragment with shifting chars to the right.
+        void insert3(si32 at, rich const& fragment)
+        {
+            auto add = fragment.length();
+            if (add == 0) return;
+            if (at < 0) at = 0;
+            auto len = length();
+            auto max = len + add;
+            if (at > len) max += at - len;
+            rich::resize(max);
+            auto pos = max - add;
+            auto dst = begin() + pos;
+            auto src = fragment.begin();
+            auto end = fragment.end();
+            while (src != end) *dst++ = *src++;
+            if (at < len) scroll3(at, len - at, add);
         }
         // rich: (whole line) Insert n blanks at the specified position. Autogrow.
         void insert_full(si32 at, si32 count, cell const& blank)
@@ -1055,38 +1087,6 @@ namespace netxs::ui
             auto dst = ptr + d2;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
-        }
-        // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert(twod at, si32 count, cell const& blank)
-        {
-            if (count <= 0) return;
-            auto len = size();
-            auto vol = std::min(count, len.x - at.x);
-            assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = begin();
-            auto pos = ptr + at.y * len.x;
-            auto dst = pos + len.x;
-            auto end = pos + at.x;
-            auto src = dst - vol;
-            while (src != end) *--dst = *--src;
-            while (dst != end) *--dst = blank;
-        }
-        // rich: Insert fragment with shifting chars to the right.
-        void insert(si32 at, rich const& fragment)
-        {
-            auto add = fragment.length();
-            if (add == 0) return;
-            if (at < 0) at = 0;
-            auto len = length();
-            auto max = len + add;
-            if (at > len) max += at - len;
-            rich::resize(max);
-            auto pos = max - add;
-            auto dst = begin() + pos;
-            auto src = fragment.begin();
-            auto end = fragment.end();
-            while (src != end) *dst++ = *src++;
-            if (at < len) scroll(at, len - at, add);
         }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
         void cutoff(twod at, si32 count, cell const& blank)
@@ -1251,7 +1251,7 @@ namespace netxs::ui
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
-            lyric->splice(caret, width, proto, cell::shaders::full);
+            lyric->splice4(caret, width, proto, cell::shaders::full);
             caret += width;
         }
         void id(ui32 newid) { index = newid; }
@@ -1425,7 +1425,7 @@ namespace netxs::ui
                 caret = line.length();
                 if (inserting)
                 {
-                    line.rich::insert(caret, right);
+                    line.rich::insert3(caret, right);
                 }
                 else
                 {
@@ -1439,7 +1439,7 @@ namespace netxs::ui
                         }
                         if (delta < right.length())
                         {
-                            line.rich::insert(caret, right.take_piece(delta));
+                            line.rich::insert3(caret, right.take_piece(delta));
                         }
                     }
                 }
@@ -2213,7 +2213,7 @@ namespace netxs::ui
         void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
             auto& item = **layer;
-            item.content().splice(item.caret, width, proto, cell::shaders::full);
+            item.content().splice4(item.caret, width, proto, cell::shaders::full);
             item.caret += width;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
