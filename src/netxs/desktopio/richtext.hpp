@@ -1718,7 +1718,7 @@ namespace netxs::ui
             }
         }
         // line: Trim all blank cells from the line end.
-        void shrink(cell const& blank)
+        void trim_blank_cells(cell const& blank)
         {
             auto head = cells.begin();
             auto tail = cells.end();
@@ -1780,7 +1780,7 @@ namespace netxs::ui
             rich::reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         // line: Insert n blanks at the specified position. Autogrow within segment only.
-        void insert4(si32 at, si32 count, cell const& blank, si32 margin)
+        void insert_blanks(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0 || margin == 0) return;
             auto len = size();
@@ -1796,21 +1796,18 @@ namespace netxs::ui
             while (dst != end) *--dst = blank;
         }
         // line: Delete n chars and add blanks at the right margin.
-        void cutoff4(si32 at, si32 count, cell const& blank, si32 margin)
+        void cutoff4(si32 at, si32 count, cell const& blank, si32 margin, auto fuse)
         {
-            if (count <= 0 || margin == 0) return;
             auto len = size();
-            if (at < len)
-            {
-                auto pos = at % margin;
-                auto rem = std::min(margin - pos, len - at);
-                auto vol = std::min(count, rem);
-                auto dst = cells.begin() + at;
-                auto end = dst + rem;
-                auto src = dst + vol;
-                while (src != end) *dst++ = *src++;
-                while (dst != end) *dst++ = blank;
-            }
+            if (count <= 0 || margin == 0 || at >= len) return;
+            auto pos = at % margin;
+            auto rem = std::min(margin - pos, len - at);
+            auto vol = std::min(count, rem);
+            auto dst = cells.begin() + at;
+            auto end = dst + rem;
+            auto src = dst + vol;
+            while (src != end) fuse(*dst++, *src++);
+            while (dst != end) fuse(*dst++, blank);
         }
         // line: Find the substring and place its offset in &from.
         auto find(line const& what, auto&& from, feed dir = feed::fwd) const

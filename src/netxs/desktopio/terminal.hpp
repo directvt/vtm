@@ -4731,7 +4731,7 @@ namespace netxs::ui
                         auto proto = std::span{ curit, (size_t)size.x };
                         auto& curln = *batch.ring::insert(start);
                         curln.reinitialize(curid++, new_style, proto);
-                        curln.shrink(block.mark());
+                        curln.trim_blank_cells(block.mark());
                         batch.invite(curln);
                         start += batch.size - oldsz; // Due to circulation in the ring.
                         assert(start <= batch.size);
@@ -5014,7 +5014,7 @@ namespace netxs::ui
                                             : width;
 
                         //auto old_state2 = curln.get_state();
-                        //curln.shrink(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
+                        //curln.trim_blank_cells(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
                         //batch.recalc(curln, old_state2); //  The cursor may be misplaced when resizing because curln.length is less than batch.caret.
                         //index_rebuild();
                         //print_batch(" el");
@@ -5037,7 +5037,7 @@ namespace netxs::ui
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.insert4(batch.caret, n, blank, panel.x);
+                    curln.insert_blanks(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state); // Line front is filled by blanks. No wrapping.
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -5061,7 +5061,9 @@ namespace netxs::ui
                 {
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.cutoff4(batch.caret, n, blank, panel.x);
+                    auto has_sixels = curln.get_image_sixel();
+                    has_sixels ? curln.cutoff4(batch.caret, n, blank, panel.x, owner.sixel_accounting(cell::shaders::full))
+                               : curln.cutoff4(batch.caret, n, blank, panel.x,                        cell::shaders::full);
                     batch.recalc(curln, old_state);
                 }
                 else
