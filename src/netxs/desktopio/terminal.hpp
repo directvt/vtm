@@ -4279,7 +4279,7 @@ namespace netxs::ui
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
                     auto old_state = curln.get_state();
-                    curln.crop(batch.caret, brush.spare.dry());
+                    curln.grow_to(batch.caret, brush.spare.dry());
                     batch.recalc(curln, old_state);
                 }
 
@@ -4862,7 +4862,6 @@ namespace netxs::ui
                     if (!wraps || coord.x <= panel.x) // Extend the line if the cursor is inside the viewport.
                     {
                         width = batch.caret;
-                        curln.crop(width, brush.spare.dry());
                     }
                     else // Move coord.x inside viewport for wrapped lines (cursor came from another (unwrapped) line).
                     {
@@ -4870,8 +4869,8 @@ namespace netxs::ui
                         batch.caret = mapln.start + panel.x;
                         mapln.width = panel.x;
                         coord.x = panel.x;
-                        curln.crop(batch.caret, brush.spare.dry());
                     }
+                    curln.grow_to(batch.caret, brush.spare.dry());
                 }
 
                 batch.recalc(curln, old_state);
@@ -5550,7 +5549,7 @@ namespace netxs::ui
                     if (newlen > curln.length())
                     {
                         auto old_state = curln.get_state();
-                        curln.crop(newlen, brush.spare.spc());
+                        curln.grow_to(newlen, brush.spare.spc());
                         auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
                         batch.recalc(curln, old_state);
