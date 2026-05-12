@@ -1660,13 +1660,13 @@ namespace netxs::ui
             auto size = upto - from;
             return std::span{ cells.begin() + from, (size_t)size };
         }
-        // line: Return sub-line view.
-        auto substr(si32 at, si32 width = netxs::si32max) const
+        // line: Return subspan.
+        auto substr(si32 start, si32 count = netxs::si32max) const
         {
-            auto w = size();
-            auto a = std::max(0, at);
-            return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
-                         : std::span{ cells.begin() + 0, (size_t)0 };
+            auto limit = (si32)cells.size();
+            start = std::clamp(start, 0, limit);
+            count = std::clamp(count, 0, limit - start);
+            return std::span{ cells.begin() + start, (size_t)count };
         }
         auto  jet() const { return align;                                    } // line: Return line alignment.
         auto  wrp() const { return wraps;                                    } // line: Return line auto wrapping.

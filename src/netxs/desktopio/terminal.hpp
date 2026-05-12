@@ -3051,9 +3051,9 @@ namespace netxs::ui
                 }
             }
             // alt_screen: .
-            void _fragment_from_current_coord(si32 left_cells)
+            auto _take_fragment_from_current_coord(si32 left_cells)
             {
-                canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                return canvas.subline2(coord.x + coord.y * panel.x, left_cells);
             }
             // alt_screen: .
             template<bool Copy, class Span, class Shader>
@@ -3077,7 +3077,7 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    _fragment_from_current_coord(left_cells); // Update tail_frag.
+                    tail_frag = _take_fragment_from_current_coord(left_cells); // Update tail_frag.
                     _data_direct_fill<faux>(count, proto, fuse);
                     coord.x = next_x;
                     if (tail_frag.size())
@@ -5541,21 +5541,21 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: .
-            void _fragment_from_current_coord(si32 left_cells)
+            auto _take_fragment_from_current_coord(si32 left_cells)
             {
                 if (coord.y < y_top)
                 {
-                    upbox.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                    return upbox.subline2(coord.x + coord.y * panel.x, left_cells);
                 }
                 else if (coord.y <= y_end)
                 {
                     auto& curln = batch.current();
                     auto  start = batch.caret;
-                    curln.copy_piece(tail_frag, start, left_cells);
+                    return curln.substr(start, left_cells);
                 }
                 else
                 {
-                    dnbox.copy_piece(tail_frag, coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
+                    return dnbox.subline2(coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
                 }
             }
             // scroll_buf: Insert text using the specified cell shader.
@@ -5566,7 +5566,7 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    _fragment_from_current_coord(left_cells); // Update tail_frag.
+                    tail_frag = _take_fragment_from_current_coord(left_cells); // Update tail_frag.
                     _data_direct_fill<faux>(count, proto, fuse);
                     coord.x = next_x;
                     sync_coord();

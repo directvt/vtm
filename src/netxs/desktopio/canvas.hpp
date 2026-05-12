@@ -4277,6 +4277,14 @@ namespace netxs
             auto size = upto - from;
             return std::span{ canvas.begin() + from, (size_t)size };
         }
+        auto subline2(si32 start, si32 count) const // core: Get stripe.
+        {
+            assert(canvas.size() <= netxs::si32max);
+            auto limit = (si32)canvas.size();
+            start = std::clamp(start, 0, limit);
+            count = std::clamp(count, 0, limit - start);
+            return std::span{ canvas.begin() + start, (size_t)count };
+        }
         auto subline(twod p1, twod p2) const // core: Get stripe.
         {
             if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
