@@ -2796,7 +2796,7 @@ namespace netxs::ui
         template<class P = netxs::noop>
         auto sixel_decrement_accounting(P fx = {})
         {
-            return [&, fx](cell& dst)
+            return [&, fx](auto& dst)
             {
                 _sixel_decrement_accounting(dst);
                 fx(dst);
@@ -5819,9 +5819,11 @@ namespace netxs::ui
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     auto old_state = curln.get_state();
+                    auto has_sixels = curln.get_image_sixel();
+                    auto new_size = 0;
                     if (fresh)
                     {
-                        curln.trimto(start);
+                        new_size = start;
                     }
                     else
                     {
@@ -5830,19 +5832,27 @@ namespace netxs::ui
                         {
                             mapln.width = panel.x;
                             auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
-                            auto has_sixels = curln.get_image_sixel();
                             has_sixels ? curln.splice2<true>(start + x, panel.x - x, owner.sixel_decrement_accounting(cell::shaders::full(blank)))
                                        : curln.splice2<true>(start + x, panel.x - x,                                  cell::shaders::full(blank));
-                            curln.trimto(start + panel.x);
+                            new_size = start + panel.x;
                         }
                         else
                         {
                             mapln.width = coor.x;
-                            curln.trimto(start + coor.x);
+                            new_size = start + coor.x;
                         }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
-                    batch.recalc(curln, old_state);
+                    if (new_size < curln.length())
+                    {
+                        if (has_sixels)
+                        {
+                            auto cut = curln.substr(new_size);
+                            std::ranges::for_each(cut, owner.sixel_decrement_accounting());
+                        }
+                        curln.trimto(new_size);
+                        batch.recalc(curln, old_state);
+                    }
 
                     sync_coord();
 

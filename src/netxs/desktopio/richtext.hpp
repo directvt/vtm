@@ -1696,8 +1696,7 @@ namespace netxs::ui
             return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
                                               : 1;
         }
-        // line: Trim line if it exeeds max_size.
-        //todo sixel accounting
+        // line: Trim line if it exeeds max_size (without sixel accounting).
         void trimto(si32 max_size)
         {
             if (length() > max_size)
