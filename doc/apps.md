@@ -25,7 +25,9 @@
 - Search for text in the scrollback buffer.
 - Linear and rectangular text selection for copying and searching.
 - True color with alpha transparency.
-- Full [VT2D](character_geometry.md) support.
+- [VT2D](character_geometry.md) support.
+- AnyPlex Protocol support.
+- Sixel support.
 - TUI Shadows as SGR attribute.
 - Support for several formats of copying the selected text:
   - Plain text
@@ -42,7 +44,7 @@
   - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes.
   - Disabled ENABLE_QUICK_EDIT_MODE mode.
   - Per process (not per process name) Windows Command Prompt (cmd.exe) input history, aka "Line input" or "Cooked read".
-  - Floating point (pixel-wise) mouse reporting.
+  - Floating point mouse reporting.
 - Stdin/stdout logging.
 
 ### True color with alpha transparency
@@ -595,6 +597,32 @@ Shadows persist as an SGR attribute and are visible in GUI mode:
   ```
   ![image](https://github.com/user-attachments/assets/87f269a7-1e22-4a52-928b-870a607ae259)
 
+### AnyPlex support
+
+- `two-cherries.svg`:
+  <img width="150" height="150" alt="two-cherries" src="https://github.com/user-attachments/assets/af56aa2a-da07-4055-a360-3fe129f555b1" />
+- `grade_semi.svg`:
+  ```svg
+  <svg width="10" height="10">
+    <defs>
+      <linearGradient id="grad" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#00ffff" />
+        <stop offset="100%" stop-color="transparent" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad)" />
+  </svg>
+  ```
+
+PowerShell:
+```pwsh
+"`e]app; id=cherry $(cat two-cherries.svg)`a"
+"`e]app; id=grade fit=stretch $(cat grade_semi.svg)`a"
+"`e]app; id=cherry_with_grade l=grade(f=v fit=stretch) l=cherry(a=l) l=cherry(a=r f=h) W=50 H=10`a"
+```
+
+<img width="1248" height="404" alt="image" src="https://github.com/user-attachments/assets/afc2913c-334e-43df-bb3c-f8259c422ad3" />
+
 ### VT2D support
 
 The built-in terminal supports Unicode Character geometry modifiers (VT2D). See [Unicode Character Geometry Modifiers](character_geometry.md) for details.
@@ -638,7 +666,7 @@ Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
 Screenshot:  
   ![image](images/vtm_character_geometry_modifiers_screenshot.png)
 
-### Floating point (pixel-wise) mouse reporting
+### Floating point ([0.0 - 1.0] normalized to cell size) mouse reporting
 
 On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Pixel-wise or fractional coordinates are 32-bit floating-point numbers that represent the position of the mouse cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
 Fractional mouse coordinates are critical to UX. In particular, this directly relates to the sensitivity of scrollbars, where moving the mouse pointer even one pixel can cause content to scroll several lines.
