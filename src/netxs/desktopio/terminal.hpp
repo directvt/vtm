@@ -4278,8 +4278,8 @@ namespace netxs::ui
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto upnew = std::max(upmin, twod{ panel.x, sctop });
                 auto dnnew = std::max(dnmin, twod{ panel.x, scend });
-                upbox.crop(upnew, brush.spare.dry());
-                dnbox.crop(dnnew, brush.spare.dry());
+                upbox.crop(upnew, brush.spare.dry(), owner.sixel_dec_accounting());
+                dnbox.crop(dnnew, brush.spare.dry(), owner.sixel_dec_accounting());
 
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
@@ -4647,8 +4647,8 @@ namespace netxs::ui
                 parser::flush();
                 upmin = dot_00;
                 dnmin = dot_00;
-                upbox.crop(upmin);
-                dnbox.crop(dnmin);
+                upbox.crop(upmin, upbox.mark(), owner.sixel_dec_accounting());
+                dnbox.crop(dnmin, dnbox.mark(), owner.sixel_dec_accounting());
                 arena = panel.y;
                 index.resize(arena);
                 index_rebuild();
@@ -4688,19 +4688,22 @@ namespace netxs::ui
                     auto size = (si32)(upto - from);
                     auto tail = head + size;
                     auto area = block.area();
+                    auto has_sixels = faux;
                     block.full(area);
                     block.clip(area);
                     block.ac(origin);
                     do
                     {
                         auto& curln = *head;
-                        block.output(curln, cell::shaders::full);
+                        block.output(curln, owner.sixel_accounting(cell::shaders::full));
+                        has_sixels = has_sixels || curln.get_image_sixel();
                         block.nl(1);
                     }
                     while (++head != tail);
+                    block.or_image_sixel(has_sixels);
                     batch.remove(base, size);
                 };
-                // Return lines to the scrollback iif margin is disabled.
+                // Return lines to the scrollback iif margin is disabled. There is no need to count Sixel cells here, since their number does not change.
                 auto push = [&](face& block, bool at_bottom)
                 {
                     auto size = block.size();
