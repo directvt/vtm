@@ -1320,14 +1320,46 @@ namespace netxs::generics
         }
     };
 
-    // generics: Index manager.
+    // generics: Index manager (FIFO).
     template<class T>
-    struct indexer
+    struct indexer_fifo
+    {
+        T             next_index{};
+        std::deque<T> free_indices;
+
+        // indexer: Return the new index. Returns 0 if there are no indices available.
+        auto get_new()
+        {
+            if (!free_indices.empty())
+            {
+                auto id = free_indices.front();
+                free_indices.pop_front();
+                return id;
+            }
+            if (next_index == std::numeric_limits<T>::max() - 1) [[unlikely]]
+            {
+                return T{}; 
+            }
+            return ++next_index;
+        }
+        // indexer: Make index available.
+        void release(T id)
+        {
+            if (id)
+            {
+                free_indices.push_back(id);
+            }
+        }
+    };
+
+    // generics: Index manager (LIFO).
+    template<class T>
+    struct indexer_lifo
     {
         T              next_index{};
         std::vector<T> free_indices;
 
-        indexer(size_t expected_max_free = 2048)
+        indexer_lifo(size_t expected_max_free = 2048)
         {
             free_indices.reserve(expected_max_free);
         }
@@ -1349,7 +1381,10 @@ namespace netxs::generics
         // indexer: Make index available.
         void release(T id)
         {
-            free_indices.push_back(id);
+            if (id)
+            {
+                free_indices.push_back(id);
+            }
         }
     };
 }

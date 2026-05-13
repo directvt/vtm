@@ -648,8 +648,8 @@ namespace netxs::ansi
             if (legacy_color)
             {
                 save_palette();
-                argb::set_vtm16_palette([&](auto ...Args){ escx::old_palette(Args...); });
-                argb::set_vtm16_palette([&](auto ...Args){ escx::osc_palette(Args...); });
+                argb::set_vtm16_palette([&](auto... args){ escx::old_palette(args...); });
+                argb::set_vtm16_palette([&](auto... args){ escx::osc_palette(args...); });
             }
             return *this;
         }
@@ -1312,7 +1312,7 @@ namespace netxs::ansi
             * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(si32 width, si32 height, core::body const& proto);  // Proceed new cells.
+            * - void data(si32 width, si32 height, std::span<cell const> proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -2019,7 +2019,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& /*old_style*/) { };
-        virtual void data(si32 /*width*/, si32 /*height*/, core::body const& /*proto*/) { };
+        virtual void data(si32 /*width*/, si32 /*height*/, std::span<cell const> /*proto*/) { };
         virtual void pop_cluster(si32 /*cmatrix*/) { };
     };
 

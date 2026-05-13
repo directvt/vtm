@@ -1717,7 +1717,7 @@ namespace netxs
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
             using uset = std::vector<ui16>;//std::unordered_set<ui16>;
-            using pool = generics::indexer<ui16>;
+            using pool = generics::indexer_fifo<ui16>;
 
             lock mutex; // Object map mutex.
             depo store; // Object map.
@@ -2309,6 +2309,7 @@ namespace netxs
         // ------|------
         //  16   | Image index. ui16
         //  1    | o ontop. 0/1
+        //  1    | is sixel (destructible). 0/1
         //  16   | c fragment (column). ui16
         //  16   | r fragment (row). ui16
         //  16   | W cell canvas width. ui16
@@ -2318,7 +2319,8 @@ namespace netxs
         static constexpr auto p2_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
         static constexpr auto p2_stamp_8_mask = (ui32)0b00000000'11111111'00000000'00000000;
         static constexpr auto p2_ontop_1_mask = (ui32)0b00000001'00000000'00000000'00000000;
-      //static constexpr auto p2_reserv7_mask = (ui32)0b11111110'00000000'00000000'00000000;
+        static constexpr auto p2_sixel_1_mask = (ui32)0b00000010'00000000'00000000'00000000;
+      //static constexpr auto p2_reserv7_mask = (ui32)0b11111100'00000000'00000000'00000000;
 
         static constexpr auto px_imgX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
         static constexpr auto px_imgY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
@@ -2350,6 +2352,7 @@ namespace netxs
             return *this;
         }
         auto get_image_index() const { return (ui16)netxs::get_field<p2_index16_mask>(p2); }
+        auto get_image_sixel() const { return       netxs::get_field<p2_sixel_1_mask>(p2); }
         auto get_image_stamp() const { return       netxs::get_field<p2_stamp_8_mask>(p2); }
         auto get_image_ontop() const
         {
@@ -2358,6 +2361,8 @@ namespace netxs
             return std::pair{ index, ontop };
         }
         auto& set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); return *this; }
+        auto& set_image_sixel(si32 n) { netxs::set_field<p2_sixel_1_mask>(n, p2); return *this; }
+        auto&  or_image_sixel(si32 n) { netxs::set_field<p2_sixel_1_mask>(n || netxs::get_field<p2_sixel_1_mask>(p2), p2); return *this; }
         auto& set_image_ontop(si32 n) { netxs::set_field<p2_ontop_1_mask>(n, p2); return *this; }
         auto& set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); return *this; }
         auto& inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); return *this; }
@@ -2578,7 +2583,7 @@ namespace netxs
                 {
                     st.xy(c.st.xy());
                 }
-                if (c.raw()) // Terminal output is non-destructive for images.
+                if (get_image_sixel() || c.raw()) // Terminal output is non-destructive for images but sixels.
                 {
                     px = c.px;
                     p2 = c.p2;
@@ -3930,6 +3935,7 @@ namespace netxs
         body canvas; // core: Cell data.
         cell marker; // core: Current brush.
         si32 digest = 0; // core: Resize stamp.
+        si32 hasimg{}; // core: Canvas contains Sixel cells.
 
     public:
         core()                         = default;
@@ -3955,6 +3961,9 @@ namespace netxs
               marker{ fill }
         { }
 
+        auto get_image_sixel()       { return hasimg; }
+        auto set_image_sixel(si32 n) { hasimg = n; }
+        auto  or_image_sixel(si32 n) { hasimg = hasimg || n; }
         template<class P>
         auto same(core const& c, P compare) const // core: Compare content.
         {
@@ -4053,6 +4062,24 @@ namespace netxs
             digest++;
         }
         template<bool BottomAnchored = faux>
+        void crop(twod new_size, cell const& c, auto dec_accounting) // core: Resize preserving bitmap.
+        {
+            auto old_size = size();
+            if (new_size.y < old_size.y) // Check bottom field.
+            {
+                auto r = rect{{ 0, BottomAnchored ? 0 : new_size.y }, { old_size.x, old_size.y - new_size.y }};
+                r.coor += coor();
+                netxs::onrect(*this, r, dec_accounting);
+            }
+            if (new_size.x < old_size.x) // Check right field.
+            {
+                auto r = rect{{ new_size.x, BottomAnchored ? std::max(0, old_size.y - new_size.y) : 0 }, { old_size.x - new_size.x, std::min(old_size.y, new_size.y) }};
+                r.coor += coor();
+                netxs::onrect(*this, r, dec_accounting);
+            }
+            crop<BottomAnchored>(new_size, c);
+        }
+        template<bool BottomAnchored = faux>
         void crop(twod new_size) // core: Resize preserving bitmap.
         {
             crop<BottomAnchored>(new_size, marker);
@@ -4064,13 +4091,13 @@ namespace netxs
             canvas.resize(0);
             digest++;
         }
-        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
-        void wipe()              { wipe(marker); } // core: Fill canvas with default color.
-        void wipe(id_t id)                         // core: Fill canvas with specified id.
+        void wipe2(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
+        void wipe2()              { wipe2(marker); } // core: Fill canvas with default color.
+        void wipe2(id_t id)                         // core: Fill canvas with specified id.
         {
             auto my_id = marker.link();
             marker.link(id);
-            wipe(marker);
+            wipe2(marker);
             marker.link(my_id);
         }
         auto each(auto proc) // core: Exec a proc for each cell.
@@ -4267,6 +4294,14 @@ namespace netxs
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
             return std::span{ canvas.begin() + from, (size_t)size };
+        }
+        auto subline2(si32 start, si32 count) const // core: Get stripe.
+        {
+            assert(canvas.size() <= netxs::si32max);
+            auto limit = (si32)canvas.size();
+            start = std::clamp(start, 0, limit);
+            count = std::clamp(count, 0, limit - start);
+            return std::span{ canvas.begin() + start, (size_t)count };
         }
         auto subline(twod p1, twod p2) const // core: Get stripe.
         {

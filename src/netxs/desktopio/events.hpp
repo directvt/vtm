@@ -291,7 +291,7 @@ namespace netxs::events
             static constexpr auto not_handled = __COUNTER__ - _counter;
         };
 
-        generics::indexer<id_t>                   id_pool;
+        generics::indexer_fifo<id_t>              id_pool;
         std::recursive_mutex                      mutex;
         std::unordered_map<id_t, std::reference_wrapper<ui::base>>  objects; // auth: Map of objects by object id.
         clasess_umap                              classes; // auth: Map of classes by classname.

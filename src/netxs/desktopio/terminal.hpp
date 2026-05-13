@@ -1300,12 +1300,9 @@ namespace netxs::ui
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
-                owner.LISTEN(tier::general, e2::data::image::remove, image_indexes, image_update_token)
+                owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, image_update_token)
                 {
-                    if (owner.image_alive)
-                    {
-                        wipe_image_index(image_indexes);
-                    }
+                    wipe_image_index(image_indexes);
                 };
             }
 
@@ -2636,8 +2633,7 @@ namespace netxs::ui
             // bufferbase: Clear scrollback keeping current line.
     virtual void clear_scrollback() = 0;
             // bufferbase: Proceed 2d text.
-            template<class Span>
-            void data_2d(twod block_size, Span const& proto, auto print_stripe)
+            void data_2d(twod block_size, std::span<cell const> proto, auto print_stripe)
             {
                 assert(block_size.y > 1);
                 char_2d.unpack2d(proto, block_size);
@@ -2735,6 +2731,114 @@ namespace netxs::ui
             }
         };
 
+        template<class P = netxs::noop>
+        void sixel_run_accounting(std::span<cell> cell_run, P fx = {})
+        {
+            auto removed_image_indexes = e2::data::image::remove.param();
+            if constexpr (debugmode) log("line with sixels");
+            for (auto& c : cell_run)
+            {
+                auto index = c.get_image_index();
+                fx(c);
+                if (index)
+                {
+                    auto& count = image_ref_count[index];
+                    if constexpr (debugmode)
+                    {
+                        log("\tdtor dec image index: %% cell_count: %% -> %%", index, count, count - 1);
+                        if (count == 0)
+                        {
+                            log("Sixel image ref accounting is broken");
+                            removed_image_indexes.push_back(index);
+                            continue;
+                        }
+                    }
+                    if (--count == 0)
+                    {
+                        if constexpr (debugmode) log("\trelease sixel image index: ", index);
+                        removed_image_indexes.push_back(index);
+                    }
+                }
+            }
+            if (removed_image_indexes.size())
+            {
+                remove_sixel_images(removed_image_indexes);
+            }
+        }
+        void _sixel_inc_accounting(cell const& src)
+        {
+            if (src.get_image_sixel())
+            if (auto index = src.get_image_index())
+            {
+                auto& count = image_ref_count[index];
+                if constexpr (debugmode) log("\tinc image index: %% cell_count: %% -> %%", index, count, count + 1);
+                count++;
+            }
+        }
+        void _sixel_dec_accounting(cell const& dst)
+        {
+            if (dst.get_image_sixel())
+            if (auto index = dst.get_image_index())
+            {
+                auto& count = image_ref_count[index];
+                if constexpr (debugmode)
+                {
+                    log("\tdec image index: %% cell_count: %% -> %%", index, count, count - 1);
+                    if (count == 0)
+                    {
+                        log("%%Sixel image ref accounting is broken. Image index=%%", prompt::term, index);
+                        remove_sixel_image(index, true);
+                    }
+                    else if (--count == 0)
+                    {
+                        log("\trelease sixel image index: ", index);
+                        remove_sixel_image(index, true);
+                    }
+                }
+                else if (--count == 0)
+                {
+                    if constexpr (debugmode) log("\trelease sixel image index: ", index);
+                    remove_sixel_image(index, true);
+                }
+            }
+        }
+        template<class P = netxs::noop>
+        auto sixel_inc_accounting(P fx = {})
+        {
+            return [&, fx](auto& src)
+            {
+                _sixel_inc_accounting(src);
+                fx(src);
+            };
+        }
+        template<class P = netxs::noop>
+        auto sixel_dec_accounting(P fx = {})
+        {
+            return [&, fx](auto& dst)
+            {
+                _sixel_dec_accounting(dst);
+                fx(dst);
+            };
+        }
+        auto sixel_accounting(auto fx)
+        {
+            return [&, fx](cell& dst, cell const& src)
+            {
+                _sixel_inc_accounting(src);
+                _sixel_dec_accounting(dst);
+                fx(dst, src);
+            };
+        }
+        auto sixels_inc(std::span<cell const> fragment)
+        {
+            auto has_sixels = faux;
+            std::ranges::for_each(fragment, this->sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); })); //todo msvc 17.14.30 requires 'this->'
+            return has_sixels;
+        }
+        void sixels_dec(std::span<cell const> fragment)
+        {
+            std::ranges::for_each(fragment, sixel_dec_accounting());
+        }
         // term: Alternate screen buffer implementation.
         struct alt_screen
             : public bufferbase
@@ -2757,7 +2861,25 @@ namespace netxs::ui
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel, brush.spare.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.crop(panel, brush.spare.dry(), owner.sixel_dec_accounting())
+                           : canvas.crop(panel, brush.spare.dry());
+                if (has_sixels)
+                {
+                    has_sixels = faux;
+                    auto area = canvas.area();
+                    netxs::onrect(canvas, area, [&](auto& c)
+                    {
+                        if (c.get_image_sixel())
+                        {
+                            has_sixels = true;
+                            return true;
+                        }
+                        else return faux;
+                    });
+                    if constexpr (debugmode) if (!has_sixels) log("All sixels are released");
+                    canvas.set_image_sixel(has_sixels);
+                }
             }
             // alt_screen: Return viewport height.
             si32 height() override
@@ -2778,7 +2900,7 @@ namespace netxs::ui
                 }
                 else return faux;
             }
-            static void _el(si32 n, core& canvas, twod coord, twod panel, cell const& blank)
+            static void _el(si32 n, core& canvas, twod coord, twod panel, auto fx)
             {
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
@@ -2799,13 +2921,15 @@ namespace netxs::ui
                         tail += panel.x;
                         break;
                 }
-                while (head != tail) *head++ = blank;
+                std::ranges::for_each(head, tail, fx);
             }
             // alt_screen: CSI n K  Erase line (don't move cursor).
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.spc()); // ok
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? _el(n, canvas, coord, panel, owner.sixel_dec_accounting(cell::shaders::full(brush.spc()))) // ok
+                           : _el(n, canvas, coord, panel,                            cell::shaders::full(brush.spc()));
             }
             // alt_screen: CSI n @  ICH. Insert n colored blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -2813,13 +2937,17 @@ namespace netxs::ui
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                canvas.insert(coord, n, brush.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.insert2(coord, n, brush.spc(), owner.sixel_accounting(cell::shaders::full))
+                           : canvas.insert2(coord, n, brush.spc(),                        cell::shaders::full);
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor by defclr.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                canvas.cutoff(coord, n, brush.spare.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.cutoff3(coord, n, brush.spare.spc(), owner.sixel_accounting(cell::shaders::full))
+                           : canvas.cutoff3(coord, n, brush.spare.spc(),                        cell::shaders::full);
             }
             // alt_screen: '\x7F'  Delete letter backward.
             void _del(si32 n)
@@ -2831,7 +2959,9 @@ namespace netxs::ui
                 {
                     wrapup();
                 }
-                canvas.backsp(coord, n, brush.spare.spc());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.backsp(coord, n, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.spc())))
+                           : canvas.backsp(coord, n,                            cell::shaders::full(brush.spare.spc()));
                 if (coord.y < 0) coord = dot_00;
             }
             void del(si32 n) override
@@ -2855,21 +2985,28 @@ namespace netxs::ui
                 parser::flush();
                 auto blank = brush;
                 blank.txt(c);
-                canvas.splice(coord, n, blank);
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.splice3(coord, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                           : canvas.splice3(coord, n,                            cell::shaders::full(blank));
             }
             // alt_screen: Proceed new text using specified cell shader.
-            template<bool Copy = faux, class Span, class Shader>
-            void _data(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy = faux>
+            void _data(si32 count, std::span<cell const> proto, auto fuse, bool forceSixelAccounting = faux)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
+                auto add_sixels = forceSixelAccounting ? std::ranges::any_of(proto, [](auto& c){ return c.get_image_sixel(); })
+                                                       : proto.front().get_image_sixel();
+                auto has_sixels = add_sixels || canvas.get_image_sixel();
+                canvas.set_image_sixel(has_sixels);
                 auto start = coord;
                 coord.x += count;
                 //todo apply line adjusting (necessity is not clear)
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
                     auto n = std::min(count, panel.x - std::max(0, start.x));
-                    canvas.splice<Copy>(start, n, proto, fuse);
+                    has_sixels ? canvas.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                               : canvas.splice5<Copy>(start, n, proto,                        fuse);
                 }
                 else
                 {
@@ -2887,7 +3024,8 @@ namespace netxs::ui
                         auto seek = start.x + start.y * panel.x;
                         auto dest = canvas.begin() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                        has_sixels ? rich::forward_fill_proc<Copy>(data, dest, tail, owner.sixel_accounting(fuse))
+                                   : rich::forward_fill_proc<Copy>(data, dest, tail,                        fuse);
                     }
                     else if (start.y <= y_end)
                     {
@@ -2895,7 +3033,8 @@ namespace netxs::ui
                         {
                             auto dy = y_end - coord.y;
                             coord.y = y_end;
-                            canvas.scroll(y_top, y_end + 1, dy, brush.spare);
+                            has_sixels ? canvas.scroll2(y_top, y_end + 1, dy, owner.sixel_accounting(cell::shaders::full), brush.spare)
+                                       : canvas.scroll2(y_top, y_end + 1, dy,                        cell::shaders::full,  brush.spare);
                         }
 
                         auto seek = coord.x + coord.y * panel.x;
@@ -2905,7 +3044,8 @@ namespace netxs::ui
                         auto dest = canvas.begin() + seek;
                         auto tail = dest - count;
                         auto data = proto.end();
-                        rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
+                        has_sixels ? rich::reverse_fill_proc<Copy>(data, dest, tail, owner.sixel_accounting(fuse))
+                                   : rich::reverse_fill_proc<Copy>(data, dest, tail,                        fuse);
                     }
                     else
                     {
@@ -2917,18 +3057,19 @@ namespace netxs::ui
                         auto dest = canvas.begin() + seek;
                         auto tail = canvas.end();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, fuse);
+                        has_sixels ? rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, owner.sixel_accounting(fuse))
+                                   : rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back,                        fuse);
                     }
                 }
             }
             // alt_screen: .
-            void _fragment_from_current_coord(si32 left_cells)
+            auto _take_fragment_from_current_coord(si32 left_cells)
             {
-                canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                return canvas.subline2(coord.x + coord.y * panel.x, left_cells);
             }
             // alt_screen: .
-            template<bool Copy, class Span, class Shader>
-            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy>
+            void _data_direct_fill(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -2941,19 +3082,22 @@ namespace netxs::ui
                 fill(canvas.begin(), coord.x + coord.y * panel.x);
             }
             // alt_screen: Insert new text using the specified cell shader.
-            template<class Span, class Shader>
-            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            void _data_insert(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    _fragment_from_current_coord(left_cells); // Update tail_frag.
-                    _data_direct_fill<faux>(count, proto, fuse);
+                    tail_frag = _take_fragment_from_current_coord(left_cells);
+                    auto has_sixels = owner.sixels_inc(tail_frag.cells);
+
+                    _data_direct_fill<faux>(count, proto, owner.sixel_accounting(fuse));
+
                     coord.x = next_x;
                     if (tail_frag.size())
                     {
-                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, owner.sixel_accounting(fuse));
+                        if (has_sixels) owner.sixels_dec(tail_frag.cells);
                     }
                 }
                 else
@@ -2968,7 +3112,7 @@ namespace netxs::ui
                 _del(w);
             }
             // alt_screen: Parser callback.
-            void data(si32 width, si32 height, core::body const& proto) override
+            void data(si32 width, si32 height, std::span<cell const> proto) override
             {
                 if (width)
                 {
@@ -2987,7 +3131,11 @@ namespace netxs::ui
             void clear_all() override
             {
                 parser::flush();
-                canvas.wipe(brush.dry()); // ok
+                auto dry_brush = brush.dry(); // ok
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? owner.sixel_run_accounting(canvas, cell::shaders::full(dry_brush))
+                           : std::fill(canvas.begin(), canvas.end(), dry_brush);
+                canvas.set_image_sixel(faux);
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
@@ -3022,14 +3170,18 @@ namespace netxs::ui
             // alt_screen: Clear all lines below except the current by the current brush . "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below(coord, brush.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_below2(coord, owner.sixel_dec_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_below2(coord,                            cell::shaders::full(brush.dry()));
             }
             // alt_screen: Clear all lines from the viewport top line to the current line by the current brush.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_above2(coord, owner.sixel_dec_accounting(cell::shaders::full(brush.dry())))
+                           : canvas.del_above2(coord,                            cell::shaders::full(brush.dry()));
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -3037,7 +3189,9 @@ namespace netxs::ui
             {
                 seltop.y += n;
                 selend.y += n;
-                canvas.scroll(top, end + 1, n, cell{ '\0' }.bgc(brush.bgc())); // We use "BCE on scrolling" in altbuf mode only (vim).
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.scroll2(top, end + 1, n, owner.sixel_accounting(cell::shaders::full), cell{ '\0' }.bgc(brush.bgc()))
+                           : canvas.scroll2(top, end + 1, n,                        cell::shaders::full,  cell{ '\0' }.bgc(brush.bgc())); // We use "BCE on scrolling" in altbuf mode only (vim).
             }
             // alt_screen: Horizontal tab.
             void tab(si32 n) override
@@ -3067,7 +3221,9 @@ namespace netxs::ui
                 {
                     scroll_region(0, panel.y - 1, -coord.y);
                 }
-                canvas.del_below({ 0, 1 }, brush.spare.dry());
+                auto has_sixels = canvas.get_image_sixel();
+                has_sixels ? canvas.del_below2({ 0, 1 }, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.dry())))
+                           : canvas.del_below2({ 0, 1 },                            cell::shaders::full(brush.spare.dry()));
                 set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
@@ -3332,12 +3488,12 @@ namespace netxs::ui
             struct buff : public ring
             {
                 static constexpr auto sizea_size = 65536;
-                using ring::ring;
                 using type = deco::type;
                 using mapa = std::array<si32, sizea_size>[type::count];
                 using maps = std::map<si32, si32>[type::count];
                 using maxl = std::array<si32, type::count>;
 
+                term& owner;
                 si32 caret{}; // buff: Current line cursor horizontal position.
                 si32 vsize{}; // buff: Scrollback vertical size (height).
                 si32 width{}; // buff: Viewport width.
@@ -3352,6 +3508,10 @@ namespace netxs::ui
                 bool round{}; // buff: Is the slide position approximate.
                 bool rolls{}; // buff: The scrollback buffer ring was scrolled.
 
+                buff(term& boss)
+                    : ring{ boss.defcfg.def_length, boss.defcfg.def_growdt, boss.defcfg.def_growmx },
+                      owner{ boss }
+                { }
                 // buff: Decrease height.
                 void dec_height(si32& block_vsize, si32 line_kind, si32 line_size)
                 {
@@ -3494,20 +3654,10 @@ namespace netxs::ui
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void _clear_line(line& l, bool deallocate)
                 {
-                    if (l.image) 
+                    if (l.get_image_sixel())
                     {
-                        l.image = {};
-                        //for (auto& c : l.cells) 
-                        //{
-                        //    if (auto index = c.get_image_index())
-                        //    {
-                        //        //todo
-                        //        //if (--owner.image_ref_count[index] == 0) 
-                        //        //{
-                        //        //    release index
-                        //        //}
-                        //    }
-                        //}
+                        l.set_image_sixel(faux);
+                        owner.sixel_run_accounting(l.cells);
                     }
                     l.cells.clear();
                     if (deallocate || l.cells.capacity() > 256) // Deallocate long lines (256*sizeof(cell)=10240bytes).
@@ -3661,7 +3811,7 @@ namespace netxs::ui
 
             scroll_buf(term& boss)
                 : bufferbase{ boss },
-                       batch{ boss.defcfg.def_length, boss.defcfg.def_growdt, boss.defcfg.def_growmx },
+                       batch{ boss },
                        index{ 1    },
                        place{      },
                        shore{ boss.defcfg.def_margin }
@@ -4128,8 +4278,8 @@ namespace netxs::ui
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto upnew = std::max(upmin, twod{ panel.x, sctop });
                 auto dnnew = std::max(dnmin, twod{ panel.x, scend });
-                upbox.crop(upnew, brush.spare.dry());
-                dnbox.crop(dnnew, brush.spare.dry());
+                upbox.crop(upnew, brush.spare.dry(), owner.sixel_dec_accounting());
+                dnbox.crop(dnnew, brush.spare.dry(), owner.sixel_dec_accounting());
 
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
@@ -4138,7 +4288,7 @@ namespace netxs::ui
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
                     auto old_state = curln.get_state();
-                    curln.crop(batch.caret, brush.spare.dry());
+                    curln.grow_to(batch.caret, brush.spare.dry());
                     batch.recalc(curln, old_state);
                 }
 
@@ -4497,8 +4647,8 @@ namespace netxs::ui
                 parser::flush();
                 upmin = dot_00;
                 dnmin = dot_00;
-                upbox.crop(upmin);
-                dnbox.crop(dnmin);
+                upbox.crop(upmin, upbox.mark(), owner.sixel_dec_accounting());
+                dnbox.crop(dnmin, dnbox.mark(), owner.sixel_dec_accounting());
                 arena = panel.y;
                 index.resize(arena);
                 index_rebuild();
@@ -4538,19 +4688,22 @@ namespace netxs::ui
                     auto size = (si32)(upto - from);
                     auto tail = head + size;
                     auto area = block.area();
+                    auto has_sixels = faux;
                     block.full(area);
                     block.clip(area);
                     block.ac(origin);
                     do
                     {
                         auto& curln = *head;
-                        block.output(curln, cell::shaders::full);
+                        block.output(curln, owner.sixel_accounting(cell::shaders::full));
+                        has_sixels = has_sixels || curln.get_image_sixel();
                         block.nl(1);
                     }
                     while (++head != tail);
+                    block.or_image_sixel(has_sixels);
                     batch.remove(base, size);
                 };
-                // Return lines to the scrollback iif margin is disabled.
+                // Return lines to the scrollback iif margin is disabled. There is no need to count Sixel cells here, since their number does not change.
                 auto push = [&](face& block, bool at_bottom)
                 {
                     auto size = block.size();
@@ -4590,7 +4743,7 @@ namespace netxs::ui
                         auto proto = std::span{ curit, (size_t)size.x };
                         auto& curln = *batch.ring::insert(start);
                         curln.reinitialize(curid++, new_style, proto);
-                        curln.shrink(block.mark());
+                        curln.trim_blank_cells(block.mark());
                         batch.invite(curln);
                         start += batch.size - oldsz; // Due to circulation in the ring.
                         assert(start <= batch.size);
@@ -4721,7 +4874,6 @@ namespace netxs::ui
                     if (!wraps || coord.x <= panel.x) // Extend the line if the cursor is inside the viewport.
                     {
                         width = batch.caret;
-                        curln.crop(width, brush.spare.dry());
                     }
                     else // Move coord.x inside viewport for wrapped lines (cursor came from another (unwrapped) line).
                     {
@@ -4729,8 +4881,8 @@ namespace netxs::ui
                         batch.caret = mapln.start + panel.x;
                         mapln.width = panel.x;
                         coord.x = panel.x;
-                        curln.crop(batch.caret, brush.spare.dry());
                     }
+                    curln.grow_to(batch.caret, brush.spare.dry());
                 }
 
                 batch.recalc(curln, old_state);
@@ -4828,8 +4980,6 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                //todo revise - nul() or dry()
-                //auto blank = brush.dry();
                 auto blank = brush.spc(); // ok
                 if (auto ctx = get_context(coord))
                 {
@@ -4866,8 +5016,9 @@ namespace netxs::ui
                     }
                     if (count)
                     {
-                        curln.splice<true>(start, count, blank);
-
+                        auto has_sixels = curln.get_image_sixel();
+                        has_sixels ? curln.splice2<true>(start, count, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(start, count,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                         width = curln.length();
                         auto& mapln = index[coord.y];
@@ -4875,13 +5026,18 @@ namespace netxs::ui
                                             : width;
 
                         //auto old_state2 = curln.get_state();
-                        //curln.shrink(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
+                        //curln.trim_blank_cells(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
                         //batch.recalc(curln, old_state2); //  The cursor may be misplaced when resizing because curln.length is less than batch.caret.
                         //index_rebuild();
                         //print_batch(" el");
                     }
                 }
-                else alt_screen::_el(n, ctx.block, coord, panel, blank);
+                else
+                {
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? alt_screen::_el(n, ctx.block, coord, panel, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : alt_screen::_el(n, ctx.block, coord, panel,                            cell::shaders::full(blank));
+                }
             }
             // scroll_buf: CSI n @  ICH. Insert n colored blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -4893,7 +5049,7 @@ namespace netxs::ui
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.insert(batch.caret, n, blank, panel.x);
+                    curln.insert_blanks(batch.caret, n, blank, panel.x);
                     batch.recalc(curln, old_state); // Line front is filled by blanks. No wrapping.
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -4901,7 +5057,12 @@ namespace netxs::ui
                     mapln.width = wraps ? std::min(panel.x, width - mapln.start)
                                         : width;
                 }
-                else ctx.block.insert(coord, n, blank);
+                else
+                {
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? ctx.block.insert2(coord, n, blank, owner.sixel_accounting(cell::shaders::full))
+                               : ctx.block.insert2(coord, n, blank,                        cell::shaders::full);
+                }
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by defclr. Length is preserved. No wrapping.
             void dch(si32 n) override
@@ -4912,10 +5073,17 @@ namespace netxs::ui
                 {
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
-                    curln.cutoff(batch.caret, n, blank, panel.x);
+                    auto has_sixels = curln.get_image_sixel();
+                    has_sixels ? curln.cutoff4(batch.caret, n, blank, panel.x, owner.sixel_accounting(cell::shaders::full))
+                               : curln.cutoff4(batch.caret, n, blank, panel.x,                        cell::shaders::full);
                     batch.recalc(curln, old_state);
                 }
-                else ctx.block.cutoff(coord, n, blank);
+                else
+                {
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? ctx.block.cutoff3(coord, n, blank, owner.sixel_accounting(cell::shaders::full))
+                               : ctx.block.cutoff3(coord, n, blank,                        cell::shaders::full);
+                }
             }
             // scroll_buf: Move internal caret by count with wrapping.
             void _fwd(si32 count)
@@ -5038,7 +5206,9 @@ namespace netxs::ui
                 {
                     _fwd(-n);
                     auto& curln = batch.current();
-                    curln.splice<faux>(batch.caret, n, brush.spare.spc());
+                    auto has_sixels = curln.get_image_sixel();
+                    has_sixels ? curln.splice2<faux>(batch.caret, n, owner.sixel_dec_accounting(cell::shaders::full(brush.spare.spc())))
+                               : curln.splice2<faux>(batch.caret, n,                            cell::shaders::full(brush.spare.spc()));
                 }
             }
             void del(si32 n) override
@@ -5064,9 +5234,11 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto old_state = curln.get_state();
                     //todo revise (brush != default ? see windows console)
-                    //if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
-                    //else                 curln.splice<true>(batch.caret, n, blank);
-                    curln.splice<true>(batch.caret, n, blank);
+                    //if (c == whitespace) curln.splice2<faux>(batch.caret, n, blank);
+                    //else                 curln.splice2<true>(batch.caret, n, blank);
+                    auto has_sixels = curln.get_image_sixel();
+                    has_sixels ? curln.splice2<true>(batch.caret, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : curln.splice2<true>(batch.caret, n,                            cell::shaders::full(blank));
                     batch.recalc(curln, old_state);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
@@ -5074,41 +5246,67 @@ namespace netxs::ui
                     mapln.width = wraps ? std::min(panel.x, curln.length() - mapln.start)
                                         : width;
                 }
-                else ctx.block.splice(coord, n, blank);
+                else
+                {
+                    auto has_sixels = ctx.block.get_image_sixel();
+                    has_sixels ? ctx.block.splice3(coord, n, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : ctx.block.splice3(coord, n,                            cell::shaders::full(blank));
+                }
             }
             // scroll_buf: Merge curln with its neighbors.
-            void _merge(line& curln, si32 oldsz, id_t curid, si32 count)
+            void _merge(line& curln, si32 oldsz, id_t curid, si32 count, bool has_sixels)
             {
                 auto coor = oldsz + panel.x - (oldsz - 1) % panel.x - 1;
                 auto iter = batch.iter_by_id(curid);
-                while (count-- > 0)
+                auto splice = [&](auto& cell_run, auto fuse)
                 {
-                    auto& cell_run = *++iter;
                     //todo respect line alignment
-                    if (cell_run.wrapped()) curln.splice(coor, cell_run                   , cell::shaders::full, brush.spc());
-                    else                    curln.splice(coor, cell_run.substr(0, panel.x), cell::shaders::full, brush.spc());
+                    if (cell_run.wrapped()) curln.splice1(coor, cell_run,                    fuse, brush.spc());
+                    else                    curln.splice1(coor, cell_run.substr(0, panel.x), fuse, brush.spc());
                     coor += cell_run.height(panel.x) * panel.x;
+                };
+                if (has_sixels)
+                {
+                    while (count-- > 0)
+                    {
+                        auto& cell_run = *++iter;
+                        splice(cell_run, owner.sixel_accounting(cell::shaders::full));
+                    }
+                }
+                else
+                {
+                    while (count-- > 0)
+                    {
+                        auto& cell_run = *++iter;
+                        auto run_has_sixels = cell_run.get_image_sixel();
+                        run_has_sixels ? splice(cell_run, owner.sixel_accounting(cell::shaders::full))
+                                       : splice(cell_run,                        cell::shaders::full);
+                    }
                 }
             }
             // scroll_buf: Proceed new text using specified cell shader.
-            template<bool Copy = faux, class Span, class Shader>
-            void _data(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy = faux>
+            void _data(si32 count, std::span<cell const> proto, auto fuse, bool forceSixelAccounting = faux)
             {
-                static constexpr auto mixer = !std::is_same_v<Shader, decltype(cell::shaders::full)>;
+                static constexpr auto mixer = !std::is_same_v<decltype(fuse), decltype(cell::shaders::full)>;
 
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
                 assert(test_coord());
 
+                auto add_sixels = forceSixelAccounting ? std::ranges::any_of(proto, [](auto& c){ return c.get_image_sixel(); })
+                                                       : proto.front().get_image_sixel();
                 if (coord.y < y_top)
                 {
+                    auto has_sixels = add_sixels || upbox.get_image_sixel();
                     auto start = coord;
                     coord.x += count;
                     //todo apply line adjusting (necessity is not clear)
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, start.x));
-                        upbox.splice<Copy>(start, n, proto, fuse);
+                        has_sixels ? upbox.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                                   : upbox.splice5<Copy>(start, n, proto,                        fuse);
                     }
                     else
                     {
@@ -5124,8 +5322,10 @@ namespace netxs::ui
                         auto seek = start.x + start.y * panel.x;
                         auto dest = upbox.begin() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                        has_sixels ? rich::forward_fill_proc<Copy>(data, dest, tail, owner.sixel_accounting(fuse))
+                                   : rich::forward_fill_proc<Copy>(data, dest, tail,                        fuse);
                     }
+                    upbox.set_image_sixel(has_sixels);
                     // Note: coord can be unsync due to scroll regions.
                 }
                 else if (coord.y <= y_end)
@@ -5135,10 +5335,12 @@ namespace netxs::ui
                     auto  start = batch.caret;
                     batch.caret += count;
                     coord.x     += count;
+                    auto old_state = curln.get_state();
+                    auto has_sixels = add_sixels || curln.get_image_sixel();
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        auto old_state = curln.get_state();
-                        curln.splice<Copy>(start, count, proto, fuse, brush.spare.spc());
+                        has_sixels ? curln.splice6<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
+                                   : curln.splice6<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -5146,6 +5348,7 @@ namespace netxs::ui
                             mapln.width = coord.x;
                             batch.recalc(curln, old_state);
                         }
+                        curln.set_image_sixel(has_sixels);
                     } // case 0 - done.
                     else
                     {
@@ -5165,12 +5368,11 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            auto old_state = curln.get_state();
-                            curln.resize(batch.caret, brush.spare.spc());
+                            curln.resize_if_needed(batch.caret, brush.spare.spc());
                             batch.recalc(curln, old_state);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
-                                if constexpr (mixer) _merge(curln, oldsz, curid, n);
+                                if constexpr (mixer) _merge(curln, oldsz, curid, n, has_sixels);
                                 assert(n > 0);
                                 while (n-- > 0) batch.pop_back();
                             }
@@ -5211,11 +5413,10 @@ namespace netxs::ui
                         } // case 3 done
                         else
                         {
-                            auto old_state = curln.get_state();
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                curln.resize(batch.caret, brush.spare.spc());
+                                curln.resize_if_needed(batch.caret, brush.spare.spc());
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -5236,19 +5437,27 @@ namespace netxs::ui
                             else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                             {
                                 auto& destln = batch.item_by_id(mapln.index);
+                                has_sixels = has_sixels || destln.get_image_sixel();
                                 //todo respect destln alignment
                                 auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
-                                if constexpr (mixer) curln.resize(batch.caret + (si32)shadow.size(), brush.spare.spc());
-                                else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spare.spc());
+                                if constexpr (mixer)
+                                {
+                                    curln.resize_if_needed(batch.caret + (si32)shadow.size(), brush.spare.spc());
+                                }
+                                else
+                                {
+                                    has_sixels ? curln.splice1(batch.caret, shadow, owner.sixel_accounting(cell::shaders::full), brush.spare.spc())
+                                               : curln.splice1(batch.caret, shadow,                        cell::shaders::full,  brush.spare.spc());
+                                }
 
                                 batch.recalc(curln, old_state);
                                 auto w = curln.length();
                                 auto spoil = (si32)(mapln.index - curid);
                                 assert(spoil > 0);
 
-                                if constexpr (mixer) _merge(curln, oldsz, curid, spoil);
+                                if constexpr (mixer) _merge(curln, oldsz, curid, spoil, has_sixels);
 
                                 auto after = batch.index() + 1;
                                 spoil = batch.remove(after, spoil);
@@ -5292,7 +5501,10 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice<Copy>(start, count, proto, fuse, brush.spare.spc());
+                        auto& final_run = batch.current();
+                        has_sixels ? final_run.splice6<Copy>(start, count, proto, owner.sixel_accounting(fuse), brush.spare.spc())
+                                   : final_run.splice6<Copy>(start, count, proto,                        fuse,  brush.spare.spc());
+                        final_run.set_image_sixel(has_sixels);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -5302,11 +5514,13 @@ namespace netxs::ui
                     coord.y -= y_end + 1;
                     auto start = coord;
                     coord.x += count;
+                    auto has_sixels = add_sixels || dnbox.get_image_sixel();
                     //todo apply line adjusting
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, start.x));
-                        dnbox.splice<Copy>(start, n, proto, fuse);
+                        has_sixels ? dnbox.splice5<Copy>(start, n, proto, owner.sixel_accounting(fuse))
+                                   : dnbox.splice5<Copy>(start, n, proto,                        fuse);
                     }
                     else
                     {
@@ -5317,16 +5531,18 @@ namespace netxs::ui
                         auto dest = dnbox.begin() + seek;
                         auto tail = dnbox.end();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
+                        has_sixels ? rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, owner.sixel_accounting(cell::shaders::full))
+                                   : rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back,                        cell::shaders::full);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
+                    dnbox.set_image_sixel(has_sixels);
                     // Note: coord can be unsync due to scroll regions.
                 }
                 assert(test_coord());
             }
             // scroll_buf: .
-            template<bool Copy, class Span, class Shader>
-            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            template<bool Copy>
+            void _data_direct_fill(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -5348,7 +5564,7 @@ namespace netxs::ui
                     if (newlen > curln.length())
                     {
                         auto old_state = curln.get_state();
-                        curln.crop(newlen, brush.spare.spc());
+                        curln.grow_to(newlen, brush.spare.spc());
                         auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
                         batch.recalc(curln, old_state);
@@ -5361,38 +5577,41 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: .
-            void _fragment_from_current_coord(si32 left_cells)
+            auto _take_fragment_from_current_coord(si32 left_cells)
             {
                 if (coord.y < y_top)
                 {
-                    upbox.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                    return upbox.subline2(coord.x + coord.y * panel.x, left_cells);
                 }
                 else if (coord.y <= y_end)
                 {
                     auto& curln = batch.current();
                     auto  start = batch.caret;
-                    curln.copy_piece(tail_frag, start, left_cells);
+                    return curln.substr(start, left_cells);
                 }
                 else
                 {
-                    dnbox.copy_piece(tail_frag, coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
+                    return dnbox.subline2(coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
                 }
             }
             // scroll_buf: Insert text using the specified cell shader.
-            template<class Span, class Shader>
-            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            void _data_insert(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    _fragment_from_current_coord(left_cells); // Update tail_frag.
-                    _data_direct_fill<faux>(count, proto, fuse);
+                    tail_frag = _take_fragment_from_current_coord(left_cells);
+                    auto has_sixels = owner.sixels_inc(tail_frag.cells);
+
+                    _data_direct_fill<faux>(count, proto, owner.sixel_accounting(fuse));
+
                     coord.x = next_x;
                     sync_coord();
                     if (tail_frag.size())
                     {
-                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, owner.sixel_accounting(fuse));
+                        if (has_sixels) owner.sixels_dec(tail_frag.cells);
                     }
                 }
                 else
@@ -5407,7 +5626,7 @@ namespace netxs::ui
                 _del(w);
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 width, si32 height, core::body const& proto) override
+            void data(si32 width, si32 height, std::span<cell const> proto) override
             {
                 if (width)
                 {
@@ -5618,9 +5837,11 @@ namespace netxs::ui
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     auto old_state = curln.get_state();
+                    auto has_sixels = curln.get_image_sixel();
+                    auto new_size = 0;
                     if (fresh)
                     {
-                        curln.trimto(start);
+                        new_size = start;
                     }
                     else
                     {
@@ -5629,17 +5850,27 @@ namespace netxs::ui
                         {
                             mapln.width = panel.x;
                             auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
-                            curln.splice<true>(start + x, panel.x - x, blank);
-                            curln.trimto(start + panel.x);
+                            has_sixels ? curln.splice2<true>(start + x, panel.x - x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                       : curln.splice2<true>(start + x, panel.x - x,                            cell::shaders::full(blank));
+                            new_size = start + panel.x;
                         }
                         else
                         {
                             mapln.width = coor.x;
-                            curln.trimto(start + coor.x);
+                            new_size = start + coor.x;
                         }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
-                    batch.recalc(curln, old_state);
+                    if (new_size < curln.length())
+                    {
+                        if (has_sixels)
+                        {
+                            auto cut = curln.substr(new_size);
+                            std::ranges::for_each(cut, owner.sixel_dec_accounting());
+                        }
+                        curln.trimto(new_size);
+                        batch.recalc(curln, old_state);
+                    }
 
                     sync_coord();
 
@@ -5652,7 +5883,9 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_below(coor, blank);
+                    auto has_sixels = upbox.get_image_sixel();
+                    has_sixels ? upbox.del_below2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : upbox.del_below2(coor,                            cell::shaders::full(blank));
                     clear(dot_00);
                 }
                 else if (coor.y <= y_end)
@@ -5665,7 +5898,9 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_below(coor, blank);
+                    auto has_sixels = dnbox.get_image_sixel();
+                    has_sixels ? dnbox.del_below2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_below2(coor,                            cell::shaders::full(blank));
                 }
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -5682,7 +5917,9 @@ namespace netxs::ui
                         auto& curln = batch.item_by_id(mapln.index);
                         auto old_state = curln.get_state();
                         mapln.width = panel.x;
-                        curln.splice<true>(mapln.start, panel.x, blank);
+                        auto has_sixels = curln.get_image_sixel();
+                        has_sixels ? curln.splice2<true>(mapln.start, panel.x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(mapln.start, panel.x,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                     }
                     if (from.x > 0)
@@ -5691,7 +5928,9 @@ namespace netxs::ui
                         auto& curln = batch.item_by_id(mapln.index);
                         auto old_state = curln.get_state();
                         mapln.width = std::max(mapln.width, from.x);
-                        curln.splice<true>(mapln.start, from.x, blank);
+                        auto has_sixels = curln.get_image_sixel();
+                        has_sixels ? curln.splice2<true>(mapln.start, from.x, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                                   : curln.splice2<true>(mapln.start, from.x,                            cell::shaders::full(blank));
                         batch.recalc(curln, old_state);
                     }
                     upbox.wipe(blank);
@@ -5702,7 +5941,9 @@ namespace netxs::ui
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
-                    upbox.del_above(coor, blank);
+                    auto has_sixels = upbox.get_image_sixel();
+                    has_sixels ? upbox.del_above2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : upbox.del_above2(coor,                            cell::shaders::full(blank));
                 }
                 else if (coor.y <= y_end)
                 {
@@ -5714,7 +5955,9 @@ namespace netxs::ui
                 {
                     coor.y -= y_end + 1;
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
-                    dnbox.del_above(coor, blank);
+                    auto has_sixels = dnbox.get_image_sixel();
+                    has_sixels ? dnbox.del_above2(coor, owner.sixel_dec_accounting(cell::shaders::full(blank)))
+                               : dnbox.del_above2(coor,                            cell::shaders::full(blank));
                     clear(twod{ panel.x , arena - 1 });
                 }
             }
@@ -5730,7 +5973,13 @@ namespace netxs::ui
                     {
                         auto& tmpln = batch[after];
                         auto old_state = tmpln.get_state();
-                        tmpln.copy_piece(tmpln, start);
+                        auto head = tmpln.cells.begin();
+                        auto tail = head + start;
+                        if (tmpln.get_image_sixel())
+                        {
+                            std::ranges::for_each(head, tail, owner.sixel_dec_accounting());
+                        }
+                        tmpln.cells.erase(head, tail);
                         batch.recalc(tmpln, old_state);
                         return;
                     }
@@ -5739,7 +5988,7 @@ namespace netxs::ui
                     auto& newln = *curit;
                     auto& tmpln = *(curit - 1);
                     newln.reinitialize(tmpln.index, tmpln.get_style(), parser::brush);
-                    newln.splice(0, tmpln.substr(start), cell::shaders::full, brush.spc());
+                    newln.splice1(0, tmpln.substr(start), cell::shaders::full, brush.spc());
                     auto old_state = tmpln.get_state();
                     tmpln.trimto(start);
                     batch.recalc(tmpln, old_state);
@@ -7371,6 +7620,25 @@ namespace netxs::ui
             }
         };
 
+        void remove_sixel_image(ui16 removed_image_index, bool notify)
+        {
+            auto images = cell::images(); // Lock.
+            image_sixel_count--;
+            images.remove(removed_image_index);
+            if (notify)
+            {
+                base::signal(tier::general, e2::data::image::remove, { removed_image_index }); // Signal to outside.
+            }
+        }
+        void remove_sixel_images(std::vector<ui16>& removed_image_indexes)
+        {
+            auto images = cell::images(); // Lock.
+            for (auto index : removed_image_indexes)
+            {
+                images.remove(index);
+            }
+            base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
+        }
         // term: Take data until ST. Don't touch q if sequence is broken.
         static qiew read_until_st_or_giveup(qiew& q)
         {
@@ -7403,8 +7671,22 @@ namespace netxs::ui
             }
             return param_count;
         }
-        static text rgba_to_svg(std::vector<argb>& pixels, twod size)
+        static text rgba_to_svg(std::vector<argb>& pixels, twod& size, bool implicit_size, argb transparent_pixel)
         {
+            if (implicit_size) // Trim transparent borders (get minimal non transparent area - dropping right+bottom).
+            {
+                auto data = std::span{ pixels };
+                auto w = size.x;
+                auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
+                auto is_visible = [=](argb p){ return p != transparent_pixel; };
+                auto crop = netxs::get_minimal_area_if<rect>(size, get_row, is_visible);
+                auto raster = netxs::raster{ data, rect{ dot_00, size }};
+                crop.size += std::exchange(crop.coor, dot_00); // Keep Top+Left.
+                auto iter = pixels.begin();
+                netxs::onrect(raster, crop, [&](auto p){ *iter++ = p; }); // Copy crop to the pixels itself (dropping Right+Bottom borders).
+                size = crop.size;
+                pixels.resize(size.x * size.y);
+            }
             for (auto& c : pixels) c.swap_rb();
             auto file_data = std::vector<byte>{};
             file_data.reserve(size.x * size.y);
@@ -7450,7 +7732,8 @@ namespace netxs::ui
                 // n
                 //auto hz_grid_size = params[2];
                 auto size = owner.target->panel * cellsz;
-                size.y *= aspect_ratio;
+                auto implicit_size = true;
+                //size.y *= aspect_ratio; // Don't scale max image size.
                 auto stride = size.x * aspect_ratio * 6;
                 auto palette = owner.ctrack.color; // Copy terminal palette.
                 auto cur_map = 0;
@@ -7553,10 +7836,10 @@ namespace netxs::ui
                         tail = q2.end();
                         auto dy = std::max(1, std::abs(params2[0]));
                         auto dx = std::max(1, std::abs(params2[1]));
-                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
-                        size.y = std::clamp(std::abs(params2[3]), 1, std::max(4096, owner.target->panel.y * cellsz.y));
                         aspect_ratio = (si32)std::round((fp32)dy / dx);
-                        size.y *= aspect_ratio;
+                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
+                        size.y = std::clamp(std::abs(params2[3]) * aspect_ratio, 1, std::max(4096, owner.target->panel.y * cellsz.y));
+                        implicit_size = faux;
                         coor = 0;
                         line = 0;
                         maxx = size.x;
@@ -7600,7 +7883,7 @@ namespace netxs::ui
                 q = qiew{ head, tail };
                 if (ok) // Show image.
                 {
-                    auto doc_str = term::rgba_to_svg(bitmap, size);
+                    auto doc_str = term::rgba_to_svg(bitmap, size, implicit_size, transparency ? argb{} : cur_bgc);
                     auto fp_wh = fp2d{ size } / fp2d{ cellsz };
                     auto wh = twod{ std::ceil(fp_wh) };
                     auto c = owner.target->cell_under_cursor();
@@ -7685,7 +7968,7 @@ namespace netxs::ui
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
-        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(+move text cursor to the beginning of next line after image)/disable scroll(default)(+don't move text cursor and trim sixel image by the scrolling region).
+        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(default) (+move text cursor to the beginning of next line after image)/disable scroll (+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -7713,8 +7996,8 @@ namespace netxs::ui
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
         //utf::unordered_map<text, netxs::sptr<imagens::image>> sixel_cache; // term: Sixel cache.
         face                                                  image_buffer; // term: Image temporary buffer.
-        bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
         std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
+        ui16                                                  image_sixel_count{}; // term: Registered sixel image count;
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -7753,11 +8036,13 @@ namespace netxs::ui
             }
         }
         // term: Print specified block (scroll/wrap in normal; crop by the altbuf viewport).
-        auto draw_block(core const& image_buffer, auto fx)
+        auto draw_block(core const& image_buffer, auto fx, bool trim_hz = faux, bool trim_vt = faux)
         {
             if (target == &normal)
             {
-                print_block(normal, image_buffer, {}, fx);
+                auto trim_by_viewport = twod{ trim_hz ? target->panel.x : dot_mx.x,
+                                              trim_vt ? target->panel.y : dot_mx.y };
+                print_block(normal, image_buffer, trim_by_viewport, fx);
             }
             else
             {
@@ -7765,9 +8050,8 @@ namespace netxs::ui
                 print_block(target_buffer, image_buffer, target->panel, fx);
             }
         }
-        // term: Place rectangle block to the scrollback buffer.
-        template<class S, class P>
-        auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
+        // term: Place rectangle block to the scrollback buffer (forced sixel accounting).
+        auto write_block(auto& scrollback, core const& block, twod coor, rect trim, auto fuse, bool forceSixelAccounting)
         {
             auto size = block.size();
             auto clip = block.clip();
@@ -7786,7 +8070,7 @@ namespace netxs::ui
                 auto next = head + clip.size.x;
                 auto cell_run = std::span(head, next);
                 scrollback.cup2(coor);
-                scrollback.template _data<true>(clip.size.x, cell_run, fuse);
+                scrollback.template _data<true>(clip.size.x, cell_run, fuse, forceSixelAccounting);
                 head = next + rest;
                 coor.y++;
             }
@@ -7799,6 +8083,7 @@ namespace netxs::ui
                 .txt(" ", 1, 1, 1, 1)
                 .set_image_index(image.index)
                 .set_image_stamp(image.stamp)
+                .set_image_sixel(true)
                 .set_image_WH(wh.x, wh.y)
                 .set_image_ontop(faux);
             image_buffer.core::size<true>(wh, brush);
@@ -7810,9 +8095,19 @@ namespace netxs::ui
                     (*head++).set_image_cr(col, row);
                 }
             }
-            //todo image cell accounting
+            auto cells_expected = image_buffer.volume();
+            image_sixel_count++;
+            auto& count = image_ref_count[image.index];
+            count += cells_expected; // Insure against premature removal.
+            if constexpr (debugmode) log("print1: image index: %% cell_count: %%", image.index, count);
+            draw_block(image_buffer, cell::shaders::full, true, !decsdm);
+            count -= cells_expected;
+            if constexpr (debugmode) log("print2: image index: %% cell_count: %%", image.index, count);
+            if (image_ref_count[image.index] == 0) // A case where nothing is printed.
+            {
+                remove_sixel_image(image.index, faux);
+            }
             //todo respect decsdm (trim image + don't move cursor)
-            draw_block(image_buffer, cell::shaders::full);
             data_in("\n\r");
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
@@ -7839,23 +8134,27 @@ namespace netxs::ui
             auto src_area = rect{ dot_00, size };
             area.trimby(src_area);
             fragment.full(src_area);
-            auto empty_cells = cell{}.link(defclr.link());
-            fragment.core::crop(area.size, empty_cells);
+            auto empty_cell = cell{}.link(defclr.link());
+            fragment.core::crop(area.size, empty_cell);
             fragment.core::area(area);
             // Take fragment.
             if (srcBuffIndex == -1) console.do_viewport_copy(fragment);
             else                    netxs::onbody(fragment, pocket[srcBuffIndex], cell::shaders::full);
+            auto has_sixels = sixels_inc(fragment.pick());
             // Put fragment.
             auto coor = twod{ dstLeft, dstTop };
             if (dstBuffIndex == -1) // Dst is real buffer.
             {
                 area.coor = {};
                 fragment.area(area);
-                if (target == &normal) write_block(normal, fragment, coor, src_area, cell::shaders::full);
+                if (target == &normal)
+                {
+                    write_block(normal, fragment, coor, src_area, cell::shaders::full, has_sixels);
+                }
                 else
                 {
                     auto& target_buffer = *(alt_screen*)target;
-                    write_block(target_buffer, fragment, coor, src_area, cell::shaders::full);
+                    write_block(target_buffer, fragment, coor, src_area, cell::shaders::full, has_sixels);
                 }
             }
             else
@@ -7863,9 +8162,10 @@ namespace netxs::ui
                 area.coor = coor;
                 fragment.area(area);
                 auto& dst = pocket[dstBuffIndex];
-                dst.crop(console.panel, empty_cells);
-                dst.plot(fragment, cell::shaders::full);
+                dst.crop(console.panel, empty_cell, sixel_dec_accounting());
+                dst.plot(fragment, sixel_accounting(cell::shaders::full));
             }
+            if (has_sixels) sixels_dec(fragment.pick());
         }
         // term: Set semantic marker (OSC 133).
         void osc_marker(view data)
@@ -7919,7 +8219,7 @@ namespace netxs::ui
             //       " [attrs] + doc "                Register empty id.
             //       " [id] "                         Find by id and print.
             //       " [id] + attrs "                 Find by id and print applying new attrs.
-            //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
+            //       " [id] + explicit-empty-doc "    Find by id and unregister. (doc=<tag></tag>)
             while (attrs_str)
             {
                 if (attrs_str.front() == '<') // Extract document body <tag1 ...> ... </tag2>
@@ -8081,7 +8381,8 @@ namespace netxs::ui
                         images.remove(image.index);
                     }
                     image_cache.clear();
-                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    base::signal(tier::release, e2::data::image::remove, removed_image_indexes); // Remove image cells from the local scrollback.
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
                     if (io_log) log("%%All registered objects are successfully unregistered (count=%%)", prompt::term, removed_image_indexes.size());
                 }
                 else if (auto iter = image_cache.find(id_str); iter != image_cache.end())
@@ -8091,7 +8392,8 @@ namespace netxs::ui
                     auto removed_image_indexes = e2::data::image::remove.param({ image.index });
                     image_cache.erase(iter);
                     images.remove(image.index);
-                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    base::signal(tier::release, e2::data::image::remove, removed_image_indexes); // Remove image cells from the local scrollback.
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
@@ -8366,12 +8668,22 @@ namespace netxs::ui
                 }
             }
         }
+        // term: Reset DECCRA pockets.
+        void reset_pockets()
+        {
+            for (auto& p : pocket)
+            {
+                p.each(sixel_dec_accounting());
+                p.reset_face();
+            }
+        }
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
             target->parser::flush();
             normal.clear_all();
             altbuf.clear_all();
+            reset_pockets();
             target = &normal;
             invert = faux;
             decckm = faux;
@@ -9555,16 +9867,22 @@ namespace netxs::ui
     public:
         ~term()
         {
-            image_alive = faux;
             //if (image_cache.size() || sixel_cache.size()) // Signal to wipe all image references.
-            if (image_cache.size()) // Signal to wipe all image references.
+            if (image_cache.size() || image_sixel_count) // Signal to wipe all image references.
             {
                 auto images = cell::images(); // Lock.
                 auto removed_image_indexes = e2::data::image::remove.param();
-                removed_image_indexes.reserve(image_cache.size());
+                removed_image_indexes.reserve(image_sixel_count + image_cache.size());
                 //removed_image_indexes.reserve(image_cache.size() + sixel_cache.size());
                 //for (auto cache : { &image_cache, &sixel_cache }) //todo C++23: std::views::concat(image_cache, sixel_cache)
                 //for (auto& [image_id, image_ptr] : *cache) if (image_ptr)
+                for (auto removed_index = 0u; removed_index < image_ref_count.size(); removed_index++)
+                {
+                    if (image_ref_count[removed_index])
+                    {
+                        removed_image_indexes.push_back((ui16)removed_index);
+                    }
+                }
                 for (auto& [image_id, image_ptr] : image_cache) if (image_ptr)
                 {
                     auto removed_index = image_ptr->index;
@@ -9573,7 +9891,7 @@ namespace netxs::ui
                 }
                 if (removed_image_indexes.size())
                 {
-                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    remove_sixel_images(removed_image_indexes);
                 }
             }
         }
