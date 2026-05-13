@@ -575,7 +575,7 @@ namespace netxs::ui
         auto length() const                                     { return size().x;                            }
         auto shadow() const                                     { return shot{ *this };                       }
         auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);          }
-        void resize_if_need(si32 oversize, cell const& c = {})  { if (oversize > length()) crop(oversize, c); }
+        void resize_if_needed(si32 oversize, cell const& c = {}){ if (oversize > length()) crop(oversize, c); }
         auto take_piece(si32 at, si32 width = netxs::si32max) const
         {
             if (width == netxs::si32max) width = length() - at;
@@ -835,7 +835,7 @@ namespace netxs::ui
         void splice4(si32 at, si32 count, std::span<cell const> proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
-            rich::resize_if_need(at + count, c);
+            rich::resize_if_needed(at + count, c);
             auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
@@ -928,7 +928,7 @@ namespace netxs::ui
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            rich::resize_if_need(max);
+            rich::resize_if_needed(max);
             auto ptr = begin();
             auto dst = ptr + max;
             auto src = dst - vol;
@@ -960,7 +960,7 @@ namespace netxs::ui
             auto len = length();
             auto max = len + add;
             if (at > len) max += at - len;
-            rich::resize_if_need(max);
+            rich::resize_if_needed(max);
             auto pos = max - add;
             auto dst = begin() + pos;
             auto src = fragment.begin();
@@ -1052,7 +1052,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    rich::resize_if_need(margin + at);
+                    rich::resize_if_needed(margin + at);
                     auto ptr = begin();
                     auto dst = ptr + at;
                     auto src = dst + count;
@@ -1710,7 +1710,7 @@ namespace netxs::ui
             cells.resize(oversize, c);
         }
         // line: Resize (grow) if needed (preserving content).
-        void resize_if_need(si32 oversize, cell const& c = {})
+        void resize_if_needed(si32 oversize, cell const& c = {})
         {
             if (oversize > size())
             {
@@ -1742,7 +1742,7 @@ namespace netxs::ui
             auto len = size();
             if constexpr (AutoGrow)
             {
-                resize_if_need(at + count);
+                resize_if_needed(at + count);
             }
             else
             {
@@ -1758,7 +1758,7 @@ namespace netxs::ui
         void splice1(si32 at, std::span<cell const> fragment, auto fuse, cell const& c = {})
         {
             auto len = (si32)fragment.size();
-            resize_if_need(len + at, c);
+            resize_if_needed(len + at, c);
             auto ptr = cells.begin();
             auto dst = ptr + at;
             auto end = dst + len;
@@ -1773,7 +1773,7 @@ namespace netxs::ui
         void splice6(si32 at, si32 count, std::span<cell const> proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
-            resize_if_need(at + count, c);
+            resize_if_needed(at + count, c);
             auto end = cells.begin() + at;
             auto dst = end + count;
             auto src = proto.end();
@@ -1787,7 +1787,7 @@ namespace netxs::ui
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            resize_if_need(max);
+            resize_if_needed(max);
             auto ptr = cells.begin();
             auto dst = ptr + max;
             auto src = dst - vol;

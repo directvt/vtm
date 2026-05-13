@@ -3654,7 +3654,7 @@ namespace netxs::ui
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void _clear_line(line& l, bool deallocate)
                 {
-                    if (auto has_sixels = l.get_image_sixel())
+                    if (l.get_image_sixel())
                     {
                         l.set_image_sixel(faux);
                         owner.sixel_run_accounting(l.cells);
@@ -5368,7 +5368,7 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            curln.resize_if_need(batch.caret, brush.spare.spc());
+                            curln.resize_if_needed(batch.caret, brush.spare.spc());
                             batch.recalc(curln, old_state);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
@@ -5416,7 +5416,7 @@ namespace netxs::ui
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                curln.resize_if_need(batch.caret, brush.spare.spc());
+                                curln.resize_if_needed(batch.caret, brush.spare.spc());
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -5444,12 +5444,12 @@ namespace netxs::ui
 
                                 if constexpr (mixer)
                                 {
-                                    curln.resize_if_need(batch.caret + (si32)shadow.size(), brush.spare.spc());
+                                    curln.resize_if_needed(batch.caret + (si32)shadow.size(), brush.spare.spc());
                                 }
                                 else
                                 {
-                                    has_sixels ? curln.splice6(batch.caret, shadow, owner.sixel_accounting(cell::shaders::full), brush.spare.spc())
-                                               : curln.splice6(batch.caret, shadow,                        cell::shaders::full,  brush.spare.spc());
+                                    has_sixels ? curln.splice1(batch.caret, shadow, owner.sixel_accounting(cell::shaders::full), brush.spare.spc())
+                                               : curln.splice1(batch.caret, shadow,                        cell::shaders::full,  brush.spare.spc());
                                 }
 
                                 batch.recalc(curln, old_state);
