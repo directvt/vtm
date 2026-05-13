@@ -4251,11 +4251,10 @@ struct impl : consrv
         direct(packet.target, [&](auto& scrollback)
         {
             scrollback.flush_data();
-            auto has_sixels = faux;
-            mirror.each(uiterm.sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); }));
+            auto has_sixels = uiterm.sixels_inc(mirror.pick());
             uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full, faux);
             uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full, has_sixels);
-            if (has_sixels) mirror.each(uiterm.sixel_dec_accounting());
+            if (has_sixels) uiterm.sixels_dec(mirror.pick());
             return true;
         });
     }

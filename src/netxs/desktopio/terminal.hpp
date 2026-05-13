@@ -2829,7 +2829,16 @@ namespace netxs::ui
                 fx(dst, src);
             };
         }
-
+        auto sixels_inc(std::span<cell const> fragment)
+        {
+            auto has_sixels = faux;
+            std::ranges::for_each(fragment, this->sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); })); //todo msvc 17.14.30 requires 'this->'
+            return has_sixels;
+        }
+        void sixels_dec(std::span<cell const> fragment)
+        {
+            std::ranges::for_each(fragment, sixel_dec_accounting());
+        }
         // term: Alternate screen buffer implementation.
         struct alt_screen
             : public bufferbase
@@ -3079,12 +3088,16 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    tail_frag = _take_fragment_from_current_coord(left_cells); // Update tail_frag.
-                    _data_direct_fill<faux>(count, proto, fuse);
+                    tail_frag = _take_fragment_from_current_coord(left_cells);
+                    auto has_sixels = owner.sixels_inc(tail_frag.cells);
+
+                    _data_direct_fill<faux>(count, proto, owner.sixel_accounting(fuse));
+
                     coord.x = next_x;
                     if (tail_frag.size())
                     {
-                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, owner.sixel_accounting(fuse));
+                        if (has_sixels) owner.sixels_dec(tail_frag.cells);
                     }
                 }
                 else
@@ -5585,13 +5598,17 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    tail_frag = _take_fragment_from_current_coord(left_cells); // Update tail_frag.
-                    _data_direct_fill<faux>(count, proto, fuse);
+                    tail_frag = _take_fragment_from_current_coord(left_cells);
+                    auto has_sixels = owner.sixels_inc(tail_frag.cells);
+
+                    _data_direct_fill<faux>(count, proto, owner.sixel_accounting(fuse));
+
                     coord.x = next_x;
                     sync_coord();
                     if (tail_frag.size())
                     {
-                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, owner.sixel_accounting(fuse));
+                        if (has_sixels) owner.sixels_dec(tail_frag.cells);
                     }
                 }
                 else
@@ -8120,8 +8137,7 @@ namespace netxs::ui
             // Take fragment.
             if (srcBuffIndex == -1) console.do_viewport_copy(fragment);
             else                    netxs::onbody(fragment, pocket[srcBuffIndex], cell::shaders::full);
-            auto has_sixels = faux;
-            fragment.each(sixel_inc_accounting([&](auto& c){ has_sixels = has_sixels || c.get_image_sixel(); }));
+            auto has_sixels = sixels_inc(fragment.pick());
             // Put fragment.
             auto coor = twod{ dstLeft, dstTop };
             if (dstBuffIndex == -1) // Dst is real buffer.
@@ -8146,7 +8162,7 @@ namespace netxs::ui
                 dst.crop(console.panel, empty_cell, sixel_dec_accounting());
                 dst.plot(fragment, sixel_accounting(cell::shaders::full));
             }
-            if (has_sixels) fragment.each(sixel_dec_accounting());
+            if (has_sixels) sixels_dec(fragment.pick());
         }
         // term: Set semantic marker (OSC 133).
         void osc_marker(view data)
