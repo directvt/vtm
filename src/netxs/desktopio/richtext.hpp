@@ -789,7 +789,7 @@ namespace netxs::ui
                 }
             }
         }
-        void unpack2d(auto const& proto, twod block_size)
+        void unpack2d(std::span<cell const> proto, twod block_size)
         {
             core::size(block_size);
             //todo simplify (use netxs::onrect)
@@ -832,7 +832,7 @@ namespace netxs::ui
         }
         // rich: Splice proto with auto grow.
         template<bool Copy = faux>
-        void splice4(si32 at, si32 count, auto const& proto, auto fuse, cell const& c = {})
+        void splice4(si32 at, si32 count, std::span<cell const> proto, auto fuse, cell const& c = {})
         {
             if (count <= 0) return;
             rich::resize_if_need(at + count, c);
@@ -842,7 +842,7 @@ namespace netxs::ui
             reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         template<bool Copy = faux>
-        void splice5(twod at, si32 count, auto const& proto, auto fuse)
+        void splice5(twod at, si32 count, std::span<cell const> proto, auto fuse)
         {
             if (count <= 0) return;
             auto end = begin() + at.x + at.y * size().x;
@@ -1226,7 +1226,7 @@ namespace netxs::ui
             else if (!busy()) locus.push(cmd);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 width, si32 /*height*/, core::body const& proto) override
+        void data(si32 width, si32 /*height*/, std::span<cell const> proto) override
         {
             lyric->splice4(caret, width, proto, cell::shaders::full);
             caret += width;
@@ -2181,7 +2181,7 @@ namespace netxs::ui
             item.style = parser::style;
         }
         // page: .
-        void data(si32 width, si32 /*height*/, core::body const& proto) override
+        void data(si32 width, si32 /*height*/, std::span<cell const> proto) override
         {
             auto& item = **layer;
             item.content().splice4(item.caret, width, proto, cell::shaders::full);

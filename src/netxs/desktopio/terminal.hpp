@@ -2633,8 +2633,7 @@ namespace netxs::ui
             // bufferbase: Clear scrollback keeping current line.
     virtual void clear_scrollback() = 0;
             // bufferbase: Proceed 2d text.
-            template<class Span>
-            void data_2d(twod block_size, Span const& proto, auto print_stripe)
+            void data_2d(twod block_size, std::span<cell const> proto, auto print_stripe)
             {
                 assert(block_size.y > 1);
                 char_2d.unpack2d(proto, block_size);
@@ -2983,7 +2982,7 @@ namespace netxs::ui
             }
             // alt_screen: Proceed new text using specified cell shader.
             template<bool Copy = faux>
-            void _data(si32 count, auto const& proto, auto fuse, bool forceSixelAccounting = faux)
+            void _data(si32 count, std::span<cell const> proto, auto fuse, bool forceSixelAccounting = faux)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
@@ -3061,7 +3060,7 @@ namespace netxs::ui
             }
             // alt_screen: .
             template<bool Copy>
-            void _data_direct_fill(si32 count, auto const& proto, auto fuse)
+            void _data_direct_fill(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -3074,7 +3073,7 @@ namespace netxs::ui
                 fill(canvas.begin(), coord.x + coord.y * panel.x);
             }
             // alt_screen: Insert new text using the specified cell shader.
-            void _data_insert(si32 count, auto const& proto, auto fuse)
+            void _data_insert(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
@@ -3100,7 +3099,7 @@ namespace netxs::ui
                 _del(w);
             }
             // alt_screen: Parser callback.
-            void data(si32 width, si32 height, core::body const& proto) override
+            void data(si32 width, si32 height, std::span<cell const> proto) override
             {
                 if (width)
                 {
@@ -5271,7 +5270,7 @@ namespace netxs::ui
             }
             // scroll_buf: Proceed new text using specified cell shader.
             template<bool Copy = faux>
-            void _data(si32 count, auto const& proto, auto fuse, bool forceSixelAccounting = faux)
+            void _data(si32 count, std::span<cell const> proto, auto fuse, bool forceSixelAccounting = faux)
             {
                 static constexpr auto mixer = !std::is_same_v<decltype(fuse), decltype(cell::shaders::full)>;
 
@@ -5527,7 +5526,7 @@ namespace netxs::ui
             }
             // scroll_buf: .
             template<bool Copy>
-            void _data_direct_fill(si32 count, auto const& proto, auto fuse)
+            void _data_direct_fill(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
@@ -5580,7 +5579,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Insert text using the specified cell shader.
-            void _data_insert(si32 count, auto const& proto, auto fuse)
+            void _data_insert(si32 count, std::span<cell const> proto, auto fuse)
             {
                 auto next_x = coord.x + count;
                 if (next_x < panel.x)
@@ -5607,7 +5606,7 @@ namespace netxs::ui
                 _del(w);
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 width, si32 height, core::body const& proto) override
+            void data(si32 width, si32 height, std::span<cell const> proto) override
             {
                 if (width)
                 {
