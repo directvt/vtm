@@ -5,15 +5,16 @@ The `OSC glyph` sequence allows an application to override the visual representa
 ## Syntax
 
 ```
-OSC glyph [ ; <mappings> [ metrics=<character> ] [ id=<anyplex-id>[/<sub-id>] ]] ST
-```
+OSC glyph [ ; <glyph-definition> ] ... [ ; <glyph-definition> ] ST
 
-### Parameters
+# Where <glyph-definition> is:
+# [ ; <mappings> [ matrix=<image-cell-list> ] [ id=<anyplex-id>[/<sub-id>] ]]
+```
 
 Field                 | Description
 ----------------------|------------
 **mappings**          | A space-separated list of `cluster="..."` assignments. Values can be quoted (`"` or `'`) or unquoted. The `cluster` value is the UTF-8 sequence (may include `STX` and `U+Dxxxx` boundaries).
-**character**         | A reference character (e.g., `M`) used for bounding box/alignment. If **empty**, the glyph fills the character matrix area defined by the cluster (VT2D dimensions).
+**image-cell-list**   | A list of the image cells used for building resultant glyph. If **empty**, a whole image is used to represent the glyph.
 **anyplex-id/sub-id** | A reference to the registered AnyPlex object.
 
 > Notes:
@@ -32,7 +33,7 @@ Override the standard 🚀 emoji using the proportions of an '😀' character.
 \x1b]app;id="chr_Rocket" <svg>...rocket image...</svg>\x1b\\
 
 # Map cluster to image:
-\x1b]glyph;cluster=🚀 metrics=😀 id="chr_Rocket"\x1b\\
+\x1b]glyph;cluster=🚀 matrix=w2h1 id="chr_Rocket"\x1b\\
 ```
 
 ### 2. Multi-Glyph Atlas (OT-SVG Style)
