@@ -7968,7 +7968,7 @@ namespace netxs::ui
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
-        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(default) (+move text cursor to the beginning of next line after image)/disable scroll (+don't move text cursor and trim sixel image by the scrolling region).
+        bool       decsdm; // term: Sixel Display Mode. On sixel output: faux: Enable scroll (+move text cursor to the beginning of next line after image). True: Disable scroll (+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -8098,17 +8098,31 @@ namespace netxs::ui
             auto cells_expected = image_buffer.volume();
             image_sixel_count++;
             auto& count = image_ref_count[image.index];
-            count += cells_expected; // Insure against premature removal.
+            count += cells_expected; // Insure against premature image removal.
             if constexpr (debugmode) log("print1: image index: %% cell_count: %%", image.index, count);
-            draw_block(image_buffer, cell::shaders::full, true, !decsdm);
+            auto cursor_coor = target->coord;
+            auto saved_n_top = target->n_top;
+            auto saved_n_end = target->n_end;
+            if (decsdm) // Reset cursor position and remove scrolling region margins.
+            {
+                target->set_scroll_region(0, 0);
+            }
+            draw_block(image_buffer, cell::shaders::full, true, decsdm);
             count -= cells_expected;
             if constexpr (debugmode) log("print2: image index: %% cell_count: %%", image.index, count);
             if (image_ref_count[image.index] == 0) // A case where nothing is printed.
             {
                 remove_sixel_image(image.index, faux);
             }
-            //todo respect decsdm (trim image + don't move cursor)
-            data_in("\n\r");
+            if (decsdm) // Restore cursor position and scrolling region.
+            {
+                target->set_scroll_region(saved_n_top, saved_n_end);
+                target->cup2(cursor_coor);
+            }
+            else // Move cursor to the next line.
+            {
+                data_in("\n\r");
+            }
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
         void deccra(fifo& q)
@@ -8726,7 +8740,7 @@ namespace netxs::ui
                 case 40:   // Enable 80/132 toggle.
                     deccol = true;
                     break;
-                case 80:   // Enable Sixel Display Mode (DECSDM). Enable the text cursor to move, and the scrolling region to scroll.
+                case 80:   // Enable Sixel Display Mode (DECSDM). Don't move the text cursor and trim the image by the scrolling region.
                     decsdm = true;
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
@@ -8849,7 +8863,7 @@ namespace netxs::ui
                 case 40:   // Disable 80/132 toggle.
                     deccol = faux;
                     break;
-                case 80:   // Disable Sixel Display Mode. Don't move the text cursor and trim the image by the scrolling region.
+                case 80:   // Disable Sixel Display Mode. Enable the text cursor to move, and the scrolling region to scroll.
                     decsdm = faux;
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
@@ -9911,7 +9925,7 @@ namespace netxs::ui
               insmod{ faux },
               decckm{ faux },
               deccol{ faux },
-              decsdm{ true }, // Mode 80 is on by default.
+              decsdm{ faux },
               bpmode{ faux },
               unsync{ faux },
               invert{ faux },
