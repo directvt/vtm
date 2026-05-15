@@ -4924,7 +4924,11 @@ struct impl : consrv
                             answer.length = upload.arglen;
                         }
                         auto proc = apimap[upload.fxtype & 255];
-                        uiterm.update([&]
+                        if (proc == &impl::api_system_langid_get) // Don't block the UI thread unnecessarily! (ssh.exe blocks their IO by constantly asking for langid for unknown reason)
+                        {
+                            (this->*proc)();
+                        }
+                        else uiterm.update([&]
                         {
                             auto lock = std::lock_guard{ events.locker };
                             (this->*proc)();
