@@ -11273,10 +11273,16 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
-            auto& maxoff = base::field(span{ span::period::den / std::max(1, ui::skin::globals().maxfps) }); // dtvt: Max delay before showing "No signal".
+            static const auto calc_maxoff = [](auto fps) // Max delay before showing "No signal".
+            {
+                fps = std::max(1, fps);
+                //return span{ span::period::den / fps }; // 1/60 of second.
+                return span{ 1s }; // 1 second.
+            };
+            auto& maxoff = base::field(calc_maxoff(ui::skin::globals().maxfps));
             LISTEN(tier::general, e2::config::fps, fps)
             {
-                maxoff = span{ span::period::den / std::max(1, fps) };
+                maxoff = calc_maxoff(fps);
                 if (fps > 0)
                 {
                     stream.fps.send(*this, fps);
