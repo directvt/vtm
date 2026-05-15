@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 800 400"
+   version="1.1"
+   id="svg13"
+   sodipodi:docname="NormalizedSourceViewport6.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview13"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="356.38182"
+     inkscape:cy="197.28279"
+     inkscape:window-width="1920"
+     inkscape:window-height="996"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg13" />
+  <rect
+     width="800"
+     height="400"
+     fill="#f8f9fa"
+     id="rect1"
+     inkscape:export-filename="NormalizedViewportSource4.svg"
+     inkscape:export-xdpi="96"
+     inkscape:export-ydpi="96" />
+  <text
+     x="50"
+     y="35"
+     font-family="sans-serif"
+     font-size="14px"
+     font-weight="bold"
+     id="text1">1. Source Object (SVG/Raster)</text>
+  <rect
+     width="200"
+     height="200"
+     fill="#e0e0e0"
+     stroke="#999999"
+     stroke-width="2"
+     id="rect2"
+     x="50"
+     y="50"
+     style="fill:#e0e0e0;fill-opacity:1" />
+  <rect
+     x="150"
+     y="90"
+     width="80"
+     height="80"
+     fill="rgba(0, 123, 255, 0.2)"
+     stroke="#007bff"
+     stroke-width="2"
+     stroke-dasharray="4"
+     id="rect3"
+     style="fill:#919191;fill-opacity:1" />
+  <text
+     x="139.86154"
+     y="83.786797"
+     font-family="monospace"
+     font-size="10px"
+     fill="#007bff"
+     id="text3">u,v</text>
+  <text
+     x="186.11092"
+     y="180.98097"
+     font-family="monospace"
+     font-size="10px"
+     fill="#007bff"
+     id="text4">uw</text>
+  <text
+     x="233.87807"
+     y="135.37405"
+     font-family="monospace"
+     font-size="10px"
+     fill="#007bff"
+     id="text4-6">vh</text>
+  <text
+     x="45"
+     y="60"
+     font-family="monospace"
+     font-size="10px"
+     text-anchor="end"
+     id="text5">0.0</text>
+  <text
+     x="45"
+     y="250"
+     font-family="monospace"
+     font-size="10px"
+     text-anchor="end"
+     id="text6">1.0</text>
+  <text
+     x="250"
+     y="265"
+     font-family="monospace"
+     font-size="10px"
+     text-anchor="middle"
+     id="text7">1.0</text>
+  <path
+     d="m 278.03001,130.00184 h 60"
+     stroke="#555555"
+     stroke-width="3"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="path7" />
+  <defs
+     id="defs7">
+    <pattern
+       inkscape:collect="always"
+       xlink:href="#grid"
+       id="pattern13"
+       patternTransform="translate(389.99974,50.015625)"
+       x="0"
+       y="0"
+       preserveAspectRatio="none" />
+    <marker
+       id="arrowhead"
+       markerWidth="10"
+       markerHeight="7"
+       refX="0"
+       refY="3.5"
+       orient="auto">
+      <polygon
+         points="0 0, 10 3.5, 0 7"
+         fill="#555"
+         id="polygon7" />
+    </marker>
+    <defs
+       id="defs8">
+      <pattern
+         id="grid"
+         width="30"
+         height="40"
+         patternUnits="userSpaceOnUse"
+         inkscape:label="grid">
+        <rect
+           width="30"
+           height="40"
+           fill="none"
+           stroke="#ccc"
+           stroke-width="1"
+           id="rect8" />
+      </pattern>
+    </defs>
+    <clipPath
+       id="tileClip">
+      <rect
+         width="120"
+         height="120"
+         id="rect11"
+         x="0"
+         y="0" />
+    </clipPath>
+  </defs>
+  <text
+     x="450"
+     y="35"
+     font-family="sans-serif"
+     font-size="14px"
+     font-weight="bold"
+     id="text8">2. Target Terminal Grid</text>
+  <rect
+     style="fill:#f2be00;fill-opacity:0.61675125;stroke:none;stroke-width:0.799;stroke-dasharray:none;stroke-opacity:1"
+     id="rect19"
+     width="120.06824"
+     height="120.03033"
+     x="540.00781"
+     y="130.01562" />
+  <rect
+     width="390.48825"
+     height="280"
+     fill="url(#grid)"
+     id="rect9"
+     x="389.99976"
+     y="50.015625"
+     style="fill:url(#pattern13);stroke-width:1.14089" />
+  <text
+     x="551.47485"
+     y="132.94823"
+     font-family="monospace"
+     font-size="10px"
+     fill="#333333"
+     id="text12">x,y</text>
+  <text
+     x="582.95337"
+     y="100.62489"
+     font-family="monospace"
+     font-size="10px"
+     fill="#333333"
+     id="text12-8">W</text>
+  <text
+     x="548.0719"
+     y="318.09232"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377">1 2 3 4</text>
+  <text
+     x="512.36646"
+     y="318.10013"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8-9"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377">c:</text>
+  <text
+     x="132.26051"
+     y="-729.26361"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8-2"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377"
+     transform="rotate(90)">r:</text>
+  <text
+     x="144.6909"
+     y="-697"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8-2-4"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377"
+     transform="rotate(90)">1</text>
+  <text
+     x="222.5719"
+     y="-697.34515"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8-2-4-1"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377"
+     transform="rotate(90)">3</text>
+  <text
+     x="182.5719"
+     y="-697"
+     font-family="monospace"
+     font-size="24.377px"
+     fill="#333333"
+     id="text12-8-8-2-4-3"
+     style="fill:#333333;fill-opacity:0.509804;stroke-width:2.4377"
+     transform="rotate(90)">2</text>
+  <text
+     x="452.73926"
+     y="140.65137"
+     font-family="monospace"
+     font-size="10px"
+     fill="#333333"
+     id="text12-8-3" />
+  <text
+     x="505.69257"
+     y="183.75871"
+     font-family="monospace"
+     font-size="10px"
+     fill="#333333"
+     id="text12-8-4-2">H</text>
+  <text
+     x="400"
+     y="370"
+     font-family="sans-serif"
+     font-size="12"
+     text-anchor="middle"
+     fill="#666"
+     id="text13">
+    Normalized (0.0–1.0) Viewport allows smooth zooming and sliding regardless of source resolution.
+  </text>
+  <path
+     d="m 69.646447,206.66548 q 80.000003,-160.000004 160.000003,0"
+     fill="none"
+     stroke="#ff4444"
+     stroke-width="4"
+     id="path2" />
+  <rect
+     style="fill:#1a1a1a;fill-opacity:0.43697479;stroke:none;stroke-width:3.408;stroke-dasharray:none;stroke-opacity:1"
+     id="rect14"
+     width="100.58594"
+     height="100.40916"
+     x="549.77551"
+     y="139.83037" />
+  <path
+     id="path2-5"
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff4444;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 550.00781 182.76953 L 550.00781 187.78906 C 565.56976 188.11618 581.31993 196.0579 597.4043 212.1582 C 604.96193 219.72332 612.56127 229.07872 620.18555 240.2207 L 626.25391 240.2207 C 617.85593 227.6282 609.43134 217.09207 600.95703 208.60938 C 584.25975 191.89556 567.22929 183.0986 550.00781 182.76953 z " />
+  <rect
+     width="100.33422"
+     height="100.838"
+     fill="rgba(0, 123, 255, 0.1)"
+     stroke="#007bff"
+     stroke-width="2.51464"
+     id="rect10-9"
+     x="550.02307"
+     y="139.38326"
+     clip-path="none"
+     style="fill:none" />
+  <text
+     x="554.77832"
+     y="252.55667"
+     font-family="monospace"
+     font-size="11px"
+     fill="#007bff"
+     font-weight="bold"
+     id="text11">Result (<tspan
+   style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:monospace;-inkscape-font-specification:'monospace Bold Italic'"
+   id="tspan1">w</tspan> × <tspan
+   style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:monospace;-inkscape-font-specification:'monospace Bold Italic'"
+   id="tspan2">h</tspan>)</text>
+  <g
+     id="path1"
+     transform="translate(-0.00531898,-0.00190371)">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 543.24414,105.48633 v 0.80273 h 113.52148 v -0.80273 z"
+       id="path35" />
+    <g
+       id="g29">
+      <g
+         id="path29"
+         style="opacity:1">
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 540.92972,105.88799 3.46876,-2.00506 v 4.01012 z"
+           id="path30" />
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 544.66602,103.41992 -4.26954,2.46875 4.26954,2.4668 z m -0.53516,0.92774 v 3.08203 l -2.66602,-1.54102 z"
+           id="path31" />
+      </g>
+      <g
+         id="path32"
+         style="opacity:1">
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 659.08032,105.88799 -3.46876,2.00506 v -4.01012 z"
+           id="path33" />
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 655.34375,103.41992 v 4.93555 l 4.27148,-2.4668 z m 0.53516,0.92578 2.66796,1.54297 -2.66796,1.54102 z"
+           id="path34" />
+      </g>
+    </g>
+  </g>
+  <g
+     id="path1-4"
+     transform="translate(-0.00531898,-0.00190371)">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 520.20508,133.13281 v 113.77735 h 0.79883 V 133.13281 Z"
+       id="path43" />
+    <g
+       id="g37">
+      <g
+         id="path37"
+         style="opacity:1">
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 520.60388,249.21617 -1.9975,-3.45568 h 3.995 z"
+           id="path38" />
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 518.14453,245.49414 2.45899,4.25391 2.45898,-4.25391 z m 0.92383,0.5332 h 3.07031 l -1.53515,2.65625 z"
+           id="path39" />
+      </g>
+      <g
+         id="path40"
+         style="opacity:1">
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 520.60388,130.82714 1.9975,3.45568 h -3.995 z"
+           id="path41" />
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 520.60352,130.29492 -2.45899,4.25391 h 4.91797 z m 0,1.06445 1.53515,2.65625 h -3.07031 z"
+           id="path42" />
+      </g>
+    </g>
+  </g>
+  <path
+     style="fill:none;stroke:#ff0000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="M 660.0021,97.560597 V 129.51631"
+     id="path28" />
+  <path
+     style="fill:none;stroke:#ff0000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="M 539.95983,97.898446 V 129.95963"
+     id="path28-4"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ff0000;stroke-width:0.498888;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="m 515.48866,129.99677 h 24.51011"
+     id="path28-4-9"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ff0000;stroke-width:0.494869;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="m 515.39762,249.99562 h 24.11677"
+     id="path28-4-9-8"
+     sodipodi:nodetypes="cc" />
+  <g
+     id="path44"
+     transform="translate(-0.00531898,-0.00190371)">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 540.00195,129.68164 -0.33984,0.36719 7.63867,7.05469 0.33984,-0.36719 z"
+       id="path48" />
+    <g
+       id="g45">
+      <g
+         id="path45"
+         style="opacity:1">
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 548.52964,137.89953 -2.43665,-0.54922 1.6964,-1.83635 z"
+           id="path46" />
+        <path
+           style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ff0000;fill-rule:evenodd;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 547.86328,135.18945 -2.08789,2.25977 2.99805,0.67578 z m -0.14648,0.64844 0.56836,1.83594 -1.875,-0.42383 z"
+           id="path47" />
+      </g>
+    </g>
+  </g>
+</svg>

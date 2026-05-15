@@ -10663,16 +10663,21 @@ namespace netxs::ui
             using input_fields_handler::handle;
 
             dtvt& owner; // link: Terminal object reference.
+            flag  waits; // link: Owner is waiting for the correct bitmap size.
 
             void direct(s11n::xs::bitmap_dtvt         lock, view& data)
             {
                 auto& bitmap = lock.thing;
                 bitmap.get(data, s11n::nat);
-                owner.base::enqueue([&](auto& /*boss*/)
+                log("recv bitmap.image.area()=", bitmap.image.area());
+                owner.digest++;
+                if (!waits)
                 {
-                    owner.digest++;
-                    owner.base::deface();
-                });
+                    owner.base::enqueue([&](auto& /*boss*/)
+                    {
+                        owner.base::deface();
+                    });
+                }
             }
             void handle(s11n::xs::img_list            lock)
             {
@@ -10993,7 +10998,8 @@ namespace netxs::ui
             link(dtvt& owner)
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
-                  owner{ owner }
+                  owner{ owner },
+                  waits{ faux  }
             { }
         };
 
@@ -11273,10 +11279,16 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
-            auto& maxoff = base::field(span{ span::period::den / std::max(1, ui::skin::globals().maxfps) }); // dtvt: Max delay before showing "No signal".
+            static const auto calc_maxoff = [](auto fps) // Max delay before showing "No signal".
+            {
+                fps = std::max(1, fps);
+                //return span{ span::period::den / fps }; // 1/60 of second.
+                return span{ 1s }; // 1 second.
+            };
+            auto& maxoff = base::field(calc_maxoff(ui::skin::globals().maxfps));
             LISTEN(tier::general, e2::config::fps, fps)
             {
-                maxoff = span{ span::period::den / std::max(1, fps) };
+                maxoff = calc_maxoff(fps);
                 if (fps > 0)
                 {
                     stream.fps.send(*this, fps);
@@ -11291,7 +11303,6 @@ namespace netxs::ui
                 {
                     fallback(canvas);
                     fill(parent_canvas, splash);
-                    return;
                 }
                 else if (size == canvas.size())
                 {
@@ -11299,7 +11310,8 @@ namespace netxs::ui
                 }
                 else if (canvas.size())
                 {
-                    while (size != canvas.size()) // Always waiting for the correct frame.
+                    stream.waits = true; // Don't deface on canvas update.
+                    while (size != canvas.size()) // Always wait for the correct frame.
                     {
                         if (!active) return;
                         if (std::cv_status::timeout == lock.wait_for(maxoff)
@@ -11308,9 +11320,11 @@ namespace netxs::ui
                             nodata = canvas.hash();
                             fallback(canvas, faux, faux);
                             fill(parent_canvas, splash);
+                            stream.waits = faux;
                             return;
                         }
                     }
+                    stream.waits = faux;
                     fill(parent_canvas, canvas);
                 }
             };

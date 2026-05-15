@@ -2,6 +2,8 @@
 
 The **AnyPlex Protocol** allows vector, bitmap, and extensible markup objects to be embedded directly into the terminal's scrollback buffer.
 
+![Image](images/NormalizedSourceViewport.svg)
+
 #### Backend & Frontend Separation
 
 The protocol operates on a decoupled architecture to ensure high performance and display adaptability.
