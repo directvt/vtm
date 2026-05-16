@@ -10669,7 +10669,6 @@ namespace netxs::ui
             {
                 auto& bitmap = lock.thing;
                 bitmap.get(data, s11n::nat);
-                log("recv bitmap.image.area()=", bitmap.image.area());
                 owner.digest++;
                 if (!waits)
                 {
