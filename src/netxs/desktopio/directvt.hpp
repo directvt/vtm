@@ -2021,6 +2021,7 @@ namespace netxs::directvt
                     auto list = s11n::request_img.freeze();
                     for (auto& remote_index : images.unk)
                     {
+                        if constexpr (debugmode) log("send request for unknown remote image index=%%", remote_index);
                         list.thing.push(remote_index);
                     }
                     images.unk.clear();
@@ -2106,6 +2107,7 @@ namespace netxs::directvt
                 {
                     for (auto& image_index : image_indexes)
                     {
+                        if constexpr (debugmode) log("Remote: Remove image index: remote=%% local=%%", image_index, s11n::nat[image_index]);
                         image_index = std::exchange(s11n::nat[image_index], 0);
                         if (image_index)
                         {
@@ -2118,6 +2120,7 @@ namespace netxs::directvt
                 {
                     for (auto image_index : image_indexes)
                     {
+                        if constexpr (debugmode) log("Local: Remove image index: local=%%", image_index);
                         images.remove(image_index);
                         hit |= !!image_index;
                     }

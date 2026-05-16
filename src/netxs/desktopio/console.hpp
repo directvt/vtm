@@ -234,18 +234,19 @@ namespace netxs::ui
                     for (auto& unknown_image : items)
                     {
                         auto unknown_index = unknown_image.index;
+                        if constexpr (debugmode) log("got request for unknown remote image index=%%", unknown_index);
                         if (auto image_ptr = images.map[unknown_index])
                         {
                             auto& image = *image_ptr;
                             if (!image.empty())
                             {
+                                if constexpr (debugmode) log("  send reply for unknown remote image index=%%", unknown_index);
                                 list.thing.push(unknown_index, image.get_global_attrs());
+                                continue;
                             }
                         }
-                        else
-                        {
-                            pending_indexes.push_back(unknown_index);
-                        }
+                        if constexpr (debugmode) log("  image is empty or unregistered: pending request for unknown remote image index=%%", unknown_index);
+                        pending_indexes.push_back(unknown_index);
                     }
                 }
                 list.thing.sendby<true>(canal);
