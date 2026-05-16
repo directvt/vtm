@@ -1503,7 +1503,7 @@ namespace netxs
             bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 auto layers_updated = faux;
-                if constexpr (debugmode) log("Received image update:");
+                if constexpr (debugmode) log("Received image index=%% update:", index);
                 attr_digest++;
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
@@ -1541,7 +1541,7 @@ namespace netxs
                         document = std::any_cast<text>(changes[j++]);
                         dom = {}; // Request to regenerate DOM.
                         need_bitmap_reset = true;
-                        if constexpr (debugmode) log("  document='%value%...'", document.substr(0, std::min(20, (si32)document.size())));
+                        if constexpr (debugmode) log("  size=%% document='%value%...'", document.size(), document.substr(0, std::min(120, (si32)document.size())));
                     }
                     if (j < changes.size() && netxs::get_bit<image::layers_bit>(document_changed)) // Receive foreign layer indexes.
                     {
@@ -1656,7 +1656,7 @@ namespace netxs
                     document = std::any_cast<text>(global_attributes[i++]);
                     layers_updated = load_layers(i, global_attributes);
                     reset_changes();
-                    if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(20, (si32)document.size())));
+                    if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(120, (si32)document.size())));
                 }
                 return layers_updated;
             }
@@ -1754,6 +1754,7 @@ namespace netxs
                 // cache: Remove object.
                 void remove(ui16 image_index)
                 {
+                    if constexpr (debugmode) log("Removed image index: %% exists=%%", image_index, map[image_index] ? "true":"faux");
                     map[image_index].reset();
                     ind.release(image_index);
                 }
@@ -1807,7 +1808,7 @@ namespace netxs
             {
                 image_ptr->index = last_int_index;
                 images.unk.push_back(last_ext_index);
-                if constexpr (debugmode) log("request image index: last_int_index=%% last_ext_index=%%", last_int_index, last_ext_index);
+                if constexpr (debugmode) log("register a new int image index: last_int_index=%% for last_ext_index=%%", last_int_index, last_ext_index);
                 ext_to_int_nat[last_ext_index] = last_int_index; // Update forward map.
                 //int_to_ext_nat[last_int_index] = last_ext_index; // Update reverse map.
             }

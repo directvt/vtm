@@ -2771,7 +2771,7 @@ namespace netxs::ui
             if (auto index = src.get_image_index())
             {
                 auto& count = image_ref_count[index];
-                if constexpr (debugmode) log("\tinc image index: %% cell_count: %% -> %%", index, count, count + 1);
+                //if constexpr (debugmode) log("\tinc image index: %% cell_count: %% -> %%", index, count, count + 1);
                 count++;
             }
         }
@@ -2783,7 +2783,7 @@ namespace netxs::ui
                 auto& count = image_ref_count[index];
                 if constexpr (debugmode)
                 {
-                    log("\tdec image index: %% cell_count: %% -> %%", index, count, count - 1);
+                    //log("\tdec image index: %% cell_count: %% -> %%", index, count, count - 1);
                     if (count == 0)
                     {
                         log("%%Sixel image ref accounting is broken. Image index=%%", prompt::term, index);
@@ -7860,7 +7860,7 @@ namespace netxs::ui
                     }
                     else if ((c == '\x1b' && head != tail && *head == '\\' && (head++, true)) || c == '\a') // ST
                     {
-                        if constexpr (debugmode) log("sixel complete");
+                        //if constexpr (debugmode) log("sixel complete");
                         ok = true;
                         break;
                     }
