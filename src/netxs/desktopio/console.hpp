@@ -226,56 +226,52 @@ namespace netxs::ui
             }
             void handle(s11n::xs::request_img lock)
             {
+                auto lock_owner = owner.sync(); // Sync with UI thread.
                 auto pending_indexes = std::list<ui16>{};
                 auto& items = lock.thing;
                 auto list = s11n::img_list.freeze();
+                auto images = cell::images();
+                for (auto& unknown_image : items)
                 {
-                    auto images = cell::images();
-                    for (auto& unknown_image : items)
+                    auto unknown_index = unknown_image.index;
+                    if constexpr (debugmode) log("got request for unknown remote image index=%%", unknown_index);
+                    if (auto image_ptr = images.map[unknown_index])
                     {
-                        auto unknown_index = unknown_image.index;
-                        if constexpr (debugmode) log("got request for unknown remote image index=%%", unknown_index);
-                        if (auto image_ptr = images.map[unknown_index])
+                        auto& image = *image_ptr;
+                        if (!image.empty())
                         {
-                            auto& image = *image_ptr;
-                            if (!image.empty())
-                            {
-                                if constexpr (debugmode) log("  send reply for unknown remote image index=%%", unknown_index);
-                                list.thing.push(unknown_index, image.get_global_attrs());
-                                continue;
-                            }
+                            if constexpr (debugmode) log("  send reply for unknown remote image index=%%", unknown_index);
+                            list.thing.push(unknown_index, image.get_global_attrs());
+                            continue;
                         }
-                        if constexpr (debugmode) log("  image is empty or unregistered: pending request for unknown remote image index=%%", unknown_index);
-                        pending_indexes.push_back(unknown_index);
                     }
+                    if constexpr (debugmode) log("  image is empty or unregistered: pending request for unknown remote image index=%%", unknown_index);
+                    pending_indexes.push_back(unknown_index);
                 }
                 list.thing.sendby<true>(canal);
                 if (pending_indexes.size()) // Subscribe a pending request that awaits a response with image metadata (dtvt).
                 {
-                    auto lock_owner = owner.bell::sync();
                     auto& pending_request = owner.base::field(std::pair{ hook{}, std::move(pending_indexes) });
                     auto& [oneshot, unknown_indexes_list] = pending_request;
                     owner.LISTEN(tier::general, e2::data::image::sync, na, oneshot)
                     {
                         auto reply_list = directvt::binary::img_list_t{};
                         auto reply_count = 0;
+                        auto images = cell::images();
+                        std::erase_if(unknown_indexes_list, [&](auto unknown_index)
                         {
-                            auto images = cell::images();
-                            std::erase_if(unknown_indexes_list, [&](auto unknown_index)
+                            if (auto image_ptr = images.map[unknown_index])
                             {
-                                if (auto image_ptr = images.map[unknown_index])
+                                auto& image = *image_ptr;
+                                if (!image.empty())
                                 {
-                                    auto& image = *image_ptr;
-                                    if (!image.empty())
-                                    {
-                                        reply_list.push(unknown_index, image.get_global_attrs());
-                                        reply_count++;
-                                        return true;
-                                    }
+                                    reply_list.push(unknown_index, image.get_global_attrs());
+                                    reply_count++;
+                                    return true;
                                 }
-                                return faux;
-                            });
-                        }
+                            }
+                            return faux;
+                        });
                         if (reply_count)
                         {
                             auto list = s11n::img_list.freeze();

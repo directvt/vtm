@@ -3149,7 +3149,7 @@ namespace netxs::gui
                 if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
                     if (owner.fsmode == winstate::minimized) owner.redraw = true;
-                    bitmap.get(data, s11n::nat);
+                    bitmap.get(data, s11n::nat, s11n::unk);
                     if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                 }
                 else
@@ -3187,7 +3187,7 @@ namespace netxs::gui
                             }
                         }
                     };
-                    bitmap.get(data, s11n::nat, update);
+                    bitmap.get(data, s11n::nat, s11n::unk, update);
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }
@@ -5379,7 +5379,7 @@ namespace netxs::gui
               tslink{ *this },
               winmsg{}
         {
-            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
+            auto proc = (LONG(_stdcall*)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
         }
 
@@ -5793,6 +5793,49 @@ namespace netxs::gui
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
+        void enable_acrylic(HWND hwnd, argb tint_color)
+        {
+            struct accent_policy
+            {
+                enum
+                {
+                    accent_disabled                   = 0,
+                    accent_enable_gradient            = 1,
+                    accent_enable_transparentgradient = 2,
+                    accent_enable_blurbehind          = 3, // Generic Blur (Aero).
+                    accent_enable_acrylicblurbehind   = 4, // Acrylic (Windows 10+).
+                    accent_invalid_state              = 5,
+                };
+
+                si32 accent_state;
+                si32 accent_flags;
+                ui32 gradient_clr; // Tinting color (ABGR).
+                si32 animation_id;
+            };
+            struct window_composition_attrib_data
+            {
+                enum
+                {
+                    wca_accent_policy = 19, // Window background effects.
+                };
+
+                si32  attr;
+                void* data;
+                si32  size;
+            };
+            auto SetWindowCompositionAttribute = (BOOL(_stdcall*)(HWND, window_composition_attrib_data*))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetWindowCompositionAttribute");
+            if (SetWindowCompositionAttribute)
+            {
+                auto policy = accent_policy{ .accent_state = accent_policy::accent_enable_acrylicblurbehind,
+                                             .accent_flags = 2, // '2': use gradient_clr.
+                                             .gradient_clr = tint_color.token,
+                                             .animation_id = 0 };
+                auto data = window_composition_attrib_data{ .attr = window_composition_attrib_data::wca_accent_policy,
+                                                            .data = &policy,
+                                                            .size = (si32)sizeof(policy) };
+                SetWindowCompositionAttribute(hwnd, &data);
+            }
+        }
         bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -5906,6 +5949,7 @@ namespace netxs::gui
             else if (host_ptr)
             {
                 ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
+                //todo enable_acrylic(hWnd, argb{ 0x40'ff0000 });
             }
             s.hWnd = (arch)hWnd;
             s.hdc = (arch)::CreateCompatibleDC(NULL); // Only current thread owns created CompatibleDC.

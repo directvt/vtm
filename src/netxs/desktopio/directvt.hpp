@@ -1231,7 +1231,7 @@ namespace netxs::directvt
                 delta = sum;
             }
             template<class P = noop, class S = noop>
-            void get(view& data, std::array<ui16, 65536>& ext_to_int_map, P update = {}, S resize = {})
+            void get(view& data, std::array<ui16, 65536>& ext_to_int_map, std::vector<ui16>& unknown_indexes, P update = {}, S resize = {})
             {
                 auto [myid, area, remote_process_id] = stream::take<id_t, rect, time>(data);
                 auto is_remote_forwarding = remote_process_id != binary::process_id;
@@ -1267,7 +1267,7 @@ namespace netxs::directvt
                                 last_int_index = ext_to_int_map[image_ext_index];
                                 if (!last_int_index) // Register a new empty image and get a new index.
                                 {
-                                    last_int_index = cell::register_image(last_ext_index, ext_to_int_map);
+                                    last_int_index = cell::register_image(last_ext_index, ext_to_int_map, unknown_indexes);
                                 }
                             }
                             c.set_image_index(last_int_index);
@@ -1997,6 +1997,7 @@ namespace netxs::directvt
             escx s11n_output; // s11n: Logs buffer.
             escx s11n_logpad; // s11n: Logs left margin.
             std::array<ui16, 65536> nat{}; // s11n: ext_to_int_map: Registered image indexes lookup map. nat[0] indicates local(0)/remote(1)
+            std::vector<ui16>       unk; // s11n: List of unknown image indexes.
 
             // s11n: Deserialize objects.
             void sync(view& data)
@@ -2012,19 +2013,18 @@ namespace netxs::directvt
                     else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                 }
             }
-            // s11n: Request unknown images metadta (after received bitmap synchronization).
+            // s11n: Request unknown images metadata (after receiving bitmap during synchronization).
             void request_images(auto& master)
             {
-                auto images = cell::images();
-                if (images.unk.size())
+                if (s11n::unk.size())
                 {
                     auto list = s11n::request_img.freeze();
-                    for (auto& remote_index : images.unk)
+                    for (auto& remote_index : s11n::unk)
                     {
                         if constexpr (debugmode) log("send request for unknown remote image index=%%", remote_index);
                         list.thing.push(remote_index);
                     }
-                    images.unk.clear();
+                    s11n::unk.clear();
                     list.thing.sendby(master);
                 }
             }
@@ -2054,7 +2054,7 @@ namespace netxs::directvt
                         auto l_int_index = s11n::nat[l_ext_index];
                         if (!l_int_index)
                         {
-                            l_int_index = cell::register_image(l_ext_index, s11n::nat); // Register and enqueue request for unknown images.
+                            l_int_index = cell::register_image(l_ext_index, s11n::nat, s11n::unk); // Register and enqueue request for unknown images.
                         }
                         if (l_int_index)
                         {

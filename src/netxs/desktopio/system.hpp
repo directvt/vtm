@@ -227,11 +227,11 @@ namespace netxs::os
                 struct refs
                 {
                     using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
-                    using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
-                    using RtlGetVersion_ptr       = NTSTATUS(_stdcall *)(RTL_OSVERSIONINFOW*);
-                    using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
+                    using CsrClientCallServer_ptr = NTSTATUS(_stdcall*)(void*, void*, ui32, ui32);
+                    using RtlGetVersion_ptr       = NTSTATUS(_stdcall*)(RTL_OSVERSIONINFOW*);
+                    using ConsoleControl_ptr      = NTSTATUS(_stdcall*)(ui32, void*, ui32);
                     //using TranslateMessageEx_ptr  = std::decay<decltype(::CallMsgFilterW)>::type;
-                    //using TranslateMessageEx_ptr  = BOOL(_stdcall *)(MSG const* pmsg, UINT flags);
+                    //using TranslateMessageEx_ptr  = BOOL(_stdcall*)(MSG const* pmsg, UINT flags);
 
                     HMODULE                 ntdll_dll{};
                     HMODULE                 user32_dll{};
@@ -4963,7 +4963,7 @@ namespace netxs::os
                     #else
                         auto update = noop{};
                     #endif
-                    bitmap.get(data, s11n::nat, update);
+                    bitmap.get(data, s11n::nat, s11n::unk, update);
                 }
                 void handle(s11n::xs::img_list         lock)
                 {
