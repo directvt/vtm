@@ -1716,24 +1716,20 @@ namespace netxs
             using lock = std::recursive_mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
-            using uset = std::vector<ui16>;//std::unordered_set<ui16>;
             using pool = generics::indexer_fifo<ui16>;
 
             lock mutex; // Object map mutex.
             depo store; // Object map.
-            uset undef; // List of unknown tokens.
             pool index; // Index pool.
 
             struct guard : sync
             {
                 depo& map;
-                uset& unk;
                 pool& ind;
 
                 guard(cache& inst)
                     : sync{ inst.mutex },
                        map{ inst.store },
-                       unk{ inst.undef },
                        ind{ inst.index }
                 { }
 
@@ -1763,14 +1759,6 @@ namespace netxs
                 {
                     return map[image_index];
                 }
-                // cache: Request the object metadata if index is not registered.
-                auto request_if_absent(ui16 image_index)
-                {
-                    auto iter = map.find(image_index);
-                    auto okay = iter != map.end();
-                    if (!okay) unk.push_back(image_index);
-                    return okay;
-                }
                 auto begin() const { return map.begin(); }
                 auto begin()       { return map.begin(); }
                 auto end() const   { return map.end(); }
@@ -1791,6 +1779,7 @@ namespace netxs
     {
         static auto jumbos()
         {
+            //todo move unk to s11n (a request for an unknown cluster may be sent to an unrelated dtvt-object)
             static auto cache = netxs::generics::cache<text>{};
             return cache.storage();
         }
@@ -1799,7 +1788,7 @@ namespace netxs
             static auto cache = imagens::cache<imagens::image>{};
             return cache.storage();
         }
-        static auto register_image(ui16 last_ext_index, std::array<ui16, 65536>& ext_to_int_nat)
+        static auto register_image(ui16 last_ext_index, std::array<ui16, 65536>& ext_to_int_nat, std::vector<ui16>& unknown_indexes)
         {
             auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
             auto image_ptr = ptr::shared(imagens::image{});
@@ -1807,7 +1796,7 @@ namespace netxs
             if (last_int_index)
             {
                 image_ptr->index = last_int_index;
-                images.unk.push_back(last_ext_index);
+                unknown_indexes.push_back(last_ext_index);
                 if constexpr (debugmode) log("register a new int image index: last_int_index=%% for last_ext_index=%%", last_int_index, last_ext_index);
                 ext_to_int_nat[last_ext_index] = last_int_index; // Update forward map.
                 //int_to_ext_nat[last_int_index] = last_ext_index; // Update reverse map.
@@ -2749,7 +2738,19 @@ namespace netxs
         // cell: Highlight both foreground and background.
         auto& xlight(si32 factor = 1)
         {
-            uv.bg.xlight(factor, uv.fg);
+            if (raw()) // Make images semitransparent.
+            {
+                if (!st.inv())
+                {
+                    st.inv(true);
+                    std::swap(uv.bg, uv.fg);
+                }
+                uv.fg.xlight(factor);
+            }
+            else
+            {
+                uv.bg.xlight(factor, uv.fg);
+            }
             return *this;
         }
         // cell: Highlight by underlining.

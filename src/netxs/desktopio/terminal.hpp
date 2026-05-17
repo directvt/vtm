@@ -10668,7 +10668,7 @@ namespace netxs::ui
             void direct(s11n::xs::bitmap_dtvt         lock, view& data)
             {
                 auto& bitmap = lock.thing;
-                bitmap.get(data, s11n::nat);
+                bitmap.get(data, s11n::nat, s11n::unk);
                 owner.digest++;
                 if (!waits)
                 {
