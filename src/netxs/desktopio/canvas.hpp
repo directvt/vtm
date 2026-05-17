@@ -2738,7 +2738,19 @@ namespace netxs
         // cell: Highlight both foreground and background.
         auto& xlight(si32 factor = 1)
         {
-            uv.bg.xlight(factor, uv.fg);
+            if (raw()) // Make images semitransparent.
+            {
+                if (!st.inv())
+                {
+                    st.inv(true);
+                    std::swap(uv.bg, uv.fg);
+                }
+                uv.fg.xlight(factor);
+            }
+            else
+            {
+                uv.bg.xlight(factor, uv.fg);
+            }
             return *this;
         }
         // cell: Highlight by underlining.
