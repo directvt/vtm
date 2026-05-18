@@ -1988,9 +1988,9 @@ namespace netxs::app::vtm
                                     parent_canvas.fill(user_name, cell::shaders::contrast);
                                     usergate.fill_pointer(gear, parent_canvas);
                                     // Draw a color focus mark next to the cursor.
-                                    auto area = rect{{ coor.x + user_name.size().x + 1, coor.y }, dot_11 };
+                                    auto area = rect{{ coor.x + user_name.size().x, coor.y }, dot_11 };
                                     gear_color.fgc(hids::get_color(gear.gear_index));
-                                    parent_canvas.fill(area, cell::shaders::skipnulls(gear_color)); // Use skipnulls to be transparent for images.
+                                    parent_canvas.fill(area, cell::shaders::contrast(gear_color)); // Use contrast to be transparent for images.
                                 }
                             }
                         }
