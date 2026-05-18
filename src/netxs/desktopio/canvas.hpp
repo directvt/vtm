@@ -2519,22 +2519,19 @@ namespace netxs
         // cell: Blend two cells and set id if any (fg = bg * c.fg).
         void overlay(cell const& c)
         {
-            auto bg_opaque = uv.bg.chan.a == 0xFF;
-            if (c.st.xy() || c.st.und())
+            uv.fg = uv.bg;
+            if (uv.bg.chan.a == 0xFF)
             {
-                uv.fg = uv.bg;
-                if (bg_opaque) uv.fg.mix_one(c.uv.fg);
-                else           uv.fg.mix(c.uv.fg);
+                uv.fg.mix_one(c.uv.fg);
+                uv.bg.mix_one(c.uv.bg);
             }
             else
             {
-                if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.bg);
-                else                      uv.fg.mix(c.uv.bg);
+                uv.fg.mix(c.uv.fg);
+                uv.bg.mix(c.uv.bg);
             }
             gc = c.gc;
             st = c.st;
-            if (bg_opaque) uv.bg.mix_one(c.uv.bg);
-            else           uv.bg.mix(c.uv.bg);
             px = c.px;
             p2 = c.p2;
             if (c.id) id = c.id;
