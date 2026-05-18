@@ -1158,8 +1158,8 @@ namespace netxs::app::vtm
                     {
                         auto head = patch.begin();
                         auto tail = patch.end();
-                        auto fragment = settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
-                                                                             : (*head++)->snapshot() };
+                        auto fragment = settings{ config.luafx, fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                                           : (*head++)->snapshot() };
                         while (head != tail)
                         {
                             auto& p = *head++;
@@ -1403,7 +1403,7 @@ namespace netxs::app::vtm
                                                         utf8_xml += "\"/>";
                                                     });
                                                     log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
-                                                    auto appconf = settings{ utf8_xml };
+                                                    auto appconf = settings{ config.luafx, utf8_xml };
                                                     auto item_ptr = appconf.document.root_ptr;
                                                     auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
                                                     auto taskbar_context = config.settings::push_context(path::taskbar);

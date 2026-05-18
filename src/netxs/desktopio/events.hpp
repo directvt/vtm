@@ -4,27 +4,8 @@
 #pragma once
 
 #include "geometry.hpp"
-#include "lua.hpp"
 #include "xml.hpp"
 
-//todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
-#if defined(__i386__) && defined(__linux__) && !defined(__ANDROID__)
-    extern long double fmodl(long double a, long double b);
-    double fmod(double a, double b) { return fmodl(a, b); }
-    //float  fmod(float  a, float  b) { return fmodl(a, b); }
-#endif
-
-namespace netxs
-{
-    namespace ui
-    {
-        struct base;
-    }
-    namespace input
-    {
-        struct hids;
-    }
-}
 
 namespace netxs::events
 {
@@ -139,50 +120,7 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    using context_t = std::vector<void*>;
-    struct auth;
-
-    // events: Lua scripting.
-    struct luna
-    {
-        auth&      indexer; // luna: .
-        lua_State* lua; // luna: .
-
-        static text vtmlua_torawstring(     lua_State* lua, si32 idx, bool extended = faux);
-        static si32 vtmlua_object2string(   lua_State* lua);
-        static si32 vtmlua_log(             lua_State* lua);
-        static si32 vtmlua_call_method(     lua_State* lua);
-        static si32 vtmlua_run_with_indexer(lua_State* lua, auto proc);
-        static si32 vtmlua_terminal_index(  lua_State* lua);
-        static si32 vtmlua_vtm_call(        lua_State* lua);
-        static si32 vtmlua_vtm_index(       lua_State* lua);
-        static si32 vtmlua_vtm_subindex(    lua_State* lua);
-        static si32 vtmlua_cfg_subindex(    lua_State* lua);
-        static si32 vtmlua_push_value(      lua_State* lua, auto&& v);
-        si32 push_value(auto&& v);
-        void set_return(auto... args);
-        void set_return_array(txts const& str_list);
-        si32 args_count();
-        void read_args(si32 index, auto add_item);
-        auto get_args_or(si32 idx, auto fallback = {});
-        void set_gear(input::hids& gear);
-        void reset_gear();
-        input::hids& get_gear();
-        bool run_with_gear_wo_return(auto proc);
-        void run_with_gear(auto proc);
-        template<class Arg = noop>
-        text run(context_t& context, view script_body, Arg&& param = {});
-        template<class Arg = noop>
-        text run_script(ui::base& object, view script_body, Arg&& param = {});
-        void run_ext_script(ui::base& object, auto& script);
-        si32 get_table_size();
-        bool push_function_id(view script_body);
-        void precompile_function(sptr<std::pair<ui64, text>>& script_body_ptr);
-        void remove_function(sptr<std::pair<ui64, text>>& script_body_ptr);
-
-        luna(auth& indexer);
-        ~luna();
-    };
+    using context_t = netxs::luna::context_t;
 
     struct script_ref
     {
@@ -922,16 +860,4 @@ namespace netxs
     using netxs::events::hook;
     using netxs::events::wook;
     using netxs::events::script_ref;
-}
-namespace std
-{
-    template<>
-    struct less<netxs::events::context_t>
-    {
-        using context_t = netxs::events::context_t;
-        bool operator () (context_t const& l, context_t const& r) const
-        {
-            return std::lexicographical_compare(l.begin(), l.end(), r.begin(), r.end());
-        }
-    };
 }
