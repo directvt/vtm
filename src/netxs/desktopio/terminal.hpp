@@ -7971,7 +7971,7 @@ namespace netxs::ui
         bool       decsdm; // term: Sixel Display Mode. On sixel output: faux: Enable scroll (+move text cursor to the beginning of next line after image). True: Disable scroll (+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
-        bool       invert; // term: Inverted rendering (DECSCNM).
+        bool       invbit; // term: Inverted rendering (DECSCNM).
         bool       styled; // term: Line style reporting.
         bool       io_log; // term: Stdio logging.
         bool       selalt; // term: Selection form (rectangular/linear).
@@ -8699,7 +8699,7 @@ namespace netxs::ui
             altbuf.clear_all();
             reset_pockets();
             target = &normal;
-            invert = faux;
+            invbit = faux;
             decckm = faux;
             bpmode = faux;
             altscr = defcfg.def_alt_on;
@@ -8722,7 +8722,7 @@ namespace netxs::ui
                     }
                     break;
                 case 5:    // Inverted rendering (DECSCNM).
-                    invert = true;
+                    invbit = true;
                     break;
                 case 6:    // Enable origin mode (DECOM).
                     target->decom = true;
@@ -8845,7 +8845,7 @@ namespace netxs::ui
                     }
                     break;
                 case 5:    // Inverted rendering (DECSCNM).
-                    invert = faux;
+                    invbit = faux;
                     break;
                 case 6:    // Disable origin mode (DECOM).
                     target->decom = faux;
@@ -9528,6 +9528,10 @@ namespace netxs::ui
         {
             return defclr;
         }
+        auto& get_invbit() // DECSCNM
+        {
+            return invbit;
+        }
         void set_color(cell brush)
         {
             auto& console = *target;
@@ -9928,7 +9932,7 @@ namespace netxs::ui
               decsdm{ faux },
               bpmode{ faux },
               unsync{ faux },
-              invert{ faux },
+              invbit{ faux },
               styled{ faux },
               io_log{ defcfg.def_io_log },
               selalt{ defcfg.def_selalt },
@@ -10599,7 +10603,10 @@ namespace netxs::ui
                     if (defclr.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
                 }
-                if (invert) parent_canvas.fill(cell::shaders::invbit);
+                if (invbit) // DECSCNM.
+                {
+                    parent_canvas.fill(cell::shaders::invbit);
+                }
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {

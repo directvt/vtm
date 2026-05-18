@@ -3472,7 +3472,7 @@ namespace netxs
             };
             struct invbit_t
             {
-                template<class D> inline void operator () (D& dst) const { dst.invbit(); }
+                template<class D> inline void operator () (D& dst) const { if (dst.raw()) std::swap(dst.fgc(), dst.bgc()); else dst.invbit(); }
             };
             struct disabled_t
             {
