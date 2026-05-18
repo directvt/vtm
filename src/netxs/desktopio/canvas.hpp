@@ -2484,7 +2484,7 @@ namespace netxs
         void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
-            if (c.st.xy())
+            if (c.st.xy() || c.raw())
             {
                 st = c.st;
                 gc = c.gc;
@@ -3490,7 +3490,20 @@ namespace netxs
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mixfull(src, alpha); }
+                template<class D, class S>  inline void operator () (D& dst, S src) const
+                {
+                    if (dst.raw() && !src.raw())
+                    {
+                        src.px = dst.px;
+                        src.p2 = dst.p2;
+                        if (!src.inv())
+                        {
+                            src.inv(true); // Make images semi-transparent.
+                            std::swap(src.fgc(), src.bgc());
+                        }
+                    }
+                    dst.mixfull(src, alpha);
+                }
             };
             struct xlucent_t
             {
