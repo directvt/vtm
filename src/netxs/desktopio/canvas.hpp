@@ -2409,10 +2409,11 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
+            auto bgc = c.st.inv() ? c.uv.fg.token : c.uv.bg.token;
             if (c.st.xy())
             {
                 gc = c.gc;
-                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                if (bgc == 0) // OR'ing the shadow if bg is completely transparent.
                 {
                     st.meta_shadow_matrix(c.st);
                 }
@@ -2423,7 +2424,7 @@ namespace netxs
             }
             else
             {
-                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                if (bgc == 0) // OR'ing the shadow if bg is completely transparent.
                 {
                     st.meta_shadow(c.st);
                 }
@@ -2511,7 +2512,12 @@ namespace netxs
         {
             fuse_keep_image(c);
             if (c.id) id = c.id;
-            if (px && !c.px)
+            if (c.raw())
+            {
+                px = c.px;
+                p2 = c.p2;
+            }
+            else if (px)
             {
                 set_image_ontop(0); // Place image under the text.
             }
@@ -3315,15 +3321,40 @@ namespace netxs
                                                      : 0xFFffffff;
                 }
                 template<class D, class S>
-                inline void operator () (D& dst, S& src) const
+                inline void operator () (D& dst, S src) const
                 {
                     if (src.isnul()) return;
-                    auto& fgc = src.fgc();
-                    if (fgc.chan.a == 0x00)
+                    if (!src.inv())
                     {
-                        auto& bgc = dst.bgc();
-                        if (bgc.chan.a < 2) dst.fgc(0xFFffffff);
-                        else                dst.fgc(invert(bgc));
+                        if (src.fgc().chan.a == 0x00)
+                        {
+                            if (dst.inv())
+                            {
+                                src.inv(true);
+                                auto dst_bgc = dst.fgc();
+                                if (dst_bgc.chan.a < 2) dst.bgc(0xFFffffff);
+                                else                    dst.bgc(invert(dst_bgc));
+                            }
+                            else
+                            {
+                                auto dst_bgc = dst.bgc();
+                                if (dst_bgc.chan.a < 2) dst.fgc(0xFFffffff);
+                                else                    dst.fgc(invert(dst_bgc));
+                            }
+                        }
+                        else if (src.bgc().chan.a == 0x00)
+                        {
+                            if (dst.inv())
+                            {
+                                src.inv(true);
+                                std::swap(src.fgc(), src.bgc());
+                                src.fgc(dst.fgc());
+                            }
+                            else
+                            {
+                                src.bgc(dst.bgc());
+                            }
+                        }
                     }
                     dst.fusefull_keep_image(src);
                 }
