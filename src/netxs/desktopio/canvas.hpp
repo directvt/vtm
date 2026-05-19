@@ -3348,11 +3348,11 @@ namespace netxs
                             {
                                 src.inv(true);
                                 std::swap(src.fgc(), src.bgc());
-                                src.fgc(dst.fgc());
+                                src.fgc(argb::transparent);
                             }
                             else
                             {
-                                src.bgc(dst.bgc());
+                                src.bgc(argb::transparent);
                             }
                         }
                     }
