@@ -202,11 +202,13 @@ namespace netxs::app::terminal
             });
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-        auto& term_bgc = term->get_color().bgc();
+        auto& term_clr = term->get_color();
+        auto& term_inv = term->get_invbit();
         auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto scrollbar_grip, auto master_len, auto master_box, auto master_pos, auto wide)
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
+            auto term_bgc = term_inv ? term_clr.fgc() : term_clr.bgc();
             if (ui::drawfx::visible(master_len, master_box, master_pos))
             {
                 if (wide) // Draw full scrollbar on mouse hover.
@@ -259,6 +261,7 @@ namespace netxs::app::terminal
                     parent_canvas.cage(full, borders, [&](cell& c){ c.txt(whitespace).link(bar); });
                     full -= borders;
                 }
+                auto term_bgc = term_inv ? term_clr.fgc() : term_clr.bgc();
                 auto bgc = winsz.y != 1 ? term_bgc : 0;
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };

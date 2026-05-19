@@ -1158,8 +1158,8 @@ namespace netxs::app::vtm
                     {
                         auto head = patch.begin();
                         auto tail = patch.end();
-                        auto fragment = settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
-                                                                             : (*head++)->snapshot() };
+                        auto fragment = settings{ config.luafx, fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                                           : (*head++)->snapshot() };
                         while (head != tail)
                         {
                             auto& p = *head++;
@@ -1403,7 +1403,7 @@ namespace netxs::app::vtm
                                                         utf8_xml += "\"/>";
                                                     });
                                                     log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
-                                                    auto appconf = settings{ utf8_xml };
+                                                    auto appconf = settings{ config.luafx, utf8_xml };
                                                     auto item_ptr = appconf.document.root_ptr;
                                                     auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
                                                     auto taskbar_context = config.settings::push_context(path::taskbar);
@@ -1988,9 +1988,9 @@ namespace netxs::app::vtm
                                     parent_canvas.fill(user_name, cell::shaders::contrast);
                                     usergate.fill_pointer(gear, parent_canvas);
                                     // Draw a color focus mark next to the cursor.
-                                    auto area = rect{{ coor.x + user_name.size().x + 1, coor.y }, dot_11 };
+                                    auto area = rect{{ coor.x + user_name.size().x, coor.y }, dot_11 };
                                     gear_color.fgc(hids::get_color(gear.gear_index));
-                                    parent_canvas.fill(area, cell::shaders::skipnulls(gear_color)); // Use skipnulls to be transparent for images.
+                                    parent_canvas.fill(area, cell::shaders::contrast(gear_color)); // Use contrast to be transparent for images.
                                 }
                             }
                         }

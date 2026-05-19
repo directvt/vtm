@@ -2409,10 +2409,11 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
+            auto bgc = c.st.inv() ? c.uv.fg.token : c.uv.bg.token;
             if (c.st.xy())
             {
                 gc = c.gc;
-                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                if (bgc == 0) // OR'ing the shadow if bg is completely transparent.
                 {
                     st.meta_shadow_matrix(c.st);
                 }
@@ -2423,7 +2424,7 @@ namespace netxs
             }
             else
             {
-                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                if (bgc == 0) // OR'ing the shadow if bg is completely transparent.
                 {
                     st.meta_shadow(c.st);
                 }
@@ -2483,7 +2484,7 @@ namespace netxs
         void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
-            if (c.st.xy())
+            if (c.st.xy() || c.raw())
             {
                 st = c.st;
                 gc = c.gc;
@@ -2511,7 +2512,12 @@ namespace netxs
         {
             fuse_keep_image(c);
             if (c.id) id = c.id;
-            if (px && !c.px)
+            if (c.raw())
+            {
+                px = c.px;
+                p2 = c.p2;
+            }
+            else if (px)
             {
                 set_image_ontop(0); // Place image under the text.
             }
@@ -2519,22 +2525,19 @@ namespace netxs
         // cell: Blend two cells and set id if any (fg = bg * c.fg).
         void overlay(cell const& c)
         {
-            auto bg_opaque = uv.bg.chan.a == 0xFF;
-            if (c.st.xy() || c.st.und())
+            uv.fg = uv.bg;
+            if (uv.bg.chan.a == 0xFF)
             {
-                uv.fg = uv.bg;
-                if (bg_opaque) uv.fg.mix_one(c.uv.fg);
-                else           uv.fg.mix(c.uv.fg);
+                uv.fg.mix_one(c.uv.fg);
+                uv.bg.mix_one(c.uv.bg);
             }
             else
             {
-                if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.bg);
-                else                      uv.fg.mix(c.uv.bg);
+                uv.fg.mix(c.uv.fg);
+                uv.bg.mix(c.uv.bg);
             }
             gc = c.gc;
             st = c.st;
-            if (bg_opaque) uv.bg.mix_one(c.uv.bg);
-            else           uv.bg.mix(c.uv.bg);
             px = c.px;
             p2 = c.p2;
             if (c.id) id = c.id;
@@ -3318,15 +3321,40 @@ namespace netxs
                                                      : 0xFFffffff;
                 }
                 template<class D, class S>
-                inline void operator () (D& dst, S& src) const
+                inline void operator () (D& dst, S src) const
                 {
                     if (src.isnul()) return;
-                    auto& fgc = src.fgc();
-                    if (fgc.chan.a == 0x00)
+                    if (!src.inv())
                     {
-                        auto& bgc = dst.bgc();
-                        if (bgc.chan.a < 2) dst.fgc(0xFFffffff);
-                        else                dst.fgc(invert(bgc));
+                        if (src.fgc().chan.a == 0x00)
+                        {
+                            if (dst.inv())
+                            {
+                                src.inv(true);
+                                auto dst_bgc = dst.fgc();
+                                if (dst_bgc.chan.a < 2) dst.bgc(0xFFffffff);
+                                else                    dst.bgc(invert(dst_bgc));
+                            }
+                            else
+                            {
+                                auto dst_bgc = dst.bgc();
+                                if (dst_bgc.chan.a < 2) dst.fgc(0xFFffffff);
+                                else                    dst.fgc(invert(dst_bgc));
+                            }
+                        }
+                        else if (src.bgc().chan.a == 0x00)
+                        {
+                            if (dst.inv())
+                            {
+                                src.inv(true);
+                                std::swap(src.fgc(), src.bgc());
+                                src.fgc(argb::transparent);
+                            }
+                            else
+                            {
+                                src.bgc(argb::transparent);
+                            }
+                        }
                     }
                     dst.fusefull_keep_image(src);
                 }
@@ -3444,7 +3472,7 @@ namespace netxs
             };
             struct invbit_t
             {
-                template<class D> inline void operator () (D& dst) const { dst.invbit(); }
+                template<class D> inline void operator () (D& dst) const { if (dst.raw()) std::swap(dst.fgc(), dst.bgc()); else dst.invbit(); }
             };
             struct disabled_t
             {
@@ -3462,7 +3490,20 @@ namespace netxs
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mixfull(src, alpha); }
+                template<class D, class S>  inline void operator () (D& dst, S src) const
+                {
+                    if (dst.raw() && !src.raw())
+                    {
+                        src.px = dst.px;
+                        src.p2 = dst.p2;
+                        if (!src.inv())
+                        {
+                            src.inv(true); // Make images semi-transparent.
+                            std::swap(src.fgc(), src.bgc());
+                        }
+                    }
+                    dst.mixfull(src, alpha);
+                }
             };
             struct xlucent_t
             {

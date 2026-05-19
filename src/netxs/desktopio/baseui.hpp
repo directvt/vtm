@@ -761,7 +761,7 @@ namespace netxs::ui
             netxs::events::vtm_class::list::iterator class_iterator; // base: class_metadata.objects std::list iterator.
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
-        netxs::events::context_t             scripting_context; // base: Temp buffer for the list of ids of all ancestors.
+        netxs::luna::context_t               scripting_context; // base: Temp buffer for the list of ids of all ancestors.
 
         struct mfocus_node
         {

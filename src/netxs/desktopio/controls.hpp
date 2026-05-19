@@ -5,29 +5,8 @@
 
 #include "input.hpp"
 
-namespace netxs::events
+namespace netxs
 {
-    text script_ref::to_string(context_t& context)
-    {
-        auto crop = text{};
-        for (auto ptr : context | std::views::reverse)
-        {
-            crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
-            crop += '-';
-        }
-        if (crop.size())
-        {
-            crop.pop_back();
-            auto id = ((ui::base*)context.back())->id;
-            crop += " " + std::to_string(id);
-        }
-        else
-        {
-            crop += " 0";
-        }
-        return crop;
-    }
-
     // luna: Get any text from the stack by index.
     text luna::vtmlua_torawstring(lua_State* lua, si32 idx, bool extended)
     {
@@ -417,7 +396,24 @@ namespace netxs::events
         auto ok = luna::run_with_gear_wo_return(proc);
         luna::set_return(ok);
     }
-    text luna::run(context_t& context, view script_body, auto&& param)
+    text luna::run(view script_body)
+    {
+        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "inlined script body")
+                  || ::lua_pcall(lua, 0, 1, 0);
+        auto result = text{};
+        if (error)
+        {
+            result = ::lua_tostring(lua, -1);
+            log("%%inlined script compilation failed:\n%body%\n%msg%\n", prompt::lua, ansi::hi(ansi::add(script_body).numerate_lines(blacklt)), ansi::err(result));
+        }
+        else if (::lua_gettop(lua))
+        {
+            result = luna::vtmlua_torawstring(lua, -1);
+        }
+        ::lua_settop(lua, 0);
+        return result;
+    }
+    text luna::run(luna::context_t& context, view script_body, auto&& param)
     {
         using T = std::decay_t<decltype(param)>;
         //if constexpr (debugmode) log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
@@ -646,7 +642,29 @@ namespace netxs::events
     {
         if (lua) ::lua_close(lua);
     }
-
+}
+namespace netxs::events
+{
+    text script_ref::to_string(luna::context_t& context)
+    {
+        auto crop = text{};
+        for (auto ptr : context | std::views::reverse)
+        {
+            crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
+            crop += '-';
+        }
+        if (crop.size())
+        {
+            crop.pop_back();
+            auto id = ((ui::base*)context.back())->id;
+            crop += " " + std::to_string(id);
+        }
+        else
+        {
+            crop += " 0";
+        }
+        return crop;
+    }
     script_ref::script_ref(auth& indexer, std::reference_wrapper<ui::base> boss_ref, sptr<std::pair<ui64, text>> script_body_ptr)
         : indexer{ indexer },
           boss_ref{ boss_ref },
@@ -666,7 +684,8 @@ namespace netxs::events
           e2_timer_tick_id{ ui::e2::timer::tick.id },
           _null_gear_sptr{ auth::create<input::hids>(*this) },
           active_gear_ref{ *_null_gear_sptr },
-          anykey_event{ get_kbchord_hint(input::key::kmap::any_key) }
+          anykey_event{ get_kbchord_hint(input::key::kmap::any_key) },
+          config{ luafx }
     {
         if (use_timer)
         {

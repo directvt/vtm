@@ -5,6 +5,88 @@
 
 #include "canvas.hpp"
 
+//todo find better place for netxs::luna (luna.hpp?)
+#include "lua.hpp"
+
+//todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
+#if defined(__i386__) && defined(__linux__) && !defined(__ANDROID__)
+    extern long double fmodl(long double a, long double b);
+    double fmod(double a, double b) { return fmodl(a, b); }
+    //float  fmod(float  a, float  b) { return fmodl(a, b); }
+#endif
+
+namespace netxs::events
+{
+    struct auth;
+}
+namespace netxs
+{
+    namespace ui
+    {
+        struct base;
+    }
+    namespace input
+    {
+        struct hids;
+    }
+    // Lua scripting sandbox.
+    struct luna
+    {
+        using auth = netxs::events::auth;
+        using context_t = std::vector<void*>;
+
+        auth&      indexer; // luna: .
+        lua_State* lua; // luna: .
+
+        static text vtmlua_torawstring(     lua_State* lua, si32 idx, bool extended = faux);
+        static si32 vtmlua_object2string(   lua_State* lua);
+        static si32 vtmlua_log(             lua_State* lua);
+        static si32 vtmlua_call_method(     lua_State* lua);
+        static si32 vtmlua_run_with_indexer(lua_State* lua, auto proc);
+        static si32 vtmlua_terminal_index(  lua_State* lua);
+        static si32 vtmlua_vtm_call(        lua_State* lua);
+        static si32 vtmlua_vtm_index(       lua_State* lua);
+        static si32 vtmlua_vtm_subindex(    lua_State* lua);
+        static si32 vtmlua_cfg_subindex(    lua_State* lua);
+        static si32 vtmlua_push_value(      lua_State* lua, auto&& v);
+        si32 push_value(auto&& v);
+        void set_return(auto... args);
+        void set_return_array(txts const& str_list);
+        si32 args_count();
+        void read_args(si32 index, auto add_item);
+        auto get_args_or(si32 idx, auto fallback = {});
+        void set_gear(input::hids& gear);
+        void reset_gear();
+        input::hids& get_gear();
+        bool run_with_gear_wo_return(auto proc);
+        void run_with_gear(auto proc);
+        text run(view script_body);
+        template<class Arg = noop>
+        text run(context_t& context, view script_body, Arg&& param = {});
+        template<class Arg = noop>
+        text run_script(ui::base& object, view script_body, Arg&& param = {});
+        void run_ext_script(ui::base& object, auto& script);
+        si32 get_table_size();
+        bool push_function_id(view script_body);
+        void precompile_function(sptr<std::pair<ui64, text>>& script_body_ptr);
+        void remove_function(sptr<std::pair<ui64, text>>& script_body_ptr);
+
+        luna(auth& indexer);
+        ~luna();
+    };
+}
+namespace std
+{
+    template<>
+    struct less<netxs::luna::context_t>
+    {
+        bool operator () (netxs::luna::context_t const& l, netxs::luna::context_t const& r) const
+        {
+            return std::lexicographical_compare(l.begin(), l.end(), r.begin(), r.end());
+        }
+    };
+}
+
 namespace netxs::xml
 {
     template<class T>
@@ -633,8 +715,8 @@ namespace netxs::xml
         struct parser
         {
             static constexpr auto view_find_start       = "<"sv;
-            static constexpr auto view_token_first      = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/-.0123456789"sv; // Element name cannot contain any of [[:whitespaces:]!"#$%&'()*+,/;<=>?@[\]^`{|}~], and cannot begin with "-", ".", or a numeric digit.
-            static constexpr auto view_token_delims     = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/"sv;
+            static constexpr auto view_token_first      = " \t\r\n\v\f!\"#%&'()*+<=>?@[\\]^`{|}~;,/-.0123456789"sv; // Element name cannot begin with any of [[:whitespaces:]!"#%&'()*+,/;<=>?@[\]^`{|}~], and cannot begin with "-", ".", or a numeric digit.
+            static constexpr auto view_token_delims     = " \t\r\n\v\f!\"#%&'()*+<=>?@[\\]^`{|}~;,/"sv;
             static constexpr auto view_reference_delims = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,"sv;
             static constexpr auto view_digit_delims     = " \t\r\n\v\f!\"$%&'()*+<=>?@[\\]^`{|}~/"sv; // Allow '-' (-1), '#' in digits (#rgb). Also allow ';' and ',' between digits: (123;456).
             static constexpr auto view_comment_begin    = "<!--"sv;
@@ -1493,20 +1575,26 @@ namespace netxs::xml
         using sptr = xml::document::sptr;
         using list = std::list<xml::document::sptr>;
 
-        xml::document document; // settings: XML document.
-        vect tmpbuff; // settings: Temp buffer.
-        list context; // settings: Current working context stack (reference context).
+        luna&            luafx; // settings: Lua sandbox.
+        xml::document    document; // settings: XML document.
+        vect             tmpbuff; // settings: Temp buffer.
+        list             context; // settings: Current working context stack (reference context).
         std::deque<qiew> reference_path_array; // settings: Temp buffer for path segments.
 
-        settings() = default;
-        settings(view utf8_xml)
-            : document{ utf8_xml }
+        settings(luna& luafx)
+            :  luafx{ luafx }
         { }
-        settings(settings const& config)
-            : document{ config.document.page.utf8() }
+        settings(luna& luafx, view utf8_xml)
+            :  luafx{ luafx    },
+            document{ utf8_xml }
         { }
-        settings(xml::document&& document)
-            : document{ std::move(document) }
+        settings(luna& luafx, settings const& config)
+            :  luafx{ luafx                       },
+            document{ config.document.page.utf8() }
+        { }
+        settings(luna& luafx, xml::document&& document)
+            :  luafx{ luafx               },
+            document{ std::move(document) }
         { }
 
         void swap(settings& s)
@@ -1663,14 +1751,28 @@ namespace netxs::xml
                 auto kind = value_placeholder->kind;
                 if (kind == document::type::tag_reference || kind == document::type::raw_reference)
                 {
-                    auto& reference_name = value_placeholder->utf8;
+                    auto reference_name = qiew{ value_placeholder->utf8 };
+                    auto lua_expression = reference_name && reference_name.front() == '$'; // Inlined lua expression.
+                    if (lua_expression)
+                    {
+                        reference_name.pop_front();
+                    }
                     if (!value_placeholder->busy)
                     {
                         auto ctx = push_context(item_ptr);
                         value_placeholder->busy = 1;
                         if (auto base_item_ptr = settings::find_context_ptr(reference_name))
                         {
-                            settings::_take_value(base_item_ptr, value);
+                            if (lua_expression)
+                            {
+                                auto script_body = text{};
+                                settings::_take_value(base_item_ptr, script_body);
+                                value += luafx.run(script_body);
+                            }
+                            else
+                            {
+                                settings::_take_value(base_item_ptr, value);
+                            }
                         }
                         else
                         {
