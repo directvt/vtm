@@ -947,9 +947,7 @@ namespace netxs::app::vtm
                 {
                     if (base::holder != std::prev(world.base::subset.end()))
                     {
-                        world.base::subset.push_back(This());
-                        world.base::subset.erase(base::holder);
-                        base::holder = std::prev(world.base::subset.end());
+                        world.base::subset.splice(world.base::subset.end(), world.base::subset, base::holder);
                         if (base::hidden) // Restore if window minimized.
                         {
                             base::hidden = faux;
@@ -960,17 +958,18 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::preview, e2::form::layout::bubble, r)
                 {
-                    auto area = base::region;
-                    auto next = base::holder;
-                    if (next != world.base::subset.end())
+                    if (base::holder != world.base::subset.end())
                     {
-                        if (++next != world.base::subset.end() && !area.trim((*next)->region))
+                        auto area = base::region;
+                        auto next = base::holder;
+                        ++next;
+                        if (next != world.base::subset.end() && !area.trim((*next)->region))
                         {
-                            //todo revise: it crashes
-                            world.base::subset.erase(base::holder);
-                            while (++next != world.base::subset.end() && !area.trim((*next)->region))
-                            { }
-                            base::holder = world.base::subset.insert(next, This());
+                            while (next != world.base::subset.end() && !area.trim((*next)->region)) // Find blocking window or top.
+                            {
+                                ++next;
+                            }
+                            world.base::subset.splice(next, world.base::subset, base::holder); // Do bubble.
                             base::strike();
                         }
                     }

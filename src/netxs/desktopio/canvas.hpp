@@ -3496,11 +3496,11 @@ namespace netxs
                     {
                         src.px = dst.px;
                         src.p2 = dst.p2;
-                        if (!src.inv())
-                        {
-                            src.inv(true); // Make images semi-transparent.
-                            std::swap(src.fgc(), src.bgc());
-                        }
+                    }
+                    if (src.raw() && !src.inv())
+                    {
+                        src.inv(true); // Make images semi-transparent.
+                        std::swap(src.fgc(), src.bgc());
                     }
                     dst.mixfull(src, alpha);
                 }
