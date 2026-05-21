@@ -442,12 +442,14 @@ namespace netxs::ui
             prot  encod; // m_tracking: Mouse encoding protocol.
             mode  state; // m_tracking: Mouse reporting mode.
             si32  smode; // m_tracking: Selection mode state backup.
+            bool  pixel; // m_tracking: Pixel mode reporting.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
                   encod{ prot::x11               },
                   state{ mode::none              },
-                  smode{ owner.defcfg.def_selmod }
+                  smode{ owner.defcfg.def_selmod },
+                  pixel{ faux                    }
             { }
 
             operator bool () { return state != mode::none; }
@@ -487,7 +489,7 @@ namespace netxs::ui
                         if (owner.selmod == mime::disabled)
                         {
                             coord = { fp32nan, fp32nan }; // Forward a mouse halt event.
-                            owner.ipccon.mouse(gear, true, coord, encod, state);
+                            owner.ipccon.mouse(gear, true, coord, encod, state, pixel);
                         }
                     });
                     owner.bell::dup_handler(tier::general, input::events::halt.id, token.back());
@@ -508,7 +510,7 @@ namespace netxs::ui
                                                                     : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel - dot_11 }));
                             if (gear.m_sav.changed != gear.m_sys.changed)
                             {
-                                owner.ipccon.mouse(gear, moved, coord, encod, state);
+                                owner.ipccon.mouse(gear, moved, coord, encod, state, pixel);
                             }
                             gear.dismiss();
                         }
@@ -674,9 +676,9 @@ namespace netxs::ui
                         break;
                     }
                     case view_size: owner.answer(queue.win_sz(owner.target->panel)); break;
-                    case area_size: owner.answer(queue.area_sz_px(sixel_t::cellsz * owner.target->panel)); break;
-                    case scrn_size: owner.answer(queue.scrn_sz_px(sixel_t::cellsz * owner.target->panel)); break;
-                    case cell_size: owner.answer(queue.cell_sz_px(sixel_t::cellsz)); break;
+                    case area_size: owner.answer(queue.area_sz_px(ansi::cellsz * owner.target->panel)); break;
+                    case scrn_size: owner.answer(queue.scrn_sz_px(ansi::cellsz * owner.target->panel)); break;
+                    case cell_size: owner.answer(queue.cell_sz_px(ansi::cellsz)); break;
                     case get_label: owner.answer(queue.osc(ansi::osc_label_report, "")); break; // Return an empty string for security reasons
                     case get_title: owner.answer(queue.osc(ansi::osc_title_report, "")); break;
                     case put_stack:
@@ -7709,8 +7711,6 @@ namespace netxs::ui
         }
         struct sixel_t
         {
-            static constexpr auto cellsz = twod{ 10, 20 };
-
             term& owner;
             std::vector<argb> bitmap; // Sixel bitmap buffer.
 
@@ -7737,7 +7737,7 @@ namespace netxs::ui
                 // hz_grid_size: We ignore it.
                 // n
                 //auto hz_grid_size = params[2];
-                auto size = owner.target->panel * cellsz;
+                auto size = owner.target->panel * ansi::cellsz;
                 auto implicit_size = true;
                 //size.y *= aspect_ratio; // Don't scale max image size.
                 auto stride = size.x * aspect_ratio * 6;
@@ -7843,8 +7843,8 @@ namespace netxs::ui
                         auto dy = std::max(1, std::abs(params2[0]));
                         auto dx = std::max(1, std::abs(params2[1]));
                         aspect_ratio = (si32)std::round((fp32)dy / dx);
-                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
-                        size.y = std::clamp(std::abs(params2[3]) * aspect_ratio, 1, std::max(4096, owner.target->panel.y * cellsz.y));
+                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * ansi::cellsz.x));
+                        size.y = std::clamp(std::abs(params2[3]) * aspect_ratio, 1, std::max(4096, owner.target->panel.y * ansi::cellsz.y));
                         implicit_size = faux;
                         coor = 0;
                         line = 0;
@@ -7890,7 +7890,7 @@ namespace netxs::ui
                 if (ok) // Show image.
                 {
                     auto doc_str = term::rgba_to_svg(bitmap, size, implicit_size, transparency ? argb{} : cur_bgc);
-                    auto fp_wh = fp2d{ size } / fp2d{ cellsz };
+                    auto fp_wh = fp2d{ size } / fp2d{ ansi::cellsz };
                     auto wh = twod{ std::ceil(fp_wh) };
                     auto c = owner.target->cell_under_cursor();
                     auto images = cell::images(); // Lock.
@@ -8785,8 +8785,8 @@ namespace netxs::ui
                 case 1015: // Enable URXVT mouse reporting protocol.
                     log(prompt::term, "CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
                     break;
-                case 1016: // Enable Pixels (subcell) mouse mode.
-                    log(prompt::term, "CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                case 1016: // Enable mouse reporting in pixels.
+                    mtrack.pixel = true;
                     break;
                 case 1048: // Save cursor pos.
                     target->scp();
@@ -8909,8 +8909,8 @@ namespace netxs::ui
                 case 1015: // Disable URXVT mouse reporting protocol.
                     log(prompt::term, "CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
                     break;
-                case 1016: // Disable Pixels (subcell) mouse mode.
-                    log(prompt::term, "CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
+                case 1016: // Disable mouse reporting in pixels.
+                    mtrack.pixel = faux;
                     break;
                 case 1048: // Restore cursor pos.
                     target->rcp();
@@ -8981,7 +8981,7 @@ namespace netxs::ui
             target->parser::flush();
             while (auto next = q(0)) _modrst(next);
         }
-        // term: Reset terminal parameters.
+        // term: Request terminal parameters.
         void _decrqm(si32 n)
         {
             switch (n)
@@ -8993,6 +8993,7 @@ namespace netxs::ui
                 case 1002: //
                 case 1003: //
                 case 1006: //
+                case 1016: // Mouse reporting (pixel mode)
                 case 1004: // Focus reporting.
                 case 1049: // Altbuf.
                 case 2004: // Bracketed Paste.

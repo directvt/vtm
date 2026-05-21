@@ -4843,7 +4843,7 @@ namespace netxs::os
                     }
                 }
             }
-            void mouse(input::hids& gear, bool moved, fp2d coord, input::mouse::prot encod, input::mouse::mode state)
+            void mouse(input::hids& gear, bool moved, fp2d coord, input::mouse::prot encod, input::mouse::mode state, bool pixel)
             {
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;
@@ -4864,7 +4864,14 @@ namespace netxs::os
                         || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheelsi)))
                         {
                             auto guard = std::lock_guard{ writemtx };
-                                 if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
+                            if (encod == prot::sgr)
+                            {
+                                if (pixel)
+                                {
+                                    coord *= ansi::cellsz;
+                                }
+                                writebuf.mouse_sgr(gear, coord);
+                            }
                             else if (encod == prot::x11) writebuf.mouse_x11(gear, coord, state & mode::utf8);
                             writesyn.notify_one();
                         }

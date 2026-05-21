@@ -273,6 +273,8 @@ namespace netxs::ansi
     static constexpr auto apc_prefix_session       = "event=session;"sv;
     static constexpr auto apc_prefix_session_token = "token="sv;
 
+    static constexpr auto cellsz = twod{ 10, 20 };
+
     template<class Base>
     class basevt
     {
