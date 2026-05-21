@@ -604,6 +604,9 @@ namespace netxs::ansi
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // escx: Set autowrap mode.
         auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based cursor position (CPR).
         auto& win_sz(twod p)        { return add("\033[8;", p.y, ";", p.x, "t"       ); } // escx: Report viewport size (Reply on CSI 18 t).
+        auto& area_sz_px(twod p)    { return add("\033[4;", p.y, ";", p.x, "t"       ); } // escx: Report text area size in pixels (Reply on CSI 14 t).
+        auto& scrn_sz_px(twod p)    { return add("\033[5;", p.y, ";", p.x, "t"       ); } // escx: Report screen size in pixels (Reply on CSI 15 t).
+        auto& cell_sz_px(twod p)    { return add("\033[6;", p.y, ";", p.x, "t"       ); } // escx: Report cell size in pixels (Reply on CSI 16 t).
         auto& locate_wipe()         { return add("\033[r"                            ); } // escx: Enable scrolling for entire display (clear screen).
         auto& locate_call()         { return add("\033[6n"                           ); } // escx: Report cursor position.
         auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset cursor location.

@@ -651,7 +651,10 @@ namespace netxs::ui
                 static constexpr auto set_winsz = si32{ 8  }; // Set window size in characters.
                 static constexpr auto maximize  = si32{ 9  }; // Toggle maximize/restore.
                 static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode.
-                static constexpr auto view_size = si32{ 18 }; // Report viewport size.
+                static constexpr auto area_size = si32{ 14 }; // Report text area size in pixels.
+                static constexpr auto scrn_size = si32{ 15 }; // Report screen size in pixels.
+                static constexpr auto cell_size = si32{ 16 }; // Report char cell size in pixels.
+                static constexpr auto view_size = si32{ 18 }; // Report viewport size in cells.
                 static constexpr auto get_label = si32{ 20 }; // Report icon   label. (Report as OSC L label ST).
                 static constexpr auto get_title = si32{ 21 }; // Report window title. (Report as OSC l title ST).
                 static constexpr auto put_stack = si32{ 22 }; // Push icon label and window title to   stack.
@@ -671,6 +674,9 @@ namespace netxs::ui
                         break;
                     }
                     case view_size: owner.answer(queue.win_sz(owner.target->panel)); break;
+                    case area_size: owner.answer(queue.area_sz_px(sixel_t::cellsz * owner.target->panel)); break;
+                    case scrn_size: owner.answer(queue.scrn_sz_px(sixel_t::cellsz * owner.target->panel)); break;
+                    case cell_size: owner.answer(queue.cell_sz_px(sixel_t::cellsz)); break;
                     case get_label: owner.answer(queue.osc(ansi::osc_label_report, "")); break; // Return an empty string for security reasons
                     case get_title: owner.answer(queue.osc(ansi::osc_title_report, "")); break;
                     case put_stack:
