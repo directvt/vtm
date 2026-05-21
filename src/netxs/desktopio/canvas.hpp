@@ -1716,7 +1716,7 @@ namespace netxs
             using lock = std::recursive_mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
-            using pool = generics::indexer_fifo<ui16>;
+            using pool = generics::indexer_growing<ui16, 65536>; // Use growing indexer to avoid reusing indexes during synchronization.
 
             lock mutex; // Object map mutex.
             depo store; // Object map.
@@ -1745,6 +1745,7 @@ namespace netxs
                     {
                         log("The limit on the number of embedded objects has been reached");
                     }
+                    if constexpr (debugmode) log("Got a new image index: %% free count=%%", image_index, ind.free_count);
                     return image_index;
                 }
                 // cache: Remove object.
