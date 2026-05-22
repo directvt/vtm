@@ -484,6 +484,7 @@ namespace netxs::ui
                 state = (mode)(state | m);
                 if (state && !token.size()) // Do not subscribe if it is already subscribed.
                 {
+                    pixel = faux; // Reset pixel-mode.
                     owner.on(tier::mouserelease, input::key::MouseLeave, token, [&](hids& gear)
                     {
                         if (owner.selmod == mime::disabled)
@@ -7943,6 +7944,7 @@ namespace netxs::ui
                         image.gb_attrs[imagens::gb::uw ] = (fp32)wh.x / fp_wh.x; // Keep paddings.
                         image.gb_attrs[imagens::gb::vh ] = (fp32)wh.y / fp_wh.y; //
                         image.gb_attrs[imagens::gb::fit] = scale_mode::stretch;
+                        owner.image_sixel_count++;
                         owner.print_sixel_image(image, wh);
                         // All sixel images will be removed on undock.
                         //owner.sixel_cache[image.id] = image_ptr;
@@ -7952,7 +7954,6 @@ namespace netxs::ui
                     //todo store the payload in byts instead of text
                     //todo implement own bitmap (raw category) rasterization (with interpolation)
                     //todo hashing by sixel_string
-                    //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
                 }
                 else
                 {
@@ -8113,10 +8114,9 @@ namespace netxs::ui
                 }
             }
             auto cells_expected = image_buffer.volume();
-            image_sixel_count++;
             auto& count = image_ref_count[image.index];
             count += cells_expected; // Insure against premature image removal.
-            if constexpr (debugmode) log("print1: image index: %% cell_count: %%", image.index, count);
+            if constexpr (debugmode) log("print1: image index: %% cell_count: %% image_sixel_count=%%", image.index, count, image_sixel_count);
             auto cursor_coor = target->coord;
             auto saved_n_top = target->n_top;
             auto saved_n_end = target->n_end;
@@ -8126,7 +8126,7 @@ namespace netxs::ui
             }
             draw_block(image_buffer, cell::shaders::full, true, decsdm);
             count -= cells_expected;
-            if constexpr (debugmode) log("print2: image index: %% cell_count: %%", image.index, count);
+            if constexpr (debugmode) log("print2: image index: %% cell_count: %% image_sixel_count=%%", image.index, count, image_sixel_count);
             if (count == 0) // A case where nothing is printed.
             {
                 remove_sixel_image(image.index);
