@@ -1188,9 +1188,10 @@ namespace netxs::utf
     using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
-    std::optional<A> to_int(View& ascii)
+    std::optional<A> to_int(View& utf8)
     {
         auto num = A{};
+        auto ascii = utf8;
         if constexpr (Base == 16)
         {
             if (ascii.starts_with("0x") || ascii.starts_with("0X")) ascii.remove_prefix(2);
@@ -1217,14 +1218,16 @@ namespace netxs::utf
             }
             if (!ascii.empty() && ascii.front() == '.') // Fractional part.
             {
-                ascii.remove_prefix(1);
-                top = ascii.data();
-                end = top + ascii.length();
+                auto fraction_view = ascii;
+                fraction_view.remove_prefix(1);
+                top = fraction_view.data();
+                end = top + fraction_view.length();
                 if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
                 {
                     auto len = mpos - top;
                     num += (A)(integer * std::pow(Base, -(fp64)len));
-                    ascii.remove_prefix(len);
+                    fraction_view.remove_prefix(len);
+                    ascii = fraction_view;
                     parsed_something = true;
                 }
                 else if (!parsed_something) // "-."
@@ -1232,7 +1235,11 @@ namespace netxs::utf
                     return std::nullopt;
                 }
             }
-            if (parsed_something) return num * sign;
+            if (parsed_something)
+            {
+                utf8 = ascii;
+                return num * sign;
+            }
         }
         else
         {
@@ -1241,6 +1248,7 @@ namespace netxs::utf
             if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
             {
                 ascii.remove_prefix(pos - top);
+                utf8 = ascii;
                 return num;
             }
         }

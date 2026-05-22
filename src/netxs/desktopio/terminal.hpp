@@ -7805,7 +7805,7 @@ namespace netxs::ui
                             if (q2)
                             {
                                 auto c2 = q2.front();
-                                if (c2 >= '?' && c <= '~')
+                                if (c2 >= '?' && c2 <= '~')
                                 {
                                     q2.pop_front();
                                     c2 -= '?';
@@ -10562,7 +10562,7 @@ namespace netxs::ui
             {
                 key_event(gear);
             };
-            auto& prev_image_removed_indexes_size = base::field(si32{});
+            auto& prev_image_removed_indexes_size = base::field(size_t{});
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& console = *target;
