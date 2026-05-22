@@ -2742,7 +2742,6 @@ namespace netxs::ui
         template<class P = netxs::noop>
         void sixel_run_accounting(std::span<cell> cell_run, P fx = {})
         {
-            auto removed_image_indexes = e2::data::image::remove.param();
             if constexpr (debugmode) log("line with sixels");
             for (auto& c : cell_run)
             {
@@ -2757,20 +2756,16 @@ namespace netxs::ui
                         if (count == 0)
                         {
                             log("Sixel image ref accounting is broken");
-                            removed_image_indexes.push_back(index);
+                            remove_sixel_image(index);
                             continue;
                         }
                     }
                     if (--count == 0)
                     {
                         if constexpr (debugmode) log("\trelease sixel image index: ", index);
-                        removed_image_indexes.push_back(index);
+                        remove_sixel_image(index);
                     }
                 }
-            }
-            if (removed_image_indexes.size())
-            {
-                remove_sixel_images(removed_image_indexes);
             }
         }
         void _sixel_inc_accounting(cell const& src)
@@ -2795,18 +2790,18 @@ namespace netxs::ui
                     if (count == 0)
                     {
                         log("%%Sixel image ref accounting is broken. Image index=%%", prompt::term, index);
-                        remove_sixel_image(index, true);
+                        remove_sixel_image(index);
                     }
                     else if (--count == 0)
                     {
                         log("\trelease sixel image index: ", index);
-                        remove_sixel_image(index, true);
+                        remove_sixel_image(index);
                     }
                 }
                 else if (--count == 0)
                 {
                     if constexpr (debugmode) log("\trelease sixel image index: ", index);
-                    remove_sixel_image(index, true);
+                    remove_sixel_image(index);
                 }
             }
         }
@@ -7628,24 +7623,39 @@ namespace netxs::ui
             }
         };
 
-        void remove_sixel_image(ui16 removed_image_index, bool notify)
+        void remove_sixel_image(ui16 removed_image_index)
         {
-            auto images = cell::images(); // Lock.
             image_sixel_count--;
-            images.remove(removed_image_index);
-            if (notify)
-            {
-                base::signal(tier::general, e2::data::image::remove, { removed_image_index }); // Signal to outside.
-            }
+            image_removed_indexes.push_back(removed_image_index);
         }
-        void remove_sixel_images(std::vector<ui16>& removed_image_indexes)
+        void remove_sixel_images(bool lazy)
         {
-            auto images = cell::images(); // Lock.
-            for (auto index : removed_image_indexes)
+            //base::enqueue_global([removed_image_indexes = image_removed_indexes](auto& global_gear)
+            if (lazy)
             {
-                images.remove(index);
+                auto& global_gear = bell::indexer.get_global_gear();
+                auto& oneshot = global_gear.base::field(hook{});
+                global_gear.LISTEN(tier::general, e2::timer::tick, timestamp, oneshot, (removed_image_indexes = image_removed_indexes))
+                {
+                    auto images = cell::images(); // Lock.
+                    for (auto index : removed_image_indexes)
+                    {
+                        images.remove(index);
+                    }
+                    global_gear.base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
+                    global_gear.base::unfield(oneshot); // Unsubscribe.
+                };
             }
-            base::signal(tier::general, e2::data::image::remove, removed_image_indexes); // Signal to outside.
+            else
+            {
+                auto images = cell::images(); // Lock.
+                for (auto index : image_removed_indexes)
+                {
+                    images.remove(index);
+                }
+                base::signal(tier::general, e2::data::image::remove, image_removed_indexes); // Signal to outside.
+            }
+            image_removed_indexes.clear();
         }
         // term: Take data until ST. Don't touch q if sequence is broken.
         static qiew read_until_st_or_giveup(qiew& q)
@@ -8004,6 +8014,7 @@ namespace netxs::ui
         face                                                  image_buffer; // term: Image temporary buffer.
         std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
         ui16                                                  image_sixel_count{}; // term: Registered sixel image count;
+        std::vector<ui16>                                     image_removed_indexes; // term: Image indexes to be deleted.
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -8116,9 +8127,9 @@ namespace netxs::ui
             draw_block(image_buffer, cell::shaders::full, true, decsdm);
             count -= cells_expected;
             if constexpr (debugmode) log("print2: image index: %% cell_count: %%", image.index, count);
-            if (image_ref_count[image.index] == 0) // A case where nothing is printed.
+            if (count == 0) // A case where nothing is printed.
             {
-                remove_sixel_image(image.index, faux);
+                remove_sixel_image(image.index);
             }
             if (decsdm) // Restore cursor position and scrolling region.
             {
@@ -8390,7 +8401,7 @@ namespace netxs::ui
             auto images = cell::images(); // Lock.
             if (unregister)
             {
-                if (id_str == "*") // Remove all registered images.
+                if (id_str == "*") // Remove all registered anyplex images.
                 {
                     auto removed_image_indexes = e2::data::image::remove.param();
                     removed_image_indexes.reserve(image_cache.size());
@@ -9896,27 +9907,26 @@ namespace netxs::ui
             if (image_cache.size() || image_sixel_count) // Signal to wipe all image references.
             {
                 auto images = cell::images(); // Lock.
-                auto removed_image_indexes = e2::data::image::remove.param();
-                removed_image_indexes.reserve(image_sixel_count + image_cache.size());
-                //removed_image_indexes.reserve(image_cache.size() + sixel_cache.size());
+                image_removed_indexes.reserve(image_removed_indexes.size() + image_sixel_count + image_cache.size());
+                //image_removed_indexes.reserve(image_cache.size() + sixel_cache.size());
                 //for (auto cache : { &image_cache, &sixel_cache }) //todo C++23: std::views::concat(image_cache, sixel_cache)
                 //for (auto& [image_id, image_ptr] : *cache) if (image_ptr)
                 for (auto removed_index = 0u; removed_index < image_ref_count.size(); removed_index++)
                 {
                     if (image_ref_count[removed_index])
                     {
-                        removed_image_indexes.push_back((ui16)removed_index);
+                        image_removed_indexes.push_back((ui16)removed_index);
                     }
                 }
                 for (auto& [image_id, image_ptr] : image_cache) if (image_ptr)
                 {
                     auto removed_index = image_ptr->index;
-                    removed_image_indexes.push_back(removed_index);
+                    image_removed_indexes.push_back(removed_index);
                     images.remove(removed_index);
                 }
-                if (removed_image_indexes.size())
+                if (image_removed_indexes.size())
                 {
-                    remove_sixel_images(removed_image_indexes);
+                    remove_sixel_images(faux);
                 }
             }
         }
@@ -10552,6 +10562,7 @@ namespace netxs::ui
             {
                 key_event(gear);
             };
+            auto& prev_image_removed_indexes_size = base::field(si32{});
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& console = *target;
@@ -10650,6 +10661,13 @@ namespace netxs::ui
                 //    vp = vp.clip(parent_canvas.clip());
                 //    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
                 //}
+                if (image_removed_indexes.size()
+                 && (prev_image_removed_indexes_size == image_removed_indexes.size()
+                     || image_removed_indexes.size() > 50)) // Lazy remove sixel images.
+                {
+                    remove_sixel_images(true);
+                }
+                prev_image_removed_indexes_size = image_removed_indexes.size();
             };
         }
     };

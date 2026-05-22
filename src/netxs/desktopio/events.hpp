@@ -536,6 +536,18 @@ namespace netxs::events
             });
         }
         // auth: .
+        auto& get_global_gear()
+        {
+            return *_null_gear_sptr;
+        }
+        // auth: .
+        template<bool Sync = true>
+        void enqueue_global(fx<ui::base> proc)
+        {
+            if (_null_gear_sptr)
+            enqueue<Sync>(_null_gear_sptr, std::move(proc));
+        }
+        // auth: .
         void stop()
         {
             agent.stop();
