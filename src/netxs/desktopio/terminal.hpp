@@ -7865,8 +7865,8 @@ namespace netxs::ui
                         cur_fgc = palette[cur_map];
                         if (cur_fgc == argb{})
                         {
-                            if (cur_map < owner.ctrack.color.size()) cur_fgc = owner.ctrack.color[cur_map];
-                            else                                     cur_fgc = owner.ctrack.color[0];
+                            if (cur_map < (si32)owner.ctrack.color.size()) cur_fgc = owner.ctrack.color[cur_map];
+                            else                                           cur_fgc = owner.ctrack.color[0];
                         }
                     }
                     else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
