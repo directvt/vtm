@@ -508,7 +508,7 @@ namespace netxs::ui
                             auto c = gear.m_sys.coordxy;
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
-                                                                    : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel - dot_11 }));
+                                                                    : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel } - 0.001f));
                             if (gear.m_sav.changed != gear.m_sys.changed)
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state, pixel);
@@ -1194,7 +1194,11 @@ namespace netxs::ui
                 vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q); }; // DECRQM: CSI ? mode $ p
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
-
+                vt.csier.table_quest[csi_qst_smg] = V{ p->owner.xtsmgraphics(q); }; // CSI ? Pi; Pa; Pv S  XTSMGRAPHICS:
+                                                                                    //   Pi=1  Request number of color registers.        Pv=n  A number of color registers.
+                                                                                    //   Pi=2  Request Sixel graphics geometry (pixels). Pv=width;height  Two integers for graphics geometry.
+                                                                                    //   Pi=3  Request ReGIS graphics geometry (pixels). Not supported.
+                                                                                    //   Pa=   1: Request current. 2: Reset to default. 3: Set to value in Pv. 4: Request the maximum allowed value.
                 vt.oscer[osc_label_title] = V{ p->owner.wtrack.set(osc_label_title, q); };
                 vt.oscer[osc_label      ] = V{ p->owner.wtrack.set(osc_label,       q); };
                 vt.oscer[osc_title      ] = V{ p->owner.wtrack.set(osc_title,       q); };
@@ -1912,6 +1916,7 @@ namespace netxs::ui
                 decom = faux;
                 rtb();
                 selection_cancel();
+                owner.sixels.clear_state();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
             // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
@@ -7725,9 +7730,20 @@ namespace netxs::ui
         }
         struct sixel_t
         {
-            term& owner;
-            std::vector<argb> bitmap; // Sixel bitmap buffer.
+            static constexpr auto def_image_limits = twod{ 4096, 4096 };
+            static constexpr auto def_palette_size = 2048;
+            static constexpr auto max_palette_size = 65536;
 
+            term&             owner;
+            std::vector<argb> bitmap; // Sixel bitmap buffer.
+            std::vector<argb> palette = std::vector<argb>(sixel_t::def_palette_size); // Sixel palette.
+            twod              cur_image_limits = def_image_limits;
+
+            void clear_state()
+            {
+                palette.assign(sixel_t::def_palette_size, 0);
+                cur_image_limits = def_image_limits;
+            }
             void parse(qiew& q, auto& params)
             {
                 auto ok = faux;
@@ -7755,14 +7771,12 @@ namespace netxs::ui
                 auto implicit_size = true;
                 //size.y *= aspect_ratio; // Don't scale max image size.
                 auto stride = size.x * aspect_ratio * 6;
-                auto palette = owner.ctrack.color; // Copy terminal palette.
                 auto cur_map = 0;
                 auto cur_clr = owner.target->get_effective_brush();
                 auto cur_fgc = cur_clr.fgc();
                 auto cur_bgc = cur_clr.bgc();
                 if (cur_clr.inv()) std::swap(cur_fgc, cur_bgc);
-                transparency ? bitmap.assign(size.x * size.y, argb{})
-                             : bitmap.assign(size.x * size.y, cur_bgc);
+                bitmap.clear();
                 auto coor = 0;
                 auto maxx = size.x;
                 auto maxy = size.x * size.y;
@@ -7790,6 +7804,7 @@ namespace netxs::ui
                         }
                     }
                 };
+                auto background_clr = transparency ? argb{} : cur_bgc;
                 //auto hash = ui64{};
                 auto head = q.begin();
                 auto tail = q.end();
@@ -7798,11 +7813,13 @@ namespace netxs::ui
                     auto c = *head++;
                     if (c >= '?' && c <= '~') // Print sixels.
                     {
+                        if (bitmap.empty()) [[unlikely]] { bitmap.assign(size.x * size.y, background_clr); }
                         c -= '?';
                         print_sixel(c);
                     }
                     else if (c == '!') // Repeat sixels.
                     {
+                        if (bitmap.empty()) [[unlikely]] { bitmap.assign(size.x * size.y, background_clr); }
                         auto q2 = qiew{ head, tail };
                         if (auto v = utf::to_int(q2))
                         {
@@ -7825,7 +7842,7 @@ namespace netxs::ui
                     {
                         auto q2 = qiew{ head, tail };
                         auto v = utf::to_int(q2);
-                        cur_map = v ? std::clamp(v.value(), 0, 255) : 0;
+                        cur_map = v ? std::clamp(v.value(), 0, (si32)palette.size() - 1) : 0;
                         if (q2 && q2.front() == ';') // Update palette.
                         {
                             q2.pop_front();
@@ -7846,6 +7863,11 @@ namespace netxs::ui
                         head = q2.begin();
                         tail = q2.end();
                         cur_fgc = palette[cur_map];
+                        if (cur_fgc == argb{})
+                        {
+                            if (cur_map < (si32)owner.ctrack.color.size()) cur_fgc = owner.ctrack.color[cur_map];
+                            else                                           cur_fgc = owner.ctrack.color[0];
+                        }
                     }
                     else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
                     {
@@ -7854,19 +7876,17 @@ namespace netxs::ui
                         term::read_params(q2, params2);
                         head = q2.begin();
                         tail = q2.end();
-                        auto dy = std::max(1, std::abs(params2[0]));
-                        auto dx = std::max(1, std::abs(params2[1]));
-                        aspect_ratio = (si32)std::round((fp32)dy / dx);
-                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * ansi::cellsz.x));
-                        size.y = std::clamp(std::abs(params2[3]) * aspect_ratio, 1, std::max(4096, owner.target->panel.y * ansi::cellsz.y));
+                        auto dxy = std::max(dot_11, twod{ params2[1], params2[0] });
+                        aspect_ratio = std::max(1, (si32)std::round((fp32)dxy.y / dxy.x));
+                        auto params_xy = twod{ params2[2], params2[3] * aspect_ratio };
+                        size = std::clamp(std::abs(params_xy), dot_11, std::max(cur_image_limits, owner.target->panel * ansi::cellsz));
                         implicit_size = faux;
                         coor = 0;
                         line = 0;
                         maxx = size.x;
                         maxy = size.x * size.y;
                         stride = size.x * aspect_ratio * 6;
-                        transparency ? bitmap.assign(size.x * size.y, argb{})
-                                     : bitmap.assign(size.x * size.y, cur_bgc);
+                        bitmap.assign(size.x * size.y, background_clr);
                         if constexpr (debugmode) log("image size=%% tranparent=%% decsdm=%%", size, transparency?"1":"0", owner.decsdm);
                     }
                     else if (c == '-') // New Line.
@@ -7905,7 +7925,7 @@ namespace netxs::ui
                 if (ok) // Show image.
                 {
                     auto area = rect{ dot_00, size };
-                    auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, transparency ? argb{} : cur_bgc);
+                    auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, background_clr);
                     auto fp_xy = fp2d{ area.coor } / fp2d{ ansi::cellsz };
                     auto fp_wh = fp2d{ area.size } / fp2d{ ansi::cellsz };
                     auto xy = twod{ std::floor(fp_xy) };
@@ -8260,7 +8280,7 @@ namespace netxs::ui
             //todo implement
             log("%%Dynamic Glyph Redefinition is not implemented yet", prompt::term);
         }
-        // term: Embedded Object Protocol.
+        // term: AnyPlex Protocol.
         void osc_images(qiew attrs_str)
         {
             auto& console = *target;
@@ -8697,6 +8717,116 @@ namespace netxs::ui
                 gc_str ? draw_block(image_buffer, cell::shaders::full)
                        : draw_block(image_buffer, cell::shaders::image);
             }
+        }
+        // term: XTSMGRAPHICS request.
+        void xtsmgraphics(fifo& q)
+        {
+            target->parser::flush();
+            // CSI ? Pi; Pa; Pv S  XTSMGRAPHICS:
+            //   Pi=1  Request number of color registers.        Pv=n  A number of color registers.
+            //   Pi=2  Request Sixel graphics geometry (pixels). Pv=width;height  Two integers for graphics geometry.
+            //   Pi=3  Request ReGIS graphics geometry (pixels). Not supported.
+            //   Pa=   1: Request current. 2: Reset to default. 3: Set to value in Pv. 4: Request the maximum allowed value.
+            auto pi1 = q(0);
+            auto pa1 = q(0);
+            auto pv1 = q(-1);
+            auto pv2 = q(-1);
+            auto ps_reply = 0;
+            auto pv_reply = ansi::escx{};
+            if (pa1 == 1) // Request current.
+            {
+                if (pi1 == 1) // Number of registers.
+                {
+                    pv_reply.add(sixels.palette.size());
+                }
+                else if (pi1 == 2) // Sixel geometry. Image size limits in pixels.
+                {
+                    auto img_size_limits = std::max(sixels.cur_image_limits, target->panel * ansi::cellsz);
+                    pv_reply.add(img_size_limits.x, ';', img_size_limits.y);
+                }
+                else //if (pi1 == 3) // Regis geometry. Not supported.
+                {
+                    ps_reply = 1; // Bad pi.
+                }
+            }
+            else if (pa1 == 2) // Reset to default.
+            {
+                if (pi1 == 1) // Number of registers.
+                {
+                    sixels.palette.resize(sixel_t::def_palette_size);
+                    pv_reply.add(sixel_t::def_palette_size);
+                }
+                else if (pi1 == 2) // Sixel geometry.
+                {
+                    sixels.cur_image_limits = sixels.def_image_limits;
+                    auto img_size_limits = sixels.cur_image_limits;
+                    pv_reply.add(img_size_limits.x, ';', img_size_limits.y);
+                }
+                else //if (pi1 == 3) // Regis geometry. Not supported.
+                {
+                    ps_reply = 1; // Bad pi.
+                }
+            }
+            else if (pa1 == 3) // Set to value in Pv.
+            {
+                if (pi1 == 1) // Number of registers.
+                {
+                    if (pv1 > 0 && pv1 <= sixel_t::max_palette_size)
+                    {
+                        sixels.palette.resize(pv1);
+                        pv_reply.add(pv1);
+                    }
+                    else
+                    {
+                        ps_reply = 3;
+                    }
+                }
+                else if (pi1 == 2) // Sixel geometry.
+                {
+                    auto sz = twod{ pv1, pv2 };
+                    auto img_size_limits = std::max(sixels.def_image_limits, target->panel * ansi::cellsz);
+                    if (sz > dot_00 && sz <= img_size_limits)
+                    {
+                        sixels.cur_image_limits = sz;
+                        pv_reply.add(sz.x, ';', sz.y);
+                    }
+                    else
+                    {
+                        ps_reply = 3; // Failed.
+                    }
+                }
+                else //if (pi1 == 3) // Regis geometry. Not supported.
+                {
+                    ps_reply = 1; // Bad pi.
+                }
+            }
+            else if (pa1 == 4) // Request the maximum allowed value.
+            {
+                if (pi1 == 1) // Number of registers.
+                {
+                    pv_reply.add(sixel_t::max_palette_size);
+                }
+                else if (pi1 == 2) // Sixel geometry.
+                {
+                    auto img_size_limits = std::max(sixels.def_image_limits, target->panel * ansi::cellsz);
+                    pv_reply.add(img_size_limits.x, ';', img_size_limits.y);
+                }
+                else //if (pi1 == 3) // Regis geometry. Not supported.
+                {
+                    ps_reply = 1; // Bad pi.
+                }
+            }
+            else
+            {
+                ps_reply = 2; // Bad pa.
+            }
+            if (ps_reply != 0 && pv1 >= 0)
+            {
+                pv_reply.add(pv1);
+                if (pv2 >= 0) pv_reply.add(';', pv2);
+            }
+            escbuf.add("\x1b[?", pi1, ';', ps_reply, ';', pv_reply, 'S');
+            answer(escbuf);
         }
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
