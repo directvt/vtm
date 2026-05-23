@@ -1681,11 +1681,20 @@ namespace netxs
                     netxs::set_bit<image::sub_id_bit>(document_changed, true);
                 }
             }
-            void check_and_set_attr(gb_attrs_t& new_gb_attrs, bool updated_layers)
+            void check_and_set_attr(si32 attr_index, fp32 new_attr_value)
+            {
+                if (attr_index >= 0 && attr_index < gb_attrs.size() && new_attr_value != gb_attrs[attr_index])
+                {
+                    attr_digest++;
+                    changed_gb_attrs |= 1 << attr_index;
+                    gb_attrs[attr_index] = new_attr_value;
+                }
+            }
+            void check_and_set_attrs(gb_attrs_t& new_gb_attrs, bool updated_layers)
             {
                 attr_digest++;
                 assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
-                for (auto i = 0u; i < new_gb_attrs.size(); i++)
+                for (auto i = 0u; i < gb_attrs.size(); i++)
                 {
                     if (new_gb_attrs[i] != gb_attrs[i])
                     {

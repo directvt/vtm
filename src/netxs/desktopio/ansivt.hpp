@@ -2203,9 +2203,9 @@ namespace netxs::ansi
             }
             else if (prev == head) // Single ESC.
             {
-                return utf8;
+                return qiew{}; // Single ESC doesn't mean anything - wait next chars.
             }
-            else if (*(prev - 1) != 0x1b) // Skip the case with double ESC at the end.
+            else if (*(prev - 1) != 0x1b) // Skip the case with double ESC at the end. Return "\e\e".
             {
                 auto test = qiew{ head, prev };
                 return ansi::purify(test);

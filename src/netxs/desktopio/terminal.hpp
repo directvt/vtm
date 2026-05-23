@@ -7690,35 +7690,38 @@ namespace netxs::ui
             }
             return param_count;
         }
-        static text rgba_to_svg(std::vector<argb>& pixels, twod& size, bool implicit_size, argb transparent_pixel)
+        static text rgba_to_svg(std::vector<argb>& pixels, rect& area, bool implicit_size, argb transparent_pixel)
         {
-            if (implicit_size) // Trim transparent borders (get minimal non transparent area - dropping right+bottom).
+            if (implicit_size || transparent_pixel == argb{}) // Trim transparent borders (get minimal non transparent area).
             {
                 auto data = std::span{ pixels };
-                auto w = size.x;
+                auto w = area.size.x;
                 auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
                 auto is_visible = [=](argb p){ return p != transparent_pixel; };
-                auto crop = netxs::get_minimal_area_if<rect>(size, get_row, is_visible);
-                auto raster = netxs::raster{ data, rect{ dot_00, size }};
-                crop.size += std::exchange(crop.coor, dot_00); // Keep Top+Left.
+                auto raster = netxs::raster{ data, rect{ dot_00, area.size }};
+                auto crop = netxs::get_minimal_area_if<rect>(area.size, get_row, is_visible);
                 auto iter = pixels.begin();
-                netxs::onrect(raster, crop, [&](auto p){ *iter++ = p; }); // Copy crop to the pixels itself (dropping Right+Bottom borders).
-                size = crop.size;
-                pixels.resize(size.x * size.y);
+                if (implicit_size && transparent_pixel != argb{}) // Keep Top+Left (drop Right+Bottom fields).
+                {
+                    crop.size += std::exchange(crop.coor, dot_00);
+                }
+                netxs::onrect(raster, crop, [&](auto p){ *iter++ = p; }); // Copy crop to the pixels itself.
+                area = crop;
+                pixels.resize(area.size.x * area.size.y);
             }
             for (auto& c : pixels) c.swap_rb();
             auto file_data = std::vector<byte>{};
-            file_data.reserve(size.x * size.y);
+            file_data.reserve(area.size.x * area.size.y);
             auto append_fx = [](void* context, void* data, si32 len)
             {
                 auto vec = (std::vector<byte>*)context;
                 vec->insert(vec->end(), (byte*)data, (byte*)data + len);
             };
             auto jpeg_quality = skin::globals().jpeg_quality;
-            ::stbi_write_jpg_to_func(append_fx, &file_data, size.x, size.y, 4, (byte*)pixels.data(), jpeg_quality);
-            //::stbi_write_png_to_func(append_fx, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
+            ::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
+            //::stbi_write_png_to_func(append_fx, &png_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), area.size.x * 4);
             auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
-            return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
+            return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64);
         }
         struct sixel_t
         {
@@ -7864,6 +7867,7 @@ namespace netxs::ui
                         stride = size.x * aspect_ratio * 6;
                         transparency ? bitmap.assign(size.x * size.y, argb{})
                                      : bitmap.assign(size.x * size.y, cur_bgc);
+                        if constexpr (debugmode) log("image size=%% tranparent=%% decsdm=%%", size, transparency?"1":"0", owner.decsdm);
                     }
                     else if (c == '-') // New Line.
                     {
@@ -7900,33 +7904,52 @@ namespace netxs::ui
                 q = qiew{ head, tail };
                 if (ok) // Show image.
                 {
-                    auto doc_str = term::rgba_to_svg(bitmap, size, implicit_size, transparency ? argb{} : cur_bgc);
-                    auto fp_wh = fp2d{ size } / fp2d{ ansi::cellsz };
-                    auto wh = twod{ std::ceil(fp_wh) };
-                    auto c = owner.target->cell_under_cursor();
+                    auto area = rect{ dot_00, size };
+                    auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, transparency ? argb{} : cur_bgc);
+                    auto fp_xy = fp2d{ area.coor } / fp2d{ ansi::cellsz };
+                    auto fp_wh = fp2d{ area.size } / fp2d{ ansi::cellsz };
+                    auto xy = twod{ std::floor(fp_xy) };
+                    auto uv = fp_xy - xy;
+                    auto wh = twod{ std::ceil(fp_wh + uv) };
+                    auto gb_attr_u  = uv.x;
+                    auto gb_attr_v  = uv.y;
+                    auto gb_attr_w  = (fp32)wh.x;
+                    auto gb_attr_h  = (fp32)wh.y;
+                    auto gb_attr_uw = (fp32)wh.x / fp_wh.x; // Keep paddings.
+                    auto gb_attr_vh = (fp32)wh.y / fp_wh.y; //
                     auto images = cell::images(); // Lock.
-                    if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
+                    if (xy == dot_00)
                     {
-                        auto xy = c.get_image_cr();
-                        auto WH = c.get_image_WH();
-                        if (xy == dot_11 && wh == WH) // Update existing image.
+                        auto c = owner.target->cell_under_cursor();
+                        if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
                         {
-                            if (auto image_ptr = images.map[index])
+                            auto prev_cr = c.get_image_cr();
+                            auto prev_WH = c.get_image_WH();
+                            if (prev_cr == dot_11 && prev_WH == wh) // Update existing image.
                             {
-                                auto& image = *image_ptr;
-                                image.reset_changes();
-                                image.check_and_set_document(doc_str);
-                                image.stamp += 1;
-                                if (image.document_changed)
+                                if (auto image_ptr = images.map[index])
                                 {
-                                    owner.base::signal(tier::general, e2::data::image::update, index);
+                                    auto& image = *image_ptr;
+                                    image.reset_changes();
+                                    image.check_and_set_document(doc_str);
+                                    image.check_and_set_attr(imagens::gb::u , gb_attr_u);
+                                    image.check_and_set_attr(imagens::gb::v , gb_attr_v);
+                                    image.check_and_set_attr(imagens::gb::w , gb_attr_w);
+                                    image.check_and_set_attr(imagens::gb::h , gb_attr_h);
+                                    image.check_and_set_attr(imagens::gb::uw, gb_attr_uw);
+                                    image.check_and_set_attr(imagens::gb::vh, gb_attr_vh);
+                                    if (image.document_changed)
+                                    {
+                                        image.stamp += 1;
+                                        owner.base::signal(tier::general, e2::data::image::update, index);
+                                    }
+                                    owner.print_sixel_image(image, xy, wh);
+                                    return;
                                 }
-                                owner.print_sixel_image(image, wh);
-                                return;
-                            }
-                            else
-                            {
-                                if (owner.io_log) log("%%Broken image index: %%", prompt::term, index);
+                                else
+                                {
+                                    if (owner.io_log) log("%%Broken image index: %%", prompt::term, index);
+                                }
                             }
                         }
                     }
@@ -7939,13 +7962,15 @@ namespace netxs::ui
                         image.id = "Sixel_"; // Set id="Sixel_FFFF".
                         utf::to_hex(image_index, image.id);
                         image.index = image_index;
-                        image.gb_attrs[imagens::gb::w  ] = (fp32)wh.x;
-                        image.gb_attrs[imagens::gb::h  ] = (fp32)wh.y;
-                        image.gb_attrs[imagens::gb::uw ] = (fp32)wh.x / fp_wh.x; // Keep paddings.
-                        image.gb_attrs[imagens::gb::vh ] = (fp32)wh.y / fp_wh.y; //
+                        image.gb_attrs[imagens::gb::u  ] = gb_attr_u;
+                        image.gb_attrs[imagens::gb::v  ] = gb_attr_v;
+                        image.gb_attrs[imagens::gb::w  ] = gb_attr_w;
+                        image.gb_attrs[imagens::gb::h  ] = gb_attr_h;
+                        image.gb_attrs[imagens::gb::uw ] = gb_attr_uw;
+                        image.gb_attrs[imagens::gb::vh ] = gb_attr_vh;
                         image.gb_attrs[imagens::gb::fit] = scale_mode::stretch;
                         owner.image_sixel_count++;
-                        owner.print_sixel_image(image, wh);
+                        owner.print_sixel_image(image, xy, wh);
                         // All sixel images will be removed on undock.
                         //owner.sixel_cache[image.id] = image_ptr;
                     }
@@ -8026,6 +8051,8 @@ namespace netxs::ui
             auto size = block.size();
             auto head = block.begin();
             auto tail = block.end();
+            scrollback.chx0(scrollback.coord.x + block.coor().x);
+            scrollback._lf(block.coor().y);
             auto coor = scrollback.coord;
             auto step = size.x;
             if (trim_by_viewport)
@@ -8095,7 +8122,7 @@ namespace netxs::ui
             scrollback.cup2(save);
         }
         // term: Print sixel image to the scrollback.
-        void print_sixel_image(imagens::image& image, twod wh)
+        void print_sixel_image(imagens::image& image, twod xy, twod wh)
         {
             auto brush = cell{ target->parser::brush }
                 .txt(" ", 1, 1, 1, 1)
@@ -8104,6 +8131,7 @@ namespace netxs::ui
                 .set_image_sixel(true)
                 .set_image_WH(wh.x, wh.y)
                 .set_image_ontop(faux);
+            image_buffer.move(xy);
             image_buffer.core::size<true>(wh, brush);
             auto head = image_buffer.begin();
             for (auto row = 1; row <= wh.y; row++)
@@ -8536,11 +8564,6 @@ namespace netxs::ui
 
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
                 auto brush = cell{ target->parser::brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
-                auto print_image_buffer = [&]
-                {
-                    gc_str ? draw_block(image_buffer, cell::shaders::full)
-                           : draw_block(image_buffer, cell::shaders::image);
-                };
                 //todo revise cache logic (it is just a test)
                 auto different_image_attrs = [&]
                 {
@@ -8580,7 +8603,7 @@ namespace netxs::ui
                         image.layers = std::move(layers);
                     }
                     image.reset_changes();
-                    image.check_and_set_attr(gb_attrs, updated_layers);
+                    image.check_and_set_attrs(gb_attrs, updated_layers);
                     if (image.changed_gb_attrs || image.document_changed)
                     {
                         image.stamp += 2;
@@ -8598,7 +8621,7 @@ namespace netxs::ui
                     image.rasters_reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str, sub_id_str);
-                    image.check_and_set_attr(gb_attrs, updated_layers);
+                    image.check_and_set_attrs(gb_attrs, updated_layers);
                     if (image.changed_gb_attrs || image.document_changed)
                     {
                         image.stamp += 2;
@@ -8644,7 +8667,6 @@ namespace netxs::ui
                             (*head++).set_image_cr(c, r);
                         }
                     }
-                    print_image_buffer();
                 }
                 else if (!r) // Print vertical slice.
                 {
@@ -8655,7 +8677,6 @@ namespace netxs::ui
                     {
                         (*head++).set_image_cr(c, r);
                     }
-                    print_image_buffer();
                 }
                 else if (!c) // Print horizontal slice.
                 {
@@ -8666,14 +8687,15 @@ namespace netxs::ui
                     {
                         (*head++).set_image_cr(c, r);
                     }
-                    print_image_buffer();
                 }
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
                     image_buffer.core::size<true>(size, brush);
-                    print_image_buffer();
                 }
+                image_buffer.move(dot_00);
+                gc_str ? draw_block(image_buffer, cell::shaders::full)
+                       : draw_block(image_buffer, cell::shaders::image);
             }
         }
         // term: Forward clipboard data (OSC 52).
