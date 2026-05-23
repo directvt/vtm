@@ -1683,7 +1683,7 @@ namespace netxs
             }
             void check_and_set_attr(si32 attr_index, fp32 new_attr_value)
             {
-                if (attr_index >= 0 && attr_index < gb_attrs.size() && new_attr_value != gb_attrs[attr_index])
+                if (attr_index >= 0 && attr_index < (si32)gb_attrs.size() && new_attr_value != gb_attrs[attr_index])
                 {
                     attr_digest++;
                     changed_gb_attrs |= 1 << attr_index;
