@@ -112,6 +112,7 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
+            hook image_update_listener{}; // link: .
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
@@ -227,6 +228,19 @@ namespace netxs::ui
             void handle(s11n::xs::request_img lock)
             {
                 auto lock_owner = owner.sync(); // Sync with UI thread.
+                if (!image_update_listener) // Send image updates only if we are a remote endpoint.
+                {
+                    owner.LISTEN(tier::general, e2::data::image::update, image_index, image_update_listener)
+                    {
+                        auto images = cell::images(); // Lock.
+                        if (auto image_ptr = images.map[image_index])
+                        {
+                            auto& image = *image_ptr;
+                            auto changes = image.get_changes();
+                            s11n::update_img_request.send(canal, image.index, image.changed_gb_attrs, changes);
+                        }
+                    };
+                }
                 auto pending_indexes = std::list<ui16>{};
                 auto& items = lock.thing;
                 auto list = s11n::img_list.freeze();
@@ -1044,16 +1058,6 @@ namespace netxs::ui
             LISTEN(tier::general, e2::data::image::remove, image_indexes)
             {
                 conio.remove_img_request.send(canal, image_indexes);
-            };
-            LISTEN(tier::general, e2::data::image::update, image_index)
-            {
-                auto images = cell::images(); // Lock.
-                if (auto image_ptr = images.map[image_index])
-                {
-                    auto& image = *image_ptr;
-                    auto changes = image.get_changes();
-                    conio.update_img_request.send(canal, image.index, image.changed_gb_attrs, changes);
-                }
             };
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
             {

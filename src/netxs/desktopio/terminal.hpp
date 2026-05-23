@@ -7916,12 +7916,12 @@ namespace netxs::ui
                                 auto& image = *image_ptr;
                                 image.reset_changes();
                                 image.check_and_set_document(doc_str);
+                                image.stamp += 1;
                                 if (image.document_changed)
                                 {
-                                    image.stamp += 2;
                                     owner.base::signal(tier::general, e2::data::image::update, index);
-                                    owner.print_sixel_image(image, wh);
                                 }
+                                owner.print_sixel_image(image, wh);
                                 return;
                             }
                             else

@@ -1503,7 +1503,7 @@ namespace netxs
             bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 auto layers_updated = faux;
-                if constexpr (debugmode) log("Received image index=%% update:", index);
+                if constexpr (debugmode) log("Image index=%% update:", index);
                 attr_digest++;
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
@@ -1671,6 +1671,7 @@ namespace netxs
                 {
                     dom = {}; // Request to regenerate DOM.
                     document = doc_str;
+                    bitmap.reset();
                     netxs::set_bit<image::document_bit>(document_changed, true);
                 }
                 if (sub_id != sub_id_str)
