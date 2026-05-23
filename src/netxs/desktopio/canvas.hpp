@@ -1503,7 +1503,7 @@ namespace netxs
             bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 auto layers_updated = faux;
-                if constexpr (debugmode) log("Received image index=%% update:", index);
+                if constexpr (debugmode) log("Image index=%% update:", index);
                 attr_digest++;
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
@@ -1671,6 +1671,7 @@ namespace netxs
                 {
                     dom = {}; // Request to regenerate DOM.
                     document = doc_str;
+                    bitmap.reset();
                     netxs::set_bit<image::document_bit>(document_changed, true);
                 }
                 if (sub_id != sub_id_str)
@@ -1680,11 +1681,20 @@ namespace netxs
                     netxs::set_bit<image::sub_id_bit>(document_changed, true);
                 }
             }
-            void check_and_set_attr(gb_attrs_t& new_gb_attrs, bool updated_layers)
+            void check_and_set_attr(si32 attr_index, fp32 new_attr_value)
+            {
+                if (attr_index >= 0 && attr_index < (si32)gb_attrs.size() && new_attr_value != gb_attrs[attr_index])
+                {
+                    attr_digest++;
+                    changed_gb_attrs |= 1 << attr_index;
+                    gb_attrs[attr_index] = new_attr_value;
+                }
+            }
+            void check_and_set_attrs(gb_attrs_t& new_gb_attrs, bool updated_layers)
             {
                 attr_digest++;
                 assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
-                for (auto i = 0u; i < new_gb_attrs.size(); i++)
+                for (auto i = 0u; i < gb_attrs.size(); i++)
                 {
                     if (new_gb_attrs[i] != gb_attrs[i])
                     {
@@ -1716,7 +1726,7 @@ namespace netxs
             using lock = std::recursive_mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
-            using pool = generics::indexer_fifo<ui16>;
+            using pool = generics::indexer_growing<ui16, 65536>; // Use growing indexer to avoid reusing indexes during synchronization.
 
             lock mutex; // Object map mutex.
             depo store; // Object map.
@@ -1745,6 +1755,7 @@ namespace netxs
                     {
                         log("The limit on the number of embedded objects has been reached");
                     }
+                    if constexpr (debugmode) log("Got a new image index: %% free count=%%", image_index, ind.free_count);
                     return image_index;
                 }
                 // cache: Remove object.

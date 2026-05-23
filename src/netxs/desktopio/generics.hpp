@@ -1387,6 +1387,80 @@ namespace netxs::generics
             }
         }
     };
+
+    // generics: Index manager (Prefers larger/growing indices).
+    template<class T, size_t Count>
+    struct indexer_growing
+    {
+        std::array<ui64, Count / 64> free_mask{}; // 1 — Available, 0 — In use. Initialized with zeros. Initial indices are allocated sequentially via next_index.
+        T                            next_index{};
+        T                            last_issued{};
+        size_t                       free_count{}; // Total number of released indices available in the mask.
+
+        void _clear_free_bit(T id)
+        {
+            free_mask[id / 64] &= ~(1ull << (id % 64));
+            --free_count;
+        }
+        // indexer: Return the next available larger index.
+        auto get_new()
+        {
+            if (free_count > 0 && last_issued < std::numeric_limits<T>::max()) // Look forward among released indices.
+            {
+                auto start_bit = (size_t)last_issued + 1;
+                auto word_idx = start_bit / 64;
+                if (word_idx < free_mask.size())
+                {
+                    auto bit_offset = start_bit % 64;
+                    if (auto current_word = free_mask[word_idx] & (netxs::ui64max << bit_offset))
+                    {
+                        auto found_bit = (T)(word_idx * 64 + std::countr_zero(current_word));
+                        _clear_free_bit(found_bit);
+                        return last_issued = found_bit;
+                    }
+                    for (auto i = (size_t)(word_idx + 1); i < free_mask.size(); ++i) // Scan subsequent words.
+                    {
+                        if (free_mask[i] != 0)
+                        {
+                            auto found_bit = (T)(i * 64 + std::countr_zero(free_mask[i]));
+                            _clear_free_bit(found_bit);
+                            return last_issued = found_bit;
+                        }
+                    }
+                }
+            }
+            if (next_index < std::numeric_limits<T>::max() - 1 && next_index < (Count - 1)) [[likely]] // Allocate a new index.
+            {
+                return last_issued = ++next_index;
+            }
+            if (free_count > 0) // Wrap around and look from the beginning.
+            {
+                for (auto i = 0ul; i < free_mask.size(); ++i)
+                {
+                    if (free_mask[i] != 0)
+                    {
+                        auto found_bit = (T)(i * 64 + std::countr_zero(free_mask[i]));
+                        _clear_free_bit(found_bit);
+                        return last_issued = found_bit;
+                    }
+                }
+            }
+            return T{}; // Out of indices.
+        }
+        // indexer: Make index available for reuse.
+        void release(T id)
+        {
+            auto word_idx = (size_t)(id / 64);
+            auto bit_flat = 1ull << (id % 64);
+            if (id > 0 && id <= next_index
+             && word_idx < free_mask.size()
+             && (free_mask[word_idx] & bit_flat) == 0) // Prevent duplicate release.
+            {
+                free_mask[word_idx] |= bit_flat;
+                ++free_count;
+            }
+        }
+    };
 }
 
 // generics: Map helpers.

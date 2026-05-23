@@ -273,6 +273,8 @@ namespace netxs::ansi
     static constexpr auto apc_prefix_session       = "event=session;"sv;
     static constexpr auto apc_prefix_session_token = "token="sv;
 
+    static constexpr auto cellsz = twod{ 10, 20 };
+
     template<class Base>
     class basevt
     {
@@ -604,6 +606,9 @@ namespace netxs::ansi
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // escx: Set autowrap mode.
         auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based cursor position (CPR).
         auto& win_sz(twod p)        { return add("\033[8;", p.y, ";", p.x, "t"       ); } // escx: Report viewport size (Reply on CSI 18 t).
+        auto& area_sz_px(twod p)    { return add("\033[4;", p.y, ";", p.x, "t"       ); } // escx: Report text area size in pixels (Reply on CSI 14 t).
+        auto& scrn_sz_px(twod p)    { return add("\033[5;", p.y, ";", p.x, "t"       ); } // escx: Report screen size in pixels (Reply on CSI 15 t).
+        auto& cell_sz_px(twod p)    { return add("\033[6;", p.y, ";", p.x, "t"       ); } // escx: Report cell size in pixels (Reply on CSI 16 t).
         auto& locate_wipe()         { return add("\033[r"                            ); } // escx: Enable scrolling for entire display (clear screen).
         auto& locate_call()         { return add("\033[6n"                           ); } // escx: Report cursor position.
         auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset cursor location.
@@ -2054,150 +2059,156 @@ namespace netxs::ansi
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
-    auto purify(qiew utf8)
+    qiew purify(qiew utf8)
     {
-        if (utf8.size())
-        {
-            auto head = utf8.begin();
-            auto tail = utf8.end();
-            auto prev = tail;
-            auto find = faux;
-            do   find = *--prev == 0x1b; // find ESC
-            while (head != prev && !find);
+        if (utf8.empty()) return utf8;
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto prev = tail;
+        auto found = faux;
+        do found = *--prev == 0x1b; // Looking for ESC
+        while (head != prev && !found);
 
-            if (find)
+        if (found)
+        {
+            auto next = prev;
+            if (++next != tail) // Check chars after ESC.
             {
-                auto next = prev;
-                if (++next != tail) // test bytes after ESC
+                auto c = *next;
+                if (c == '\\') // ST
                 {
-                    auto c = *next;
-                    if (c == '[') // test CSI: ESC [ pn;...;pn cmd
+                    utf::purify(utf8); // All ok;
+                    return utf8;
+                }
+                else if (c == '[') // CSI
+                {
+                    while (++next != tail)
                     {
-                        while (++next != tail) // find CSI command: cmd >= 0x40 && cmd <= 0x7E
-                        {
-                            auto cmd = *next;
-                            if (cmd >= 0x40 && cmd <= 0x7E) break;
-                        }
-                        if (next == tail)
-                        {
-                            utf8 = { head, prev }; // exclude final ESC
-                            return utf8;
-                        }
+                        auto cmd = *next;
+                        if (cmd >= 0x40 && cmd <= 0x7E) break;
                     }
-                    else if (c == ']') // test OSC: ESC ] ... BEL
+                    if (next == tail) // Incomplete CSI.
                     {
-                        // test OSC: ESC ] P Nrrggbb
-                        auto step = next;
-                        if (++step != tail)
+                        utf8 = { head, prev }; // Exclude incomplete sequence.
+                        return utf8;
+                    }
+                }
+                else if (c == 'P'  // DCS ESC P ... ST
+                      || c == 'X'  // SOS ESC X ... ST
+                      || c == '^'  // PM  ESC ^ ... ST
+                      || c == '_') // APC ESC _ ... ST
+                {
+                    while (++next != tail) // Looking for BEL.
+                    {
+                        auto cmd = *next;
+                        if (cmd == 0x07) break;
+                    }
+                    if (next != tail) // BEL found.
+                    {
+                        utf::purify(utf8); // All ok.
+                    }
+                    else
+                    {
+                        utf8 = { head, prev }; // Exclude incomplete sequence.
+                    }
+                    return utf8;
+                }
+                else if (c == ']') // OSC
+                {
+                    // Check OSC: ESC ] P Nrrggbb
+                    auto step = next;
+                    if (++step != tail)
+                    {
+                        c = *step;
+                        if (c == 'P') // Set linux console palette.
                         {
-                            c = *step;
-                            if (c == 'P') // Set linux console palette.
+                            if (tail - step < 8)
                             {
-                                if (tail - step < 8)
-                                {
-                                    utf8 = { head, prev }; // exclude final ESC
-                                }
-                                else
-                                {
-                                    utf::purify(utf8);
-                                }
-                                return utf8;
+                                utf8 = { head, prev }; // Exclude incomplete sequence.
                             }
-                            else if (c == 'R') // Reset linux console palette.
+                            else
                             {
                                 utf::purify(utf8);
-                                return utf8;
                             }
+                            return utf8;
                         }
-                        while (++next != tail) // find BEL
+                        else if (c == 'R') // Reset linux console palette.
                         {
-                            auto cmd = *next;
-                            if (cmd == 0x07) break;
-                        }
-                        if (next == tail)
-                        {
-                            utf8 = { head, prev }; // exclude final ESC
+                            utf::purify(utf8);
                             return utf8;
                         }
                     }
-                    else if (c == '\\') // test ST: ESC \ ...
+                    while (++next != tail) // Looking for BEL.
                     {
-                        if (++next == tail)
-                        {
-                            return utf8;
-                        }
+                        auto cmd = *next;
+                        if (cmd == 0x07) break;
                     }
-                    // test Message/Command:
-                    else if (c == 'P'  // DCS ESC P ... BEL
-                          || c == 'X'  // SOS ESC X ... BEL
-                          || c == '^'  // PM  ESC ^ ... BEL
-                          || c == '_') // APC ESC _ ... BEL
+                    if (next == tail)
                     {
-                        while (++next != tail) // find BEL
-                        {
-                            auto cmd = *next;
-                            if (cmd == 0x07) break;
-                        }
-                        if (next == tail)
-                        {
-                            utf8 = { head, prev }; // exclude final ESC
-                            return utf8;
-                        }
+                        utf8 = { head, prev }; // Exclude incomplete sequence.
+                        return utf8;
                     }
-                    // test Esc + byte + rest:
-                    else if (c == '('  // G0SET VT100  ESC ( c  94 characters
-                          || c == ')'  // G1SET VT100  ESC ) c  94 characters
-                          || c == '*'  // G2SET VT220  ESC * c  94 characters
-                          || c == '+'  // G3SET VT220  ESC + c  94 characters
-                          || c == '-'  // G1SET VT300  ESC - c  96 characters
-                          || c == '.'  // G2SET VT300  ESC . c  96 characters
-                          || c == '/'  // G3SET VT300  ESC / c  96 characters
-                          || c == ' '  // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
-                          || c == '#'  // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
-                          || c == '%') // ESC % @, ESC % G  G: Select UTF-8, @: Select default
+                }
+                // Check ESC + byte + rest:
+                else if (c == '('  // G0SET VT100  ESC ( c  94 characters
+                      || c == ')'  // G1SET VT100  ESC ) c  94 characters
+                      || c == '*'  // G2SET VT220  ESC * c  94 characters
+                      || c == '+'  // G3SET VT220  ESC + c  94 characters
+                      || c == '-'  // G1SET VT300  ESC - c  96 characters
+                      || c == '.'  // G2SET VT300  ESC . c  96 characters
+                      || c == '/'  // G3SET VT300  ESC / c  96 characters
+                      || c == ' '  // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
+                      || c == '#'  // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                      || c == '%') // ESC % @, ESC % G  G: Select UTF-8, @: Select default
+                {
+                    if (++next == tail)
                     {
-                        if (++next == tail)
-                        {
-                            utf8 = { head, prev }; // exclude final ESC
-                        }
+                        utf8 = { head, prev }; // Exclude incomplete sequence.
+                        return utf8;
                     }
-                    // test Esc + byte: ESC 7 8 D E H M ...
-                    else if (c == '6'  // Back index, DECBI
-                          || c == '7'  // Save    cursor coor and rendition state
-                          || c == '8'  // Restore cursor coor and rendition state
-                          || c == '9'  // Forward index, DECFI
-                          || c == 'c'  // Full reset, RIS
-                          || c == 'D'  // Cursor down
-                          || c == 'M'  // Cursor up
-                          || c == 'E'  // Next line
-                          || c == 'F'  // Set cursor to lower leftmost coor
-                          || c == 'H'  // Tabstop set
-                          || c == '='  // Application keypad
-                          || c == '>'  // Normal      keypad
-                          || c == 'l'  // Memory lock
-                          || c == 'm'  // Memory unlock
-                          || c == 'n'  // LS2
-                          || c == 'o'  // LS3
-                          || c == '~'  // LS1R
-                          || c == '}'  // LS2R
-                          || c == '|'  // LS3R
-                          || c == 'O'  // SS3
-                          || c == 'N'  // SS2
-                          || c == 'V'  // SPA
-                          || c == 'W'  // EPA
-                          || c == 'Z') // Return ID
-                    {
-                        if (++next == tail)
-                        {
-                            return utf8;
-                        }
-                    }
+                }
+                // Check ESC + byte: ESC 7 8 D E H M ...
+                else if (c == '6'  // Back index, DECBI
+                      || c == '7'  // Save    cursor coor and rendition state
+                      || c == '8'  // Restore cursor coor and rendition state
+                      || c == '9'  // Forward index, DECFI
+                      || c == 'c'  // Full reset, RIS
+                      || c == 'D'  // Cursor down
+                      || c == 'M'  // Cursor up
+                      || c == 'E'  // Next line
+                      || c == 'F'  // Set cursor to lower leftmost coor
+                      || c == 'H'  // Tabstop set
+                      || c == '='  // Application keypad
+                      || c == '>'  // Normal      keypad
+                      || c == 'l'  // Memory lock
+                      || c == 'm'  // Memory unlock
+                      || c == 'n'  // LS2
+                      || c == 'o'  // LS3
+                      || c == '~'  // LS1R
+                      || c == '}'  // LS2R
+                      || c == '|'  // LS3R
+                      || c == 'O'  // SS3
+                      || c == 'N'  // SS2
+                      || c == 'V'  // SPA
+                      || c == 'W'  // EPA
+                      || c == 'Z') // Return ID
+                {
+                    if (++next == tail) return utf8;
                 }
                 else
                 {
-                    utf8 = { head, prev }; // exclude final ESC
+                    utf8 = { head, prev }; // Exclude incomplete sequence.
                     return utf8;
                 }
+            }
+            else if (prev == head) // Single ESC.
+            {
+                return qiew{}; // Single ESC doesn't mean anything - wait next chars.
+            }
+            else if (*(prev - 1) != 0x1b) // Skip the case with double ESC at the end. Return "\e\e".
+            {
+                auto test = qiew{ head, prev };
+                return ansi::purify(test);
             }
         }
 

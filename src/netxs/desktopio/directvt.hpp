@@ -2118,12 +2118,7 @@ namespace netxs::directvt
                 }
                 else
                 {
-                    for (auto image_index : image_indexes)
-                    {
-                        if constexpr (debugmode) log("Local: Remove image index: local=%%", image_index);
-                        images.remove(image_index);
-                        hit |= !!image_index;
-                    }
+                    hit = !image_indexes.empty();
                 }
                 return hit;
             }

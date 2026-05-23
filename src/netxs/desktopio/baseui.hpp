@@ -842,12 +842,17 @@ namespace netxs::ui
             }
             return sptr{};
         }
-        // base: Update scripting context. Run on anycast, e2::form::upon::started.
         // base: Enqueue task.
         template<bool Sync = true>
         void enqueue(netxs::events::fx<ui::base> proc)
         {
             bell::indexer.enqueue<Sync>(weak_from_this(), std::move(proc));
+        }
+        // base: Enqueue global task.
+        template<bool Sync = true>
+        void enqueue_global(netxs::events::fx<ui::base> proc)
+        {
+            bell::indexer.enqueue_global<Sync>(std::move(proc));
         }
         // base: Clear task queue.
         void dequeue()

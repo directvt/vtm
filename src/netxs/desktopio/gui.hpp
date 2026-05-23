@@ -4135,8 +4135,9 @@ namespace netxs::gui
                 if (image_index == updated_image_index)
                 {
                     hit = true;
+                    break;
                     //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
-                    c.inc_image_stamp(1);
+                    //c.inc_image_stamp(1);
                 }
             }
             return hit;
