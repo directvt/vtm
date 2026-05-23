@@ -92,6 +92,7 @@ namespace netxs::ansi
     static const auto csi_led     = 'q'; // CSI n      q  — Load keyboard LEDs.
     static const auto csi__sd     = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
     static const auto csi__su     = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
+    static const auto csi_qst_smg = 'S'; // CSI ? Pi; Pa; Pv S  — XTSMGRAPHICS request.
     static const auto csi_win     = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const auto csi_ech     = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const auto csi_ich     = '@'; // CSI n      @  — Insert/wedge n character(s).
