@@ -508,7 +508,7 @@ namespace netxs::ui
                             auto c = gear.m_sys.coordxy;
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
-                                                                    : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel - dot_11 }));
+                                                                    : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel } - 0.001f));
                             if (gear.m_sav.changed != gear.m_sys.changed)
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state, pixel);
