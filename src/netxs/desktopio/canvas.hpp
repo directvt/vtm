@@ -1503,6 +1503,7 @@ namespace netxs
             bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 auto layers_updated = faux;
+                auto need_bitmap_reset = faux;
                 if constexpr (debugmode) log("Image index=%% update:", index);
                 attr_digest++;
                 changed_gb_attrs = new_changed_bits;
@@ -1521,13 +1522,14 @@ namespace netxs
                 }
                 if (changed_gb_attrs & ((1 << imagens::gb::uw)
                                       | (1 << imagens::gb::vh)
+                                      | (1 << imagens::gb::u)
+                                      | (1 << imagens::gb::v)
                                       | (1 << imagens::gb::w)
                                       | (1 << imagens::gb::h)
                                       | (1 << imagens::gb::fit)))
                 {
-                    bitmap.reset();
+                    need_bitmap_reset = true;
                 }
-                auto need_bitmap_reset = faux;
                 if (j < changes.size() && (document_changed = std::any_cast<si32>(changes[j++])))
                 {
                     if (j < changes.size() && netxs::get_bit<image::sub_id_bit>(document_changed))
@@ -1652,6 +1654,8 @@ namespace netxs
                         gb_attrs[i] = std::any_cast<fp32>(global_attributes[i]);
                         if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], gb_attrs[i]);
                     }
+                    bitmap.reset();
+                    dom = {};
                     sub_id   = std::any_cast<text>(global_attributes[i++]);
                     document = std::any_cast<text>(global_attributes[i++]);
                     layers_updated = load_layers(i, global_attributes);
