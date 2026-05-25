@@ -1117,8 +1117,8 @@ namespace netxs::ui
                 vt.csier.table[csi_sgr][sgr_fg_rgb   ] = V{ p->owner.ctrack.fgc(q);               };
                 vt.csier.table[csi_sgr][sgr_bg_rgb   ] = V{ p->owner.ctrack.bgc(q);               };
 
-                vt.csier.table[csi_cuu] = V{ p-> up(q(1)); }; // CSI n A  (CUU)
-                vt.csier.table[csi_cud] = V{ p-> dn(q(1)); }; // CSI n B  (CUD)
+                vt.csier.table[csi_cuu] = V{ p->_up(q(1)); }; // CSI n A  (CUU)
+                vt.csier.table[csi_cud] = V{ p->_dn(q(1)); }; // CSI n B  (CUD)
                 vt.csier.table[csi_cuf] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
                 vt.csier.table[csi_cub] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
@@ -2376,6 +2376,22 @@ namespace netxs::ui
                 auto y = q(1);
                 auto x = q(1);
                 cup({ x, y });
+            }
+            // bufferbase: Move cursor up without scrolling.
+    virtual void _up(si32 n)
+            {
+                parser::flush_data();
+                if (n == 0) n = 1;
+                auto new_coord_y = coord.y - n;
+                coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
+            }
+            // bufferbase: Move cursor down without scrolling.
+    virtual void _dn(si32 n)
+            {
+                parser::flush_data();
+                if (n == 0) n = 1;
+                auto new_coord_y = coord.y + n;
+                coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: Move cursor up.
     virtual void up(si32 n)
@@ -4644,6 +4660,8 @@ namespace netxs::ui
             void   dl(si32  n) override { bufferbase::  dl(n); sync_coord(); }
             void   up(si32  n) override { bufferbase::  up(n); sync_coord(); }
             void   dn(si32  n) override { bufferbase::  dn(n); sync_coord(); }
+            void  _up(si32  n) override { bufferbase:: _up(n); sync_coord(); }
+            void  _dn(si32  n) override { bufferbase:: _dn(n); sync_coord(); }
             void   lf(si32  n) override { bufferbase::  lf(n); sync_coord(); }
             void  _lf(si32  n) override { bufferbase:: _lf(n); sync_coord(); }
             void  _ri(si32  n) override { bufferbase:: _ri(n); sync_coord(); }
