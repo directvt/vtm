@@ -896,7 +896,7 @@ namespace netxs::app::shared
                 def_cfg.combine_item(src_cfg);
             }
         }
-        static void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
+        static auto settings(qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -965,7 +965,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            resultant.document.swap(defcfg);
+            return defcfg;
         }
     }
 

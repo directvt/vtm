@@ -69,14 +69,14 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        auto config = xml::settigs{};
-        app::shared::load::settings<true>(config, cliopt)
-        log(prompt::resultant_settings, "\n", config);
+        auto xmldoc = app::shared::load::settings(cliopt, true)
+        log(prompt::resultant_settings, "\n", xmldoc.page.show());
     }
     else
     {
         auto& indexer = ui::tui_domain();
-        app::shared::load::settings(indexer.config, cliopt);
+        auto xmldoc = app::shared::load::settings(cliopt)
+        indexer.config.document.swap(xmldoc);
         app::shared::start(params, app::calc::id);
     }
 }
