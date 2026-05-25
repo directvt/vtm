@@ -616,7 +616,7 @@ namespace netxs::ansi
         auto& save_title()          { return add("\033[22;0t"                        ); } // escx: Save terminal window title.
         auto& load_title()          { return add("\033[23;0t"                        ); } // escx: Restore terminal window title.
         auto& osc(view p)           { return add("\033]", p, c0_bel                  ); } // escx: OSC report.
-        auto& osc(view p, view arg) { return add("\033]", p, ';', arg, c0_bel        ); } // escx: OSC report with args.
+        auto& osc(view p, view arg, view st) { return add("\033]", p, ';', arg, st   ); } // escx: OSC report with args.
         auto& header(view t)        { return add("\033]2;", t, c0_bel                ); } // escx: Window title.
         auto& save_palette()        { return add("\033[#P"                           ); } // escx: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // escx: Pop  palette from stack XTPOPCOLORS.
@@ -1766,7 +1766,7 @@ namespace netxs::ansi
                     auto size = head - delm;
                     if (auto it = oscer.find(cmd); it != oscer.end())
                     {
-                        auto data = view(delm, size);
+                        auto data = view(delm, size + pad);
                         auto proc = (*it).second;
                         proc(data, client);
                     }

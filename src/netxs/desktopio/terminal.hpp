@@ -680,8 +680,8 @@ namespace netxs::ui
                     case area_size: owner.answer(queue.area_sz_px(ansi::cellsz * owner.target->panel)); break;
                     case scrn_size: owner.answer(queue.scrn_sz_px(ansi::cellsz * owner.target->panel)); break;
                     case cell_size: owner.answer(queue.cell_sz_px(ansi::cellsz)); break;
-                    case get_label: owner.answer(queue.osc(ansi::osc_label_report, "")); break; // Return an empty string for security reasons
-                    case get_title: owner.answer(queue.osc(ansi::osc_title_report, "")); break;
+                    case get_label: owner.answer(queue.osc(ansi::osc_label_report, "", "\x1b\\")); break; // Return an empty string for security reasons
+                    case get_title: owner.answer(queue.osc(ansi::osc_title_report, "", "\x1b\\")); break;
                     case put_stack:
                     {
                         auto push = [&](auto const& property)
@@ -729,7 +729,7 @@ namespace netxs::ui
         // term: Terminal 16/256 color palette tracking functionality.
         struct c_tracking
         {
-            using func = utf::unordered_map<text, std::function<void(view)>>;
+            using func = utf::unordered_map<text, std::function<void(view, view)>>;
 
             enum class type { invalid, rgbcolor, request };
 
@@ -846,7 +846,7 @@ namespace netxs::ui
                 : owner{ owner }
             {
                 reset();
-                procs[ansi::osc_linux_color] = [&](view data) // ESC ] P Nrrggbb
+                procs[ansi::osc_linux_color] = [&](view data, view /*st*/) // ESC ] P Nrrggbb
                 {
                     if (data.length() >= 7)
                     {
@@ -863,7 +863,7 @@ namespace netxs::ui
                                  + 0xFF000000;
                     }
                 };
-                procs[ansi::osc_reset_color] = [&](view data) // ESC ] 104 ; 0; 1;...
+                procs[ansi::osc_reset_color] = [&](view data, view /*st*/) // ESC ] 104 ; 0; 1;...
                 {
                     auto empty = true;
                     while (data.length())
@@ -885,7 +885,7 @@ namespace netxs::ui
                     }
                     if (empty) reset();
                 };
-                procs[ansi::osc_set_palette] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
+                procs[ansi::osc_set_palette] = [&](view data, view st) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
                 {
                     auto fails = faux;
                     auto full_data = data;
@@ -906,7 +906,7 @@ namespace netxs::ui
                                 auto c = argb{ color[n] };
                                 reply.osc(ansi::osc_set_palette, utf::fprint("%n%;rgb:%r%/%g%/%b%", n, utf::to_hex(c.chan.r),
                                                                                                        utf::to_hex(c.chan.g),
-                                                                                                       utf::to_hex(c.chan.b)));
+                                                                                                       utf::to_hex(c.chan.b)), st);
                             }
                             else if (t == type::rgbcolor)
                             {
@@ -926,11 +926,11 @@ namespace netxs::ui
                     }
                     if (fails) notsupported(ansi::osc_set_palette, full_data, data);
                 };
-                procs[ansi::osc_linux_reset] = [&](view /*data*/) // ESC ] R
+                procs[ansi::osc_linux_reset] = [&](view /*data*/, view /*st*/) // ESC ] R
                 {
                     reset();
                 };
-                procs[ansi::osc_set_fgcolor] = [&](view data) // ESC ] 10 ;rgb:00/00/00
+                procs[ansi::osc_set_fgcolor] = [&](view data, view st) // ESC ] 10 ;rgb:00/00/00
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
@@ -939,7 +939,7 @@ namespace netxs::ui
                         auto c = owner.defclr.fgc();
                         reply.osc(ansi::osc_set_fgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)));
+                                                                                        utf::to_hex(c.chan.b)), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -949,7 +949,7 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_set_fgcolor, full_data, data);
                 };
-                procs[ansi::osc_set_bgcolor] = [&](view data) // ESC ] 11 ;rgb:00/00/00
+                procs[ansi::osc_set_bgcolor] = [&](view data, view st) // ESC ] 11 ;rgb:00/00/00
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
@@ -958,7 +958,7 @@ namespace netxs::ui
                         auto c = owner.defclr.bgc();
                         reply.osc(ansi::osc_set_bgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)));
+                                                                                        utf::to_hex(c.chan.b)), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -968,7 +968,7 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_set_bgcolor, full_data, data);
                 };
-                procs[ansi::osc_caret_color] = [&](view data) // ESC ] 12 ;rgb:00/00/00
+                procs[ansi::osc_caret_color] = [&](view data, view st) // ESC ] 12 ;rgb:00/00/00
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
@@ -977,7 +977,7 @@ namespace netxs::ui
                         auto c = owner.caret.bgc();
                         reply.osc(ansi::osc_caret_color, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)));
+                                                                                        utf::to_hex(c.chan.b)), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -985,17 +985,17 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_caret_color, full_data, data);
                 };
-                procs[ansi::osc_reset_crclr] = [&](view /*data*/)
+                procs[ansi::osc_reset_crclr] = [&](view /*data*/, view /*st*/)
                 {
                     owner.caret.color(owner.defcfg.def_curclr);
                 };
-                procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
+                procs[ansi::osc_reset_fgclr] = [&](view /*data*/, view /*st*/)
                 {
                     auto new_fgc = owner.defclr;
                     new_fgc.fgc(owner.defcfg.def_fcolor);
                     owner.set_color(new_fgc);
                 };
-                procs[ansi::osc_reset_bgclr] = [&](view /*data*/ )
+                procs[ansi::osc_reset_bgclr] = [&](view /*data*/, view /*st*/)
                 {
                     auto new_bgc = owner.defclr;
                     new_bgc.bgc(owner.defcfg.def_bcolor);
@@ -1003,16 +1003,22 @@ namespace netxs::ui
                 };
             }
 
-            void set(text const& property, view data)
+            void set(text const& property, qiew data)
             {
                 auto proc = procs.find(property);
                 if (proc != procs.end())
                 {
-                    proc->second(data);
-                    if (reply.size())
+                    auto copy = data;
+                    if (auto crop = owner.read_until_st_or_giveup(data))
                     {
-                        owner.answer(reply);
-                        reply.clear();
+                        auto st_esc = copy[crop.size()] == '\x1b';
+                        auto st = copy.substr(crop.size(), st_esc + 1);
+                        proc->second(crop, st);
+                        if (reply.size())
+                        {
+                            owner.answer(reply);
+                            reply.clear();
+                        }
                     }
                 }
                 else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::buffer_to_hex(data));
@@ -1752,7 +1758,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        log("%%Unsupported APC payload: %payload%. Please use the '%lua%' prefix for the payload.", prompt::term, ansi::hi(utf::debase437(script_body)), ansi::apc_prefix_lua);
+                        log("%%Unsupported APC payload: %payload%.", prompt::term, ansi::hi(utf::debase437(script_body)));
                     }
                 }
             }
@@ -7694,7 +7700,7 @@ namespace netxs::ui
             auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
             if (data)
             {
-                        if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
+                     if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
                 else if (q.starts_with("\x1b\\")) q.remove_prefix(2); // Pop '\e\\'.
             }
             return data;
