@@ -112,7 +112,7 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
-            hook image_update_listener{}; // link: .
+            std::bitset<65536> known_image_indexes; // link: Known image indexes (to filter update events).
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
@@ -228,39 +228,39 @@ namespace netxs::ui
             void handle(s11n::xs::request_img lock)
             {
                 auto lock_owner = owner.sync(); // Sync with UI thread.
-                if (!image_update_listener) // Send image updates only if we are a remote endpoint.
-                {
-                    owner.LISTEN(tier::general, e2::data::image::update, image_index, image_update_listener)
-                    {
-                        auto images = cell::images(); // Lock.
-                        if (auto image_ptr = images.map[image_index])
-                        {
-                            auto& image = *image_ptr;
-                            auto changes = image.get_changes();
-                            s11n::update_img_request.send(canal, image.index, image.changed_gb_attrs, changes);
-                        }
-                    };
-                }
                 auto pending_indexes = std::list<ui16>{};
                 auto& items = lock.thing;
                 auto list = s11n::img_list.freeze();
                 auto images = cell::images();
                 for (auto& unknown_image : items)
                 {
-                    auto unknown_index = unknown_image.index;
-                    if constexpr (debugmode) log("got request for unknown remote image index=%%", unknown_index);
-                    if (auto image_ptr = images.map[unknown_index])
+                    if (auto unknown_index = unknown_image.index)
                     {
-                        auto& image = *image_ptr;
-                        if (!image.empty())
+                        if constexpr (debugmode) log("got request for unknown remote image index=%%", unknown_index);
+                        if (auto image_ptr = images.map[unknown_index])
                         {
-                            if constexpr (debugmode) log("  send reply for unknown remote image index=%%", unknown_index);
-                            list.thing.push(unknown_index, image.get_global_attrs());
-                            continue;
+                            auto& image = *image_ptr;
+                            if (!image.empty())
+                            {
+                                if constexpr (debugmode) log("  send reply for unknown remote image index=%%", unknown_index);
+                                known_image_indexes.set(unknown_index); // Activate the image update events forwarding.
+                                list.thing.push(unknown_index, image.get_global_attrs());
+                            }
+                            else
+                            {
+                                pending_indexes.push_back(unknown_index);
+                                if constexpr (debugmode) log("  image is empty: pending request for unknown remote image index=%%", unknown_index);
+                            }
+                        }
+                        else
+                        {
+                            known_image_indexes.reset(unknown_index); // Deactivate the image update events forwarding.
+                            auto unknown_indexes = e2::data::image::remove.param();
+                            unknown_indexes.push_back(unknown_index);
+                            s11n::remove_img_request.send(canal, unknown_indexes); // Reply to remove non-existent image (deleted between the bitmap_t sync and the image request arrival).
+                            if constexpr (debugmode) log("  image is unregistered or deleted: image index=%%", unknown_index);
                         }
                     }
-                    if constexpr (debugmode) log("  image is empty or unregistered: pending request for unknown remote image index=%%", unknown_index);
-                    pending_indexes.push_back(unknown_index);
                 }
                 list.thing.sendby<true>(canal);
                 if (pending_indexes.size()) // Subscribe a pending request that awaits a response with image metadata (dtvt).
@@ -279,10 +279,15 @@ namespace netxs::ui
                                 auto& image = *image_ptr;
                                 if (!image.empty())
                                 {
+                                    known_image_indexes.set(unknown_index); // Activate image update forwarding.
                                     reply_list.push(unknown_index, image.get_global_attrs());
                                     reply_count++;
                                     return true;
                                 }
+                            }
+                            else
+                            {
+                                log("%%Image was unexpectedly removed: image index=", prompt::gate, unknown_index);
                             }
                             return faux;
                         });
@@ -765,7 +770,7 @@ namespace netxs::ui
         }
         void sync_tooltips()
         {
-            auto list = conio.tooltips.freeze();
+            auto list = conio.s11n::tooltips.freeze();
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
@@ -1057,7 +1062,33 @@ namespace netxs::ui
 
             LISTEN(tier::general, e2::data::image::remove, image_indexes)
             {
-                conio.remove_img_request.send(canal, image_indexes);
+                auto images = cell::images(); // Lock.
+                auto indexes_copy = e2::data::image::remove.param();
+                indexes_copy.reserve(image_indexes.size());
+                for (auto image_index : image_indexes)
+                {
+                    if (conio.known_image_indexes.test(image_index))
+                    {
+                        indexes_copy.push_back(image_index);
+                    }
+                }
+                if (indexes_copy.size())
+                {
+                    conio.s11n::remove_img_request.send(canal, indexes_copy);
+                }
+            };
+            LISTEN(tier::general, e2::data::image::update, image_index)
+            {
+                auto images = cell::images(); // Lock.
+                if (conio.known_image_indexes.test(image_index))
+                {
+                    if (auto image_ptr = images.map[image_index])
+                    {
+                        auto& image = *image_ptr;
+                        auto changes = image.get_changes();
+                        conio.s11n::update_img_request.send(canal, image.index, image.changed_gb_attrs, changes);
+                    }
+                }
             };
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
             {
@@ -1099,7 +1130,7 @@ namespace netxs::ui
                             gui_cmd.gear_id = ext_gear_id;
                         }
                     }
-                    conio.gui_command.send(canal, gui_cmd);
+                    conio.s11n::gui_command.send(canal, gui_cmd);
                 }
             };
             LISTEN(tier::release, e2::command::run, script)
@@ -1145,7 +1176,7 @@ namespace netxs::ui
                     {
                         auto deed = bell::protos();
                         auto state = deed == input::events::focus::set::on.id;
-                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
+                        conio.s11n::sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
             };
@@ -1157,7 +1188,7 @@ namespace netxs::ui
                     if (gear_ptr)
                     {
                         gear.gear_id = ext_gear_id;
-                        conio.syskeybd.send(canal, gear);
+                        conio.s11n::syskeybd.send(canal, gear);
                     }
                 }
             };
@@ -1201,24 +1232,24 @@ namespace netxs::ui
             LISTEN(tier::request, e2::form::prop::ui::footer, f)
             {
                 //todo auto window_id = id_t{};
-                auto footer = conio.footer.freeze();
+                auto footer = conio.s11n::footer.freeze();
                 f = footer.thing.utf8;
             };
             LISTEN(tier::request, e2::form::prop::ui::header, h)
             {
                 //todo auto window_id = id_t{};
-                auto header = conio.header.freeze();
+                auto header = conio.s11n::header.freeze();
                 h = header.thing.utf8;
             };
             LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter)
             {
                 auto window_id = id_t{};
-                conio.footer.send(canal, window_id, newfooter);
+                conio.s11n::footer.send(canal, window_id, newfooter);
             };
             LISTEN(tier::preview, e2::form::prop::ui::header, newheader)
             {
                 auto window_id = id_t{};
-                conio.header.send(canal, window_id, newheader);
+                conio.s11n::header.send(canal, window_id, newheader);
             };
             LISTEN(tier::release, input::events::clipboard, from_gear)
             {
@@ -1227,16 +1258,16 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
-                conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
+                conio.s11n::clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
             LISTEN(tier::request, input::events::clipboard, from_gear)
             {
-                auto clipdata = conio.clipdata.freeze();
+                auto clipdata = conio.s11n::clipdata.freeze();
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
                 if (gear_ptr)
                 {
-                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
+                    conio.s11n::clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
                     clipdata.wait(); //todo (maybe) sync it the same way as accesslock, or just track updates in realtime
                     if (clipdata.thing.hash != from_gear.board::cargo.hash)
                     {
@@ -1281,7 +1312,7 @@ namespace netxs::ui
                 LISTEN(tier::preview, e2::form::size::minimize, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
+                    if (gear_ptr) conio.s11n::minimize.send(canal, ext_gear_id);
                 };
                 on(tier::mouserelease, input::key::MouseAny, [&, isvtm](hids& gear)
                 {
@@ -1328,7 +1359,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.s11n::mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
                 });
@@ -1341,29 +1372,29 @@ namespace netxs::ui
                 };
                 LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
-                    conio.cwd.send(canal, path);
+                    conio.s11n::cwd.send(canal, path);
                 };
                 on(tier::mousepreview, input::key::MouseClick, [&](hids& /*gear*/)
                 {
-                    conio.expose.send(canal);
+                    conio.s11n::expose.send(canal);
                 });
                 LISTEN(tier::preview, e2::form::layout::expose, item)
                 {
-                    conio.expose.send(canal);
+                    conio.s11n::expose.send(canal);
                 };
                 LISTEN(tier::preview, e2::form::layout::swarp, warp)
                 {
-                    conio.warping.send(canal, 0, warp);
+                    conio.s11n::warping.send(canal, 0, warp);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
+                    if (gear_ptr) conio.s11n::fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
+                    if (gear_ptr) conio.s11n::maximize.send(canal, ext_gear_id);
                 };
             }
             LISTEN(tier::release, e2::conio::winsz, new_size)
@@ -1381,7 +1412,7 @@ namespace netxs::ui
             {
                 rebuild_scene(timestamp);
             };
-            conio.sysstart.send(canal);
+            conio.s11n::sysstart.send(canal);
         }
         // gate: Notify environment to disconnect.
         void disconnect()

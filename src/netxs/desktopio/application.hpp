@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.05.22";
+    static const auto version = "v2026.05.23";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -896,7 +896,7 @@ namespace netxs::app::shared
                 def_cfg.combine_item(src_cfg);
             }
         }
-        static void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
+        static auto settings(qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -965,7 +965,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            resultant.document.swap(defcfg);
+            return defcfg;
         }
     }
 

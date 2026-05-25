@@ -1413,7 +1413,7 @@ namespace netxs::ui
             }
 
             //virtual text get_current_line()                                             = 0;
-            virtual cell cell_under_cursor()                                            = 0;
+            virtual cell cell_under_cursor(twod offset)                                 = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -3217,9 +3217,9 @@ namespace netxs::ui
                 dest.plot(canvas, cell::shaders::full);
             }
             // alt_screen: Return cell state under cursor.
-            cell cell_under_cursor() override
+            cell cell_under_cursor(twod offset) override
             {
-                auto coor = std::clamp(coord, dot_00, panel - dot_11);
+                auto coor = std::clamp(coord + offset, dot_00, panel - dot_11);
                 auto c = canvas[coor];
                 return c;
             }
@@ -6138,11 +6138,18 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: Return cell state under cursor.
-            cell cell_under_cursor() override
+            cell cell_under_cursor(twod offset) override
             {
-                auto& curln = batch.current();
-                auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
-                return c;
+                if (offset.y != 0) // Don't look around because of performance issues.
+                {
+                    return parser::brush;
+                }
+                else
+                {
+                    auto& curln = batch.current();
+                    auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret + offset.x, 0, curln.length() - 1)) : parser::brush;
+                    return c;
+                }
             }
             // scroll_buf: Clear scrollback keeping current line.
             void clear_scrollback() override
@@ -7714,6 +7721,12 @@ namespace netxs::ui
                 area = crop;
                 pixels.resize(area.size.x * area.size.y);
             }
+            if constexpr (debugmode)
+            {
+                auto raster = netxs::raster{ std::span{ pixels }, rect{ dot_00, area.size }};
+                netxs::onrect(raster, rect{ dot_00, dot_33 }, [](auto& p){ p = argb{ tint::purered }; });
+                netxs::onrect(raster, rect{ area.size - dot_33, dot_33 }, [](auto& p){ p = argb{ tint::pureblue }; });
+            }
             for (auto& c : pixels) c.swap_rb();
             auto file_data = std::vector<byte>{};
             file_data.reserve(area.size.x * area.size.y);
@@ -7938,38 +7951,35 @@ namespace netxs::ui
                     auto gb_attr_uw = (fp32)wh.x / fp_wh.x; // Keep paddings.
                     auto gb_attr_vh = (fp32)wh.y / fp_wh.y; //
                     auto images = cell::images(); // Lock.
-                    if (xy == dot_00)
+                    auto c = owner.target->cell_under_cursor(xy);
+                    if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
                     {
-                        auto c = owner.target->cell_under_cursor();
-                        if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
+                        auto prev_cr = c.get_image_cr();
+                        auto prev_WH = c.get_image_WH();
+                        if (prev_cr == dot_11 && prev_WH == wh) // Update existing image.
                         {
-                            auto prev_cr = c.get_image_cr();
-                            auto prev_WH = c.get_image_WH();
-                            if (prev_cr == dot_11 && prev_WH == wh) // Update existing image.
+                            if (auto image_ptr = images.map[index])
                             {
-                                if (auto image_ptr = images.map[index])
+                                auto& image = *image_ptr;
+                                image.reset_changes();
+                                image.check_and_set_document(doc_str);
+                                image.check_and_set_attr(imagens::gb::u , gb_attr_u);
+                                image.check_and_set_attr(imagens::gb::v , gb_attr_v);
+                                image.check_and_set_attr(imagens::gb::w , gb_attr_w);
+                                image.check_and_set_attr(imagens::gb::h , gb_attr_h);
+                                image.check_and_set_attr(imagens::gb::uw, gb_attr_uw);
+                                image.check_and_set_attr(imagens::gb::vh, gb_attr_vh);
+                                if (image.document_changed || image.changed_gb_attrs)
                                 {
-                                    auto& image = *image_ptr;
-                                    image.reset_changes();
-                                    image.check_and_set_document(doc_str);
-                                    image.check_and_set_attr(imagens::gb::u , gb_attr_u);
-                                    image.check_and_set_attr(imagens::gb::v , gb_attr_v);
-                                    image.check_and_set_attr(imagens::gb::w , gb_attr_w);
-                                    image.check_and_set_attr(imagens::gb::h , gb_attr_h);
-                                    image.check_and_set_attr(imagens::gb::uw, gb_attr_uw);
-                                    image.check_and_set_attr(imagens::gb::vh, gb_attr_vh);
-                                    if (image.document_changed)
-                                    {
-                                        image.stamp += 1;
-                                        owner.base::signal(tier::general, e2::data::image::update, index);
-                                    }
-                                    owner.print_sixel_image(image, xy, wh);
-                                    return;
+                                    image.stamp += 1;
+                                    owner.base::signal(tier::general, e2::data::image::update, index);
                                 }
-                                else
-                                {
-                                    if (owner.io_log) log("%%Broken image index: %%", prompt::term, index);
-                                }
+                                owner.print_sixel_image(image, xy, wh);
+                                return;
+                            }
+                            else
+                            {
+                                if (owner.io_log) log("%%Broken image index: %%", prompt::term, index);
                             }
                         }
                     }
@@ -11260,7 +11270,7 @@ namespace netxs::ui
             auto& grid = bitmap_lock.thing.image;
             cell::remove_image_bits(grid, removed_image_indexes);
         }
-        // dtvt: Drop removed image metadata from canvas.
+        // dtvt: Update image metadata on canvas.
         void update_image_bits(ui16 updated_image_index)
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();

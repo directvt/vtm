@@ -162,9 +162,7 @@ namespace netxs::directvt
             }
             else if constexpr (std::is_same_v<D, ui96>)
             {
-                struct { uint64_t l; uint32_t h; } packed;
-                packed.l = netxs::letoh(data.u64);
-                packed.h = netxs::letoh(data.u32);
+                auto packed = ui96{ netxs::letoh(data.u64), netxs::letoh(data.u32) };
                 block += view{ (char*)&packed, 12 };
             }
             else if constexpr (std::is_same_v<D, view>
