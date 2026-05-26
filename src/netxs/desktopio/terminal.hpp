@@ -7762,8 +7762,16 @@ namespace netxs::ui
                 netxs::onrect(raster, rect{ dot_00, dot_33 }, [](auto& p){ p = argb{ tint::purered }; });
                 netxs::onrect(raster, rect{ area.size - dot_33, dot_33 }, [](auto& p){ p = argb{ tint::pureblue }; });
             }
-            for (auto& c : pixels) c.swap_rb();
+            //auto mask_pixels = std::vector<byte>{};
+            //mask_pixels.reserve(area.size.x * area.size.y);
+            for (auto& c : pixels)
+            {
+                //todo build transpancy mask if transparent
+                //    mask_pixels.push_back(p == transparent_pixel ? 0x00 : 0xFF);
+                c.swap_rb();
+            }
             auto file_data = std::vector<byte>{};
+            //auto mask_data = std::vector<byte>{};
             file_data.reserve(area.size.x * area.size.y);
             auto append_fx = [](void* context, void* data, si32 len)
             {
@@ -7771,10 +7779,29 @@ namespace netxs::ui
                 vec->insert(vec->end(), (byte*)data, (byte*)data + len);
             };
             auto jpeg_quality = skin::globals().jpeg_quality;
-            ::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
-            //::stbi_write_png_to_func(append_fx, &png_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), area.size.x * 4);
-            auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
-            return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64);
+            //::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
+            ::stbi_write_png_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), area.size.x * 4);
+
+            //::stbi_write_png_to_func(append_fx, &mask_data, area.size.x, area.size.y, 1, mask_pixels.data(), area.size.x);
+
+            auto b64_main = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+            //auto b64_mask = utf::base64(view{ (char*)mask_data.data(), mask_data.size() });
+
+            //auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
+            auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/png;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
+
+            //auto svg = utf::fprint("<svg width='%%' height='%%'>"
+            //                        "<defs>"
+            //                            "<mask id='m'>"
+            //                            "<image width='%%' height='%%' href='data:image/png;base64,%%' />"
+            //                            "</mask>"
+            //                        "</defs>"
+            //                        "<image width='%%' height='%%' href='data:image/jpg;base64,%%' mask='url(#m)' />"
+            //                        "</svg>",
+            //                        area.size.x, area.size.y,
+            //                        area.size.x, area.size.y, b64_mask,
+            //                        area.size.x, area.size.y, b64_jpeg);
+            return svg;
         }
         struct sixel_t
         {
@@ -7805,13 +7832,13 @@ namespace netxs::ui
                 //                                        -1  0  1  2  3  4  5  6  7  8  9
                 static constexpr auto ar = std::to_array({ 2, 5, 5, 3, 2, 2, 2, 2, 1, 1, 1 });
                 auto aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
-                // transparency:
+                // transparent:
                 // omitted     opaque  0's are filled with current background color
                 // 0 or 2      opaque
                 // 1           transparent   0's are kept intact
                 //                                        -1  0  1  2
                 static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
-                auto transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
+                auto transparent = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
                 // hz_grid_size: We ignore it.
                 // n
                 //auto hz_grid_size = params[2];
@@ -7852,7 +7879,7 @@ namespace netxs::ui
                         }
                     }
                 };
-                auto background_clr = transparency ? argb{} : cur_bgc;
+                auto background_clr = transparent ? argb{} : cur_bgc;
                 //auto hash = ui64{};
                 auto head = q.begin();
                 auto tail = q.end();
@@ -7935,7 +7962,7 @@ namespace netxs::ui
                         maxy = size.x * size.y;
                         stride = size.x * aspect_ratio * 6;
                         bitmap.assign(size.x * size.y, background_clr);
-                        if constexpr (debugmode) log("image size=%% tranparent=%% decsdm=%%", size, transparency?"1":"0", owner.decsdm);
+                        if constexpr (debugmode) log("image size=%% tranparent=%% decsdm=%%", size, transparent ? "1" : "0", owner.decsdm);
                     }
                     else if (c == '-') // New Line.
                     {
@@ -8009,7 +8036,7 @@ namespace netxs::ui
                                     image.stamp += 1;
                                     owner.base::signal(tier::general, e2::data::image::update, index);
                                 }
-                                owner.print_sixel_image(image, xy, wh);
+                                owner.print_sixel_image(image, xy, wh, transparent);
                                 return;
                             }
                             else
@@ -8035,7 +8062,7 @@ namespace netxs::ui
                         image.gb_attrs[imagens::gb::vh ] = gb_attr_vh;
                         image.gb_attrs[imagens::gb::fit] = scale_mode::stretch;
                         owner.image_sixel_count++;
-                        owner.print_sixel_image(image, xy, wh);
+                        owner.print_sixel_image(image, xy, wh, transparent);
                         // All sixel images will be removed on undock.
                         //owner.sixel_cache[image.id] = image_ptr;
                     }
@@ -8187,7 +8214,7 @@ namespace netxs::ui
             scrollback.cup2(save);
         }
         // term: Print sixel image to the scrollback.
-        void print_sixel_image(imagens::image& image, twod xy, twod wh)
+        void print_sixel_image(imagens::image& image, twod xy, twod wh, bool transparent)
         {
             auto brush = cell{ target->parser::brush }
                 .txt(" ", 1, 1, 1, 1)
@@ -8196,6 +8223,7 @@ namespace netxs::ui
                 .set_image_sixel(true)
                 .set_image_WH(wh.x, wh.y)
                 .set_image_ontop(faux);
+            if (transparent) brush.bgc(argb::transparent);
             image_buffer.move(xy);
             image_buffer.core::size<true>(wh, brush);
             auto head = image_buffer.begin();
@@ -8217,7 +8245,7 @@ namespace netxs::ui
             {
                 target->set_scroll_region(0, 0);
             }
-            draw_block(image_buffer, cell::shaders::full, true, decsdm);
+            draw_block(image_buffer, cell::shaders::fuse, true, decsdm);
             count -= cells_expected;
             if constexpr (debugmode) log("print2: image index: %% cell_count: %% image_sixel_count=%%", image.index, count, image_sixel_count);
             if (count == 0) // A case where nothing is printed.
