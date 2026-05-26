@@ -633,13 +633,13 @@ namespace netxs::ui
                 {
                     case 0:
                     default:
+                        // 61: VT Level 1 conformance (must be first)
                         //  4: Sixel graphics
-                        // 61: VT Level 1 conformance
                         // 22: Color text
                         // 28: Rectangular area operations
                         // 52: Clipboard operations
                         // 10060: VT2D
-                        queue.add("\x1b[?4;61;22;28;52;10060c");
+                        queue.add("\x1b[?61;4;22;28;52;10060c");
                         break;
                 }
                 owner.answer(queue);
@@ -1200,6 +1200,11 @@ namespace netxs::ui
                 vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q); }; // DECRQM: CSI ? mode $ p
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
+
+                vt.csier.table_quest[csi_qst_kkp] = V{ p->owner.kkp(q); }; // CSI ? ... u  KKP:
+
+                vt.csier.table_equals[esc_eq_da2] = V{ p->owner.da2(q); }; // CSI = c  DA2 request.
+
                 vt.csier.table_quest[csi_qst_smg] = V{ p->owner.xtsmgraphics(q); }; // CSI ? Pi; Pa; Pv S  XTSMGRAPHICS:
                                                                                     //   Pi=1  Request number of color registers.        Pv=n  A number of color registers.
                                                                                     //   Pi=2  Request Sixel graphics geometry (pixels). Pv=width;height  Two integers for graphics geometry.
@@ -1808,7 +1813,13 @@ namespace netxs::ui
                             auto count = 0;
                             utf::split(data, ';', [&](auto termcap)
                             {
-                                for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                                for (auto& cap : caps)
+                                {
+                                    if (termcap == cap.name)
+                                    {
+                                        reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                                    }
+                                }
                             });
                             reply << ST_str;
                             owner.write(reply.str());
@@ -8751,6 +8762,21 @@ namespace netxs::ui
                 gc_str ? draw_block(image_buffer, cell::shaders::full)
                        : draw_block(image_buffer, cell::shaders::image);
             }
+        }
+        // term: DA2 request.
+        void da2(fifo& /*q*/)
+        {
+            target->parser::flush();
+            escbuf.add("\x1bP!|00000000\x1b\\"); // VT-compatible, no extensions.
+            answer(escbuf);
+        }
+        // term: KKP request.
+        void kkp(fifo& /*q*/)
+        {
+            target->parser::flush();
+            //escbuf.add("\x1b[?0u"); // Not supported yet.
+            //answer(escbuf);
+            if (io_log) log("%%KKP not supported", prompt::term);
         }
         // term: XTSMGRAPHICS request.
         void xtsmgraphics(fifo& q)

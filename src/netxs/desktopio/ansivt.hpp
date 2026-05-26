@@ -39,6 +39,7 @@ namespace netxs::ansi
     static const auto esc_ind     = 'D'; // ESC D  Cursor down.
     static const auto esc_ir      = 'M'; // ESC M  Cursor up.
     static const auto esc_ris     = 'c'; // ESC c  Reset terminal to initial state.
+    static const auto esc_eq_da2  = 'c'; // CSI = c  DA2.
     static const auto esc_memlk   = 'l'; // ESC l  Memory lock.
     static const auto esc_munlk   = 'm'; // ESC m  Memory unlock.
     static const auto esc_ls2     = 'n'; // ESC n  LS2.
@@ -84,6 +85,7 @@ namespace netxs::ansi
     static const auto csi_dsr     = 'n'; // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
     static const auto csi_scp     = 's'; // CSI        s  — Save cursor Position.
     static const auto csi_rcp     = 'u'; // CSI        u  — Restore cursor Position.
+    static const auto csi_qst_kkp = 'u'; // CSI ?      u  — KKP.
     static const auto csi__el     = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line.
     static const auto csi__il     = 'L'; // CSI n      L  — Insert n blank lines.
     static const auto csi__ed     = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen.
