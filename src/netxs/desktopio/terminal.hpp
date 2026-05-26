@@ -8001,19 +8001,21 @@ namespace netxs::ui
                 {
                     auto area = rect{ dot_00, size };
                     auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, background_clr);
-                    auto fp_xy = fp2d{ area.coor } / fp2d{ ansi::cellsz };
-                    auto fp_wh = fp2d{ area.size } / fp2d{ ansi::cellsz };
-                    auto xy = twod{ std::floor(fp_xy) };
-                    auto uv = fp_xy - xy;
-                    auto wh = twod{ std::ceil(fp_wh + uv) };
-                    auto gb_attr_u  = uv.x;
-                    auto gb_attr_v  = uv.y;
-                    auto gb_attr_w  = (fp32)wh.x;
-                    auto gb_attr_h  = (fp32)wh.y;
-                    auto gb_attr_uw = (fp32)wh.x / fp_wh.x; // Keep paddings.
-                    auto gb_attr_vh = (fp32)wh.y / fp_wh.y; //
+                    auto fp_rc = fp2d{ area.coor } / fp2d{ ansi::cellsz }; // Position in cell grid.
+                    auto fp_wh = fp2d{ area.size } / fp2d{ ansi::cellsz }; // Size in cells.
+                    auto rc = twod{ std::floor(fp_rc) };
+                    auto fp_xy = fp_rc - rc; // Offset inside the cell grid.
+                    auto wh = twod{ std::ceil(fp_wh + fp_xy - 0.0001f/*compensate fp32 jitter*/) };
+                    auto gb_attr_x  = fp_xy.x;
+                    auto gb_attr_y  = fp_xy.y;
+                    auto gb_attr_w  = fp_wh.x;
+                    auto gb_attr_h  = fp_wh.y;
+                    auto gb_attr_u  = 0.f;
+                    auto gb_attr_v  = 0.f;
+                    auto gb_attr_uw = 1.f;
+                    auto gb_attr_vh = 1.f;
                     auto images = cell::images(); // Lock.
-                    auto c = owner.target->cell_under_cursor(xy);
+                    auto c = owner.target->cell_under_cursor(rc);
                     if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
                     {
                         auto prev_cr = c.get_image_cr();
@@ -8025,18 +8027,16 @@ namespace netxs::ui
                                 auto& image = *image_ptr;
                                 image.reset_changes();
                                 image.check_and_set_document(doc_str);
-                                image.check_and_set_attr(imagens::gb::u , gb_attr_u);
-                                image.check_and_set_attr(imagens::gb::v , gb_attr_v);
+                                image.check_and_set_attr(imagens::gb::x , gb_attr_x);
+                                image.check_and_set_attr(imagens::gb::y , gb_attr_y);
                                 image.check_and_set_attr(imagens::gb::w , gb_attr_w);
                                 image.check_and_set_attr(imagens::gb::h , gb_attr_h);
-                                image.check_and_set_attr(imagens::gb::uw, gb_attr_uw);
-                                image.check_and_set_attr(imagens::gb::vh, gb_attr_vh);
                                 if (image.document_changed || image.changed_gb_attrs)
                                 {
                                     image.stamp += 1;
                                     owner.base::signal(tier::general, e2::data::image::update, index);
                                 }
-                                owner.print_sixel_image(image, xy, wh, transparent);
+                                owner.print_sixel_image(image, rc, wh, transparent);
                                 return;
                             }
                             else
@@ -8054,6 +8054,8 @@ namespace netxs::ui
                         image.id = "Sixel_"; // Set id="Sixel_FFFF".
                         utf::to_hex(image_index, image.id);
                         image.index = image_index;
+                        image.gb_attrs[imagens::gb::x  ] = gb_attr_x;
+                        image.gb_attrs[imagens::gb::y  ] = gb_attr_y;
                         image.gb_attrs[imagens::gb::u  ] = gb_attr_u;
                         image.gb_attrs[imagens::gb::v  ] = gb_attr_v;
                         image.gb_attrs[imagens::gb::w  ] = gb_attr_w;
@@ -8062,7 +8064,7 @@ namespace netxs::ui
                         image.gb_attrs[imagens::gb::vh ] = gb_attr_vh;
                         image.gb_attrs[imagens::gb::fit] = scale_mode::stretch;
                         owner.image_sixel_count++;
-                        owner.print_sixel_image(image, xy, wh, transparent);
+                        owner.print_sixel_image(image, rc, wh, transparent);
                         // All sixel images will be removed on undock.
                         //owner.sixel_cache[image.id] = image_ptr;
                     }
@@ -8214,7 +8216,7 @@ namespace netxs::ui
             scrollback.cup2(save);
         }
         // term: Print sixel image to the scrollback.
-        void print_sixel_image(imagens::image& image, twod xy, twod wh, bool transparent)
+        void print_sixel_image(imagens::image& image, twod rc, twod wh, bool transparent)
         {
             auto brush = cell{ target->parser::brush }
                 .txt(" ", 1, 1, 1, 1)
@@ -8224,7 +8226,7 @@ namespace netxs::ui
                 .set_image_WH(wh.x, wh.y)
                 .set_image_ontop(faux);
             if (transparent) brush.bgc(argb::transparent);
-            image_buffer.move(xy);
+            image_buffer.move(rc);
             image_buffer.core::size<true>(wh, brush);
             auto head = image_buffer.begin();
             for (auto row = 1; row <= wh.y; row++)
