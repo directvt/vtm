@@ -8233,14 +8233,13 @@ namespace netxs::ui
         // term: Print sixel image to the scrollback.
         void print_sixel_image(imagens::image& image, twod rc, twod wh, bool transparent)
         {
-            auto brush = cell{ target->parser::brush }
-                .txt(" ", 1, 1, 1, 1)
-                .set_image_index(image.index)
-                .set_image_stamp(image.stamp)
-                .set_image_sixel(true)
-                .set_image_WH(wh.x, wh.y)
-                .set_image_ontop(faux);
-            if (transparent) brush.bgc(argb::transparent);
+            auto brush = transparent ? cell{ target->parser::brush }.txt("").fgc(argb::transparent).bgc(argb::transparent)
+                                     : cell{ target->parser::brush }.txt(" ", 1, 1, 1, 1);
+            brush.set_image_index(image.index)
+                 .set_image_stamp(image.stamp)
+                 .set_image_sixel(true)
+                 .set_image_WH(wh.x, wh.y)
+                 .set_image_ontop(transparent);
             image_buffer.move(rc);
             image_buffer.core::size<true>(wh, brush);
             auto head = image_buffer.begin();
