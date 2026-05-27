@@ -1199,8 +1199,8 @@ namespace netxs::ui
                 vt.intro[ctrl::ff ] = V{ p-> lf(q.pop_all(ctrl::ff )); }; // FF same as LF
                 vt.intro[ctrl::cr ] = V{ p-> cr();                     }; // CR
 
-                vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
-                vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
+                vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); }; // CSI ? mode h
+                vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); }; // CSI ? mode l
                 vt.csier.table_dollarsn[      csi_ccc] = V{ p->owner.decrqm(q, faux); }; // DECRQM: CSI   mode $ p  ANSI Standard
                 vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q, true); }; // DECRQM: CSI ? mode $ p  DEC Private
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
@@ -1817,21 +1817,30 @@ namespace netxs::ui
                                                                                    { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
                                                                                    { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
                                                                                    { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
-                            reply << "\x1bP+r"; // DCS
                             auto count = 0;
                             utf::split(data, ';', [&](auto termcap)
                             {
+                                auto found = faux;
                                 for (auto& cap : caps)
                                 {
                                     if (termcap == cap.name)
                                     {
-                                        //reply << "\x1bP+r" << cap.name << "=" << cap.reply << ST_str;
-                                        reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                                        reply << (count++ ? ";" : "\x1bP1+r") << cap.name << "=" << cap.reply;
+                                        found = true;
                                     }
                                 }
+                                if (!found)
+                                {
+                                    auto err_reply = flux{};
+                                    err_reply << "\x1bP0+r" << termcap << "=" << ST_str;
+                                    owner.write(err_reply.str());
+                                }
                             });
-                            reply << ST_str;
-                            owner.write(reply.str());
+                            if (count > 0)
+                            {
+                                reply << ST_str;
+                                owner.write(reply.str());
+                            }
                         }
                     }
                     else if (data.starts_with(DECRQSS_str))
@@ -1899,7 +1908,7 @@ namespace netxs::ui
                         }
                         else
                         {
-                            reply << "0$r"; // Unsupported.
+                            reply << "0$r" << data; // Unsupported.
                         }
                         reply << ST_str;
                         owner.write(reply.str());
