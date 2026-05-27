@@ -537,6 +537,10 @@ namespace netxs::ui
                     }
                 }
             }
+            auto check_state(mode m)
+            {
+                return (state & m) == m;
+            }
             void setmode(prot p) { encod = p; }
         };
 
@@ -1063,7 +1067,7 @@ namespace netxs::ui
         struct bufferbase
             : public ansi::parser
         {
-            static void set_autocr(bool autocr)
+            static void _set_autocr(bool autocr)
             {
                 #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
@@ -1197,7 +1201,8 @@ namespace netxs::ui
 
                 vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
                 vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
-                vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q); }; // DECRQM: CSI ? mode $ p
+                vt.csier.table_dollarsn[      csi_ccc] = V{ p->owner.decrqm(q, faux); }; // DECRQM: CSI   mode $ p  ANSI Standard
+                vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q, true); }; // DECRQM: CSI ? mode $ p  DEC Private
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
 
@@ -1304,6 +1309,8 @@ namespace netxs::ui
 
             hook image_update_token;
 
+            bool autocr;
+
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
@@ -1321,7 +1328,8 @@ namespace netxs::ui
                   grant{ faux   },
                   uirev{ faux   },
                   uifwd{ faux   },
-                  alive{ 0      }
+                  alive{ 0      },
+                  autocr{faux   }
             {
                 parser::style = ansi::def_style;
                 owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, image_update_token)
@@ -1817,6 +1825,7 @@ namespace netxs::ui
                                 {
                                     if (termcap == cap.name)
                                     {
+                                        //reply << "\x1bP+r" << cap.name << "=" << cap.reply << ST_str;
                                         reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
                                     }
                                 }
@@ -2775,6 +2784,12 @@ namespace netxs::ui
                 if (argb::is_indexed_color(parser::brush.bgc())) color.bgc(parser::brush.bgc());
                 if (argb::is_indexed_color(parser::brush.fgc())) color.fgc(parser::brush.fgc());
                 return color;
+            }
+            // bufferbase: Set auto CRLF.
+            void set_autocr(auto new_autocr)
+            {
+                autocr = new_autocr;
+                bufferbase::_set_autocr(autocr);
             }
         };
 
@@ -9235,47 +9250,109 @@ namespace netxs::ui
             while (auto next = q(0)) _modrst(next);
         }
         // term: Request terminal parameters.
-        void _decrqm(si32 n)
+        void _decrqm(si32 n, bool is_dec_private)
         {
-            switch (n)
+            // Reply Format: CSI ? Pn ; Ps $ y  (CSI Pn ; Ps $ y)
+            // The Status Codes (Ps):
+            // - 0: Not recognized / Unsupported. The terminal doesn't implement this mode.
+            // - 1: Set / Enabled.                The mode is active right now.
+            // - 2: Reset / Disabled.             The mode is supported but currently turned off.
+            // - 3: Permanently Set.              The mode is always active and cannot be turned off.
+            // - 4: Permanently Reset.            The mode is always disabled and cannot be turned on.
+            auto reply = "0"s;
+            if (!is_dec_private)
             {
-                case 69: // Left/Right Margins.
-                    escbuf.add("\x1b[?69;0$y"); // We don't support this mode.
-                    break;
-                case 1000: // Mouse reporting.
-                case 1002: //
-                case 1003: //
-                case 1006: //
-                case 1016: // Mouse reporting (pixel mode)
-                case 1004: // Focus reporting.
-                case 1049: // Altbuf.
-                case 2004: // Bracketed Paste.
-                    escbuf.add("\x1b[?").add(n).add(";1$y");
-                    break;
-                case 2026: // Synchronized Updates.
-                    escbuf.add("\x1b[?2026;0$y"); // We do not support this mode (we rely on lazy rendering).
-                    break;
-                case 2027: // Unicode Core (support grapheme clusters).
-                    // Reply: \e[?2027;2$y  Turned off.
-                    // Reply: \e[?2027;1$y  Terminal supports/active.
-                    // Reply: \e[?2027;0$y  Unknown.
-                    escbuf.add("\x1b[?2027;1$y");
-                    break;
-                case 2031: // Extended Keys / Kitty Keyboard Protocol.
-                    escbuf.add("\x1b[?2031;0$y");
-                    break;
-                case 2048: // Graphics. //todo
-                    escbuf.add("");
-                    break;
-                default:
-                    break;
+                switch (n)
+                {
+                    case 4:  // Insert/Replace Mode (IRM).
+                        reply = insmod ? "1" : "2";
+                        break;
+                    case 20: // LNM-Line Feed/New Line Mode.
+                        reply = target->autocr ? "1" : "2";
+                        break;
+                    default:
+                        break;
+                }
+                escbuf.add("\x1b[").add(n).add(";").add(reply).add("$y");
+            }
+            else
+            {
+                switch (n)
+                {
+                    case 1:    // Cursor keys ANSI mode.
+                        reply = decckm ? "1" : "2";
+                        break;
+                    case 5:    // Inverted rendering (DECSCNM).
+                        reply = invbit ? "1" : "2";
+                        break;
+                    case 6:    // Origin mode (DECOM).
+                        reply = target->decom ? "1" : "2";
+                        break;
+                    case 7:    // Auto-wrap.
+                        reply = target->parser::style.wrp() != wrap::off ? "1" : "2";
+                        break;
+                    case 12:   // Cursor blinking.
+                        reply = caret.has_blink_period() ? "1" : "2";
+                        break;
+                    case 25:   // Cursor off.
+                        reply = caret ? "1" : "2";
+                        break;
+                    case 80:   // Sixel Display Mode. Enable the text cursor to move, and the scrolling region to scroll.
+                        reply = decsdm ? "1" : "2";
+                        break;
+                    case 1000: // Mouse reporting (buttons_press).
+                        reply = mtrack.check_state(input::mouse::mode::buttons_press) ? "1" : "2";
+                        break;
+                    case 1002: // Mouse reporting (buttons_drags).
+                        reply = mtrack.check_state(input::mouse::mode::buttons_drags) ? "1" : "2";
+                        break;
+                    case 1003: // Mouse reporting (all_movements).
+                        reply = mtrack.check_state(input::mouse::mode::all_movements) ? "1" : "2";
+                        break;
+                    case 1004: // Focus reporting.
+                        reply = ftrack.encod == input::focus::prot::dec ? "1" : "2";
+                        break;
+                    case 1006: // SGR mouse reporting.
+                        reply = mtrack.encod == input::mouse::prot::sgr ? "1" : "2";
+                        break;
+                    case 1007: // Alternate scroll mode.
+                        reply = altscr ? "1" : "2";
+                        break;
+                    case 1047: // Altbuf.
+                    case 1049: // Altbuf.
+                        reply = target != &normal ? "1" : "2";
+                        break;
+                    case 1070: // Sixel Private Color Registers. We always have this mode on (colors are baked in place).
+                        reply = "3";
+                        break;
+                    case 2004: // Bracketed Paste.
+                        reply = bpmode ? "1" : "2";
+                        break;
+                    case 1016: // Mouse reporting (pixel mode).
+                        reply = mtrack.pixel ? "1" : "2";
+                        break;
+                    case 2027: // Unicode Core (support grapheme clusters).
+                        reply = "3";
+                        break;
+                    case 2048: // Graphics. Always on.
+                        reply = "3";
+                        break;
+                    case 2026: // Synchronized Updates. We do not support this mode (we rely on lazy rendering).
+                        reply = "4";
+                        break;
+                    case 69:   // Left/Right Margins. We don't support this mode.
+                    case 2031: // Extended Keys / Kitty Keyboard Protocol.
+                    default:
+                        break;
+                }
+                escbuf.add("\x1b[?").add(n).add(";").add(reply).add("$y");
             }
         }
         // term: Request terminal mode. (DECRQM).
-        void decrqm(fifo& q)
+        void decrqm(fifo& q, bool is_dec_private)
         {
             target->parser::flush();
-            while (auto next = q(0)) _decrqm(next);
+            while (auto next = q(0)) _decrqm(next, is_dec_private);
             answer(escbuf);
         }
         // term: Set scrollback buffer size and grow step.
