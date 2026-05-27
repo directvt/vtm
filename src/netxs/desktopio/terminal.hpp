@@ -9381,7 +9381,7 @@ namespace netxs::ui
                     case 2026: // Synchronized Updates. We do not support this mode (we rely on lazy rendering).
                         reply = "4";
                         break;
-                    case 2048: // Graphics. Not supported.
+                    case 2048: // In-band resize reporting. Not supported.
                     case 69:   // Left/Right Margins. We don't support this mode.
                     case 2031: // Extended Keys / Kitty Keyboard Protocol.
                     default:
