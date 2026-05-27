@@ -7752,7 +7752,7 @@ namespace netxs::ui
             }
             return param_count;
         }
-        static text rgba_to_svg(std::vector<argb>& pixels, rect& area, bool implicit_size, argb transparent_pixel)
+        static text rgba_to_svg(std::vector<argb>& pixels, rect& area, bool implicit_size, argb transparent_pixel, bool transparent)
         {
             if (implicit_size || transparent_pixel == argb{}) // Trim transparent borders (get minimal non transparent area).
             {
@@ -7777,46 +7777,82 @@ namespace netxs::ui
                 netxs::onrect(raster, rect{ dot_00, dot_33 }, [](auto& p){ p = argb{ tint::purered }; });
                 netxs::onrect(raster, rect{ area.size - dot_33, dot_33 }, [](auto& p){ p = argb{ tint::pureblue }; });
             }
-            //auto mask_pixels = std::vector<byte>{};
-            //mask_pixels.reserve(area.size.x * area.size.y);
-            for (auto& c : pixels)
-            {
-                //todo build transpancy mask if transparent
-                //    mask_pixels.push_back(p == transparent_pixel ? 0x00 : 0xFF);
-                c.swap_rb();
-            }
             auto file_data = std::vector<byte>{};
-            //auto mask_data = std::vector<byte>{};
-            file_data.reserve(area.size.x * area.size.y);
+            file_data.reserve(pixels.size());
             auto append_fx = [](void* context, void* data, si32 len)
             {
                 auto vec = (std::vector<byte>*)context;
                 vec->insert(vec->end(), (byte*)data, (byte*)data + len);
             };
-            auto jpeg_quality = skin::globals().jpeg_quality;
-            //::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
-            ::stbi_write_png_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), area.size.x * 4);
+            if constexpr (faux) // Hybrid Image Encoding: PNG vs JPEG+Mask Test.
+            {
+                auto pngs_data = std::vector<byte>{};
+                auto jpeg_data = std::vector<byte>{};
+                pngs_data.reserve(pixels.size());
+                jpeg_data.reserve(pixels.size());
+                auto transparency_mask = std::vector<byte>{};
+                transparency_mask.resize(pixels.size());
+                auto transparency_mask_iter = transparency_mask.begin();
+                auto pixels2 = pixels;
+                for (auto& c : pixels2)
+                {
+                    *transparency_mask_iter++ = c.chan.a ? 0xFF : 0x00;
+                    c.swap_rb();
+                }
+                auto mask_data = std::vector<byte>{};
+                auto jpeg_quality = skin::globals().jpeg_quality;
+                ::stbi_write_jpg_to_func(append_fx, &jpeg_data, area.size.x, area.size.y, 4, (byte*)pixels2.data(), jpeg_quality);
+                ::stbi_write_png_to_func(append_fx, &pngs_data, area.size.x, area.size.y, 4, (byte*)pixels2.data(), area.size.x * 4);
+                ::stbi_write_png_to_func(append_fx, &mask_data, area.size.x, area.size.y, 1, transparency_mask.data(), area.size.x);
+                log("Image %%: PNG_size=%% bytes  JPG+MASK_size=%% bytes (%% + %%)", area.size, pngs_data.size(), jpeg_data.size() + mask_data.size(), jpeg_data.size(), mask_data.size());
+            }
+            if (pixels.size() <= 4096) // Use lossless PNG for small images (<=64x64).
+            {
+                for (auto& c : pixels) c.swap_rb();
+                ::stbi_write_png_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), area.size.x * 4);
+                auto b64_main = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+                auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/png;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
+                return svg;
+            }
+            else if (transparent) // Large transparent image (JPEG + 1-bit alpha mask).
+            {
+                auto transparency_mask = std::vector<byte>{};
+                transparency_mask.resize(pixels.size());
+                auto transparency_mask_iter = transparency_mask.begin();
+                for (auto& c : pixels)
+                {
+                    *transparency_mask_iter++ = c.chan.a ? 0xFF : 0x00;
+                    c.swap_rb();
+                }
+                auto mask_data = std::vector<byte>{};
+                auto jpeg_quality = skin::globals().jpeg_quality;
+                ::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
+                ::stbi_write_png_to_func(append_fx, &mask_data, area.size.x, area.size.y, 1, transparency_mask.data(), area.size.x);
 
-            //::stbi_write_png_to_func(append_fx, &mask_data, area.size.x, area.size.y, 1, mask_pixels.data(), area.size.x);
-
-            auto b64_main = utf::base64(view{ (char*)file_data.data(), file_data.size() });
-            //auto b64_mask = utf::base64(view{ (char*)mask_data.data(), mask_data.size() });
-
-            //auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
-            auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/png;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
-
-            //auto svg = utf::fprint("<svg width='%%' height='%%'>"
-            //                        "<defs>"
-            //                            "<mask id='m'>"
-            //                            "<image width='%%' height='%%' href='data:image/png;base64,%%' />"
-            //                            "</mask>"
-            //                        "</defs>"
-            //                        "<image width='%%' height='%%' href='data:image/jpg;base64,%%' mask='url(#m)' />"
-            //                        "</svg>",
-            //                        area.size.x, area.size.y,
-            //                        area.size.x, area.size.y, b64_mask,
-            //                        area.size.x, area.size.y, b64_jpeg);
-            return svg;
+                auto b64_jpeg = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+                auto b64_mask = utf::base64(view{ (char*)mask_data.data(), mask_data.size() });
+                auto svg = utf::fprint("<svg width='%%' height='%%'>"
+                                            "<defs>"
+                                                "<mask id='m'>"
+                                                    "<image width='%%' height='%%' href='data:image/png;base64,%%' />"
+                                                "</mask>"
+                                            "</defs>"
+                                            "<image width='%%' height='%%' href='data:image/jpg;base64,%%' mask='url(#m)' />"
+                                        "</svg>",
+                                        area.size.x, area.size.y,
+                                        area.size.x, area.size.y, b64_mask,
+                                        area.size.x, area.size.y, b64_jpeg);
+                return svg;
+            }
+            else // Large non-transparent image.
+            {
+                for (auto& c : pixels) c.swap_rb();
+                auto jpeg_quality = skin::globals().jpeg_quality;
+                ::stbi_write_jpg_to_func(append_fx, &file_data, area.size.x, area.size.y, 4, (byte*)pixels.data(), jpeg_quality);
+                auto b64_main = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+                auto svg = utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", area.size.x, area.size.y, area.size.x, area.size.y, b64_main);
+                return svg;
+            }
         }
         struct sixel_t
         {
@@ -8015,7 +8051,7 @@ namespace netxs::ui
                 if (ok) // Show image.
                 {
                     auto area = rect{ dot_00, size };
-                    auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, background_clr);
+                    auto doc_str = term::rgba_to_svg(bitmap, area, implicit_size, background_clr, transparent);
                     auto fp_rc = fp2d{ area.coor } / fp2d{ ansi::cellsz }; // Position in cell grid.
                     auto fp_wh = fp2d{ area.size } / fp2d{ ansi::cellsz }; // Size in cells.
                     auto rc = twod{ std::floor(fp_rc) };
