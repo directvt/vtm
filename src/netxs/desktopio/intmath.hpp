@@ -1189,15 +1189,25 @@ namespace netxs
         auto w = size.x;
         auto h = size.y;
         auto y0 = 0;
-        while (y0 < h && std::none_of(get_row(y0).begin(), get_row(y0).end(), is_visible)) // Top bound.
+        while (y0 < h) // Top bound.
         {
+            auto row = get_row(y0);
+            if (!std::none_of(row.begin(), row.end(), is_visible))
+            {
+                break;
+            }
             y0++;
         }
         if (y0 != h)
         {
             auto y1 = h - 1;
-            while (y1 > y0 && std::none_of(get_row(y1).begin(), get_row(y1).end(), is_visible)) // Bottom bound.
+            while (y1 > y0) // Bottom bound.
             {
+                auto row = get_row(y1);
+                if (!std::none_of(row.begin(), row.end(), is_visible))
+                {
+                    break;
+                }
                 y1--;
             }
             auto x0 = w;

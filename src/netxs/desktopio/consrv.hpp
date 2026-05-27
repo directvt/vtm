@@ -116,9 +116,14 @@ struct consrv
                              sizeof(refdrv),
                                     nullptr,
                                     nullptr);
+        auto wslenv = os::env::get("WSLENV"); // WSL envvars forwarding.
+        cfg.env += utf::fprint("WSLENV=", wslenv, wslenv.size() ? ":" : "", "VTM:TERM:COLORTERM\0"sv);
+        cfg.env += "VTM=1\0"
+                   "TERM=xterm-256color\0"
+                   "COLORTERM=truecolor\0"sv;
         auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
         auto wcwd = utf::to_utf(cfg.cwd);
-        auto wenv = utf::to_utf(os::env::add(cfg.env += "VTM=1\0"sv));
+        auto wenv = utf::to_utf(os::env::add(cfg.env));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes

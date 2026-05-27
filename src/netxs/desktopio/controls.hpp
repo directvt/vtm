@@ -1358,6 +1358,10 @@ namespace netxs::ui
                     show();
                 }
             }
+            auto has_blink_period()
+            {
+                return step != span::zero();
+            }
             // pro::caret: Set blink period.
             void blink_period(span new_step = skin::globals().blink_period)
             {
