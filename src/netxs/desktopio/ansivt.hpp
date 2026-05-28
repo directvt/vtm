@@ -62,6 +62,7 @@ namespace netxs::ansi
     static const auto csi_hsh_psh = '{'; // CSI # {  — Push SGR attributes onto stack (XTPUSHSGR).
     static const auto csi_hsh_pop = '}'; // CSI # }  — Pop  SGR attributes from stack (XTPOPSGR).
     static const auto csi_dqt_scp = 'q'; // CSI n "    q  — Select character protection attribute.
+    static const auto csi__gt_rxv = 'q'; // CSI >      q  — RequestXtVersion.
     static const auto csi_exl_rst = 'p'; // CSI   !    p  — Reset terminal to initial state.
     static const auto csi_qst_rtb = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
     static const auto csi_dlr_fra = 'x'; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).

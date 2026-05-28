@@ -889,7 +889,7 @@ namespace netxs::ui
                     }
                     if (empty) reset();
                 };
-                procs[ansi::osc_set_palette] = [&](view data, view st) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
+                procs[ansi::osc_set_palette] = [&](view data, view st) // ESC ] 4 ; 0;rgb:0000/0000/0000;1;rgb:0000/0000/0000;...
                 {
                     auto fails = faux;
                     auto full_data = data;
@@ -908,9 +908,12 @@ namespace netxs::ui
                             else if (t == type::request)
                             {
                                 auto c = argb{ color[n] };
-                                reply.osc(ansi::osc_set_palette, utf::fprint("%n%;rgb:%r%/%g%/%b%", n, utf::to_hex(c.chan.r),
-                                                                                                       utf::to_hex(c.chan.g),
-                                                                                                       utf::to_hex(c.chan.b)), st);
+                                auto r_hex = utf::to_hex(c.chan.r);
+                                auto g_hex = utf::to_hex(c.chan.g);
+                                auto b_hex = utf::to_hex(c.chan.b);
+                                reply.osc(ansi::osc_set_palette, utf::fprint("%n%;rgb:%r%%r%/%g%%g%/%b%%b%", n, r_hex, r_hex,
+                                                                                                                g_hex, g_hex,
+                                                                                                                b_hex, b_hex), st);
                             }
                             else if (t == type::rgbcolor)
                             {
@@ -934,16 +937,19 @@ namespace netxs::ui
                 {
                     reset();
                 };
-                procs[ansi::osc_set_fgcolor] = [&](view data, view st) // ESC ] 10 ;rgb:00/00/00
+                procs[ansi::osc_set_fgcolor] = [&](view data, view st) // ESC ] 10 ;rgb:0000/0000/0000
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
                         auto c = owner.defclr.fgc();
-                        reply.osc(ansi::osc_set_fgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
-                                                                                        utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)), st);
+                        auto r_hex = utf::to_hex(c.chan.r);
+                        auto g_hex = utf::to_hex(c.chan.g);
+                        auto b_hex = utf::to_hex(c.chan.b);
+                        reply.osc(ansi::osc_set_fgcolor, utf::fprint("rgb:%r%%r%/%g%%g%/%b%%b%", r_hex, r_hex,
+                                                                                                 g_hex, g_hex,
+                                                                                                 b_hex, b_hex), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -953,16 +959,19 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_set_fgcolor, full_data, data);
                 };
-                procs[ansi::osc_set_bgcolor] = [&](view data, view st) // ESC ] 11 ;rgb:00/00/00
+                procs[ansi::osc_set_bgcolor] = [&](view data, view st) // ESC ] 11 ;rgb:0000/0000/0000  // yazi expects four chars per channel.
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
                         auto c = owner.defclr.bgc();
-                        reply.osc(ansi::osc_set_bgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
-                                                                                        utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)), st);
+                        auto r_hex = utf::to_hex(c.chan.r);
+                        auto g_hex = utf::to_hex(c.chan.g);
+                        auto b_hex = utf::to_hex(c.chan.b);
+                        reply.osc(ansi::osc_set_bgcolor, utf::fprint("rgb:%r%%r%/%g%%g%/%b%%b%", r_hex, r_hex,
+                                                                                                 g_hex, g_hex,
+                                                                                                 b_hex, b_hex), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -972,16 +981,19 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_set_bgcolor, full_data, data);
                 };
-                procs[ansi::osc_caret_color] = [&](view data, view st) // ESC ] 12 ;rgb:00/00/00
+                procs[ansi::osc_caret_color] = [&](view data, view st) // ESC ] 12 ;rgb:0000/0000/0000
                 {
                     auto full_data = data;
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
                         auto c = owner.caret.bgc();
-                        reply.osc(ansi::osc_caret_color, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
-                                                                                        utf::to_hex(c.chan.g),
-                                                                                        utf::to_hex(c.chan.b)), st);
+                        auto r_hex = utf::to_hex(c.chan.r);
+                        auto g_hex = utf::to_hex(c.chan.g);
+                        auto b_hex = utf::to_hex(c.chan.b);
+                        reply.osc(ansi::osc_caret_color, utf::fprint("rgb:%r%%r%/%g%%g%/%b%%b%", r_hex, r_hex,
+                                                                                                 g_hex, g_hex,
+                                                                                                 b_hex, b_hex), st);
                     }
                     else if (t == type::rgbcolor)
                     {
@@ -1206,7 +1218,8 @@ namespace netxs::ui
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
 
-                vt.csier.table_quest[csi_qst_kkp] = V{ p->owner.kkp(q); }; // CSI ? ... u  KKP:
+                vt.csier.table_quest[csi_qst_kkp] = V{ p->owner.kkp(q); }; // CSI ? ... u  KKP.
+                //vt.csier.table_gt[   csi__gt_rxv] = V{ p->owner.request_xt_version(q); }; // CSI > q  RequestXtVersion. ?Is it safe?
 
                 vt.csier.table_equals[esc_eq_da2] = V{ p->owner.da2(q); }; // CSI = c  DA2 request.
 
@@ -9381,7 +9394,7 @@ namespace netxs::ui
                     case 2026: // Synchronized Updates. We do not support this mode (we rely on lazy rendering).
                         reply = "4";
                         break;
-                    case 2048: // Graphics. Not supported.
+                    case 2048: // In-band resize reporting. Not supported.
                     case 69:   // Left/Right Margins. We don't support this mode.
                     case 2031: // Extended Keys / Kitty Keyboard Protocol.
                     default:
