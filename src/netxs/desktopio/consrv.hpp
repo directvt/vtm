@@ -1559,7 +1559,6 @@ struct impl : consrv
             while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
             cooked.save(utf16);
-            ondata.flush();
         }
         template<bool Complete = faux, class Payload>
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
@@ -1587,6 +1586,10 @@ struct impl : consrv
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
+            }
+            if (cooked.rest.empty()) // Keep user's handle (ondata) in signaled state if queue is not empty. Flush (make it non-signaled) it if empty.
+            {
+                ondata.flush();
             }
         }
         template<class Payload>
@@ -1634,7 +1637,10 @@ struct impl : consrv
                 });
                 server.answer = {};
             }
-            else reply(packet, server.answer, readstep);
+            else
+            {
+                reply(packet, server.answer, readstep);
+            }
         }
         template<class T>
         auto sendevents(T&& recs, bool utf16)
