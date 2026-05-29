@@ -2074,7 +2074,8 @@ namespace netxs::directvt
                 }
             }
             // s11n: Receive image metadata.
-            void receive_img(s11n::xs::img_list& lock)
+            template<class P = netxs::noop>
+            void receive_img(s11n::xs::img_list& lock, P proc = {})
             {
                 auto images = cell::images();
                 auto is_remote = !!s11n::nat[0];
@@ -2086,12 +2087,13 @@ namespace netxs::directvt
                     {
                         if (auto image_ptr = images.map[local_index])
                         {
+                            proc(local_index);
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
                             auto layers_updated = image.receive_image_attributes(new_image.global_attributes);
                             if (layers_updated)
                             {
-                                translate_layers(images, image, is_remote);
+                                s11n::translate_layers(images, image, is_remote);
                             }
                         }
                     }

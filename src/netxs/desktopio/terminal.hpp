@@ -11070,6 +11070,7 @@ namespace netxs::ui
 
             dtvt& owner; // link: Terminal object reference.
             flag  waits; // link: Owner is waiting for the correct bitmap size.
+            std::bitset<65536> touched_images; // link: Affected image indexes.
 
             void direct(s11n::xs::bitmap_dtvt         lock, view& data)
             {
@@ -11086,7 +11087,17 @@ namespace netxs::ui
             }
             void handle(s11n::xs::img_list            lock)
             {
-                s11n::receive_img(lock);
+                //todo unify: make the same for GUI (dirty regions)
+                s11n::receive_img(lock, [&](ui16 updated_image_index){ touched_images.set(updated_image_index); }); // Update in order to forward to FE.
+                owner.update_touched_images(touched_images); // Update in order to forward to FE.
+                for (auto& new_image : lock.thing) // Clear the index of touched images.
+                {
+                    auto remote_index = new_image.index;
+                    if (auto local_index = s11n::nat[remote_index])
+                    {
+                        touched_images.reset(local_index);
+                    }
+                }
                 owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::signal(tier::general, e2::data::image::sync);
@@ -11125,7 +11136,7 @@ namespace netxs::ui
                         {
                             s11n::translate_layers(images, image, is_remote);
                         }
-                        owner.update_image_bits(image_index);
+                        owner.update_image_bits(image_index); // Update in order to forward to FE.
                         owner.base::enqueue([&, image_index](auto& /*boss*/) // To avoid deadlock under cell::images.
                         {
                             owner.base::signal(tier::general, e2::data::image::update, image_index);
@@ -11481,6 +11492,20 @@ namespace netxs::ui
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
             auto& grid = bitmap_lock.thing.image;
             cell::remove_image_bits(grid, removed_image_indexes);
+        }
+        // dtvt: Update touched images on canvas.
+        void update_touched_images(std::bitset<65536> const& touched_images)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (touched_images[image_index])
+                {
+                    c.inc_image_stamp(1);
+                }
+            }
         }
         // dtvt: Update image metadata on canvas.
         void update_image_bits(ui16 updated_image_index)
