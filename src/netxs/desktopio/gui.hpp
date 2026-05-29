@@ -2638,6 +2638,8 @@ namespace netxs::gui
             auto document_area = bitmap.scaled_fragment_area.shift(offset); // Raster inside the document fragment.
             netxs::xform_render(canvas, canvas_clip, raster, document_area, xform, fx);
         }
+        // Image Test.
+        //rect ph;
         auto render_layer(auto& canvas, rect placeholder, argb fgc, imagens::image& image, qiew sub_id, imagens::image::bitmap_t& bitmap, imagens::image::gb_attrs_t& gb_attrs, twod image_WH, bool inv)
         {
             if (bitmap.fragment.type == sprite::undef && image.document.size())
@@ -2674,6 +2676,20 @@ namespace netxs::gui
                 auto offset = placeholder.coor + bitmap.xy + fragment_area_coor;
                 draw_image(canvas, bitmap, offset, fgc, inv, image_xform);
             }
+            // Image Test.
+            //if (bitmap.fragment.area)
+            //{
+            //    netxs::onrect(canvas, rect{ ph.coor + dot_22 + ph.size / dot_33, ph.size / dot_33 }, [](auto& p){ p = argb{ tint::purecyan }; });
+            //}
+            //else
+            //{
+            //    auto clr = image.dom[0] && image.document.size() && bitmap.fragment.type == sprite::undef ? tint::puremagenta
+            //             : !image.document.size() ? tint::pureyellow
+            //             : bitmap.fragment.type != sprite::undef ? tint::purered
+            //             : !image.dom[0] ? tint::purewhite
+            //             : tint::bluedk;
+            //    netxs::onrect(canvas, rect{ ph.coor + dot_22 + ph.size / dot_33, ph.size / dot_33 }, [&](auto& p){ p = argb{ clr }; });
+            //}
         }
         void render_layers(gui::bits& canvas, rect placeholder, argb fgc, imagens::image& image, qiew sub_id, imagens::image::bitmap_t& bitmap, imagens::image::gb_attrs_t& gb_attrs, twod image_WH, twod wh, bool inv)
         {
@@ -2702,6 +2718,8 @@ namespace netxs::gui
         {
             if (auto image_cr = c.get_image_cr(); image_cr.x != 0 && image_cr.y != 0)
             {
+                // Image Test.
+                //ph = placeholder;
                 auto image_index = c.get_image_index();
                 auto wh = c.get_image_WH();
                 auto images = cell::images(); // Lock.
@@ -2713,6 +2731,11 @@ namespace netxs::gui
                     auto& image = *image_ptr;
                     render_layers(canvas, placeholder, fgc, image, image.sub_id, image.bitmap, image.gb_attrs, image_WH, wh, inv);
                 }
+                // Image Test.
+                //else
+                //{
+                //    netxs::onrect(canvas, rect{ ph.coor + dot_22, ph.size / dot_33 }, [](auto& p){ p = argb{ tint::puremagenta }; });
+                //}
             }
         }
         void draw_shadows(auto& canvas, rect placeholder, cell const& c)
