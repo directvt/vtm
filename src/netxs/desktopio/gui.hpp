@@ -3219,7 +3219,7 @@ namespace netxs::gui
             {
                 s11n::receive_img(lock, [&](std::bitset<65536> const& touched_images)
                 {
-                    auto hit = owner.update_touched_images(touched_images); // Update in order to forward to FE.
+                    auto hit = owner.update_touched_images(touched_images);
                     if (hit)
                     {
                         netxs::set_flag<task::inner>(owner.reload);
