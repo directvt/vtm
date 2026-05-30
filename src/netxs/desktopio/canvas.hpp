@@ -1488,6 +1488,17 @@ namespace netxs
             std::vector<layer_t> layers;
             si32          attr_digest{}; // Stamp to sync with layers.
 
+            bool hit_layers(auto pred)
+            {
+                for (auto& l : layers)
+                {
+                    if (pred(l))
+                    {
+                        return true;
+                    }
+                }
+                return faux;
+            }
             void rasters_reset()
             {
                 for (auto& l : layers)
@@ -1735,16 +1746,19 @@ namespace netxs
             lock mutex; // Object map mutex.
             depo store; // Object map.
             pool index; // Index pool.
+            std::bitset<65536> _touched; // Affected image indexes.
 
             struct guard : sync
             {
                 depo& map;
                 pool& ind;
+                std::bitset<65536>& touched;
 
                 guard(cache& inst)
                     : sync{ inst.mutex },
                        map{ inst.store },
-                       ind{ inst.index }
+                       ind{ inst.index },
+                   touched{ inst._touched }
                 { }
 
                 // cache: Set object.
@@ -3086,15 +3100,14 @@ namespace netxs
             return faux;
         }
         // cell: Clear canvas cells from the specified image bits.
-        static bool remove_image_bits(auto& canvas, std::vector<ui16>& removed_image_indexes)
+        static bool remove_image_bits(auto& canvas, std::bitset<65536> const& removed_images)
         {
             auto hit = faux;
             for (auto& c : canvas)
             {
                 if (auto image_index = c.get_image_index())
                 {
-                    //if (image_index == removed_image_index) //todo ?optimize for single index
-                    if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
+                    if (removed_images[image_index])
                     {
                         c.reset_px(); // Drop all image metadata.
                         hit = true;

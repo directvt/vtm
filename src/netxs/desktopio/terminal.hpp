@@ -1347,11 +1347,14 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
                 owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, image_update_token)
                 {
-                    wipe_image_index(image_indexes);
+                    auto images = cell::images(); // Lock.
+                    for (auto image_index : image_indexes) images.touched.set(image_index);
+                    wipe_image_index(images.touched);
+                    for (auto image_index : image_indexes) images.touched.reset(image_index);
                 };
             }
 
-            virtual void wipe_image_index(std::vector<ui16>& indexes) = 0;
+            virtual void wipe_image_index(std::bitset<65536> const& touched_indexes) = 0;
             // bufferbase: Make a viewport screen copy.
             virtual void do_viewport_copy(face& dest) = 0;
 
@@ -3514,9 +3517,9 @@ namespace netxs::ui
                 return bufferbase::selection_cancel();
             }
             // alt_screen: Remove all references to the image from the scrollback.
-            void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
+            void wipe_image_index(std::bitset<65536> const& touched_images) override
             {
-                cell::remove_image_bits(canvas, removed_image_indexes);
+                cell::remove_image_bits(canvas, touched_images);
             }
         };
 
@@ -7685,16 +7688,16 @@ namespace netxs::ui
                 return forward_is_available | reverse_is_available;
             }
             // scroll_buf: Remove all references to the image from the scrollback.
-            void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
+            void wipe_image_index(std::bitset<65536> const& touched_images) override
             {
-                cell::remove_image_bits(upbox, removed_image_indexes);
-                cell::remove_image_bits(dnbox, removed_image_indexes);
+                cell::remove_image_bits(upbox, touched_images);
+                cell::remove_image_bits(dnbox, touched_images);
                 #if defined(_WIN32)
                     auto wipe_batch = [&](auto policy) // Try to parallelize.
                     {
                         std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
                         {
-                            cell::remove_image_bits(l, removed_image_indexes);
+                            cell::remove_image_bits(l, touched_images);
                         });
                     };
                     batch.length() > 500000 ? wipe_batch(std::execution::par)
@@ -7702,7 +7705,7 @@ namespace netxs::ui
                 #else
                     std::for_each(batch.begin(), batch.end(), [&](auto& l)
                     {
-                        cell::remove_image_bits(l, removed_image_indexes);
+                        cell::remove_image_bits(l, touched_images);
                     });
                 #endif
             }
@@ -11070,7 +11073,6 @@ namespace netxs::ui
 
             dtvt& owner; // link: Terminal object reference.
             flag  waits; // link: Owner is waiting for the correct bitmap size.
-            std::bitset<65536> touched_images; // link: Affected image indexes.
 
             void direct(s11n::xs::bitmap_dtvt         lock, view& data)
             {
@@ -11087,17 +11089,10 @@ namespace netxs::ui
             }
             void handle(s11n::xs::img_list            lock)
             {
-                //todo unify: make the same for GUI (dirty regions)
-                s11n::receive_img(lock, [&](ui16 updated_image_index){ touched_images.set(updated_image_index); }); // Update in order to forward to FE.
-                owner.update_touched_images(touched_images); // Update in order to forward to FE.
-                for (auto& new_image : lock.thing) // Clear the index of touched images.
+                s11n::receive_img(lock, [&](std::bitset<65536> const& touched_images)
                 {
-                    auto remote_index = new_image.index;
-                    if (auto local_index = s11n::nat[remote_index])
-                    {
-                        touched_images.reset(local_index);
-                    }
-                }
+                    owner.update_touched_images(touched_images); // Update in order to forward to FE.
+                });
                 owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::signal(tier::general, e2::data::image::sync);
@@ -11107,17 +11102,15 @@ namespace netxs::ui
             void handle(s11n::xs::remove_img_request  lock)
             {
                 auto& image = lock.thing;
-                auto images = cell::images(); // Lock.
-                auto hit = s11n::remove_image_indexes(images, image.indexes);
-                if (hit)
+                s11n::remove_image_indexes(image.indexes, [&](std::bitset<65536> const& touched_images)
                 {
-                    owner.remove_image_bits(image.indexes);
+                    owner.remove_image_bits(touched_images);
                     owner.base::enqueue([&, image_indexes = std::move(image.indexes)](auto& /*boss*/) // To avoid deadlock under cell::images.
                     {
                         owner.base::signal(tier::general, e2::data::image::remove, image_indexes);
                         owner.base::deface();
                     });
-                }
+                });
             }
             void handle(s11n::xs::update_img_request  lock)
             {
@@ -11487,39 +11480,35 @@ namespace netxs::ui
             ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
         }
         // dtvt: Drop removed image metadata from canvas.
-        void remove_image_bits(std::vector<ui16>& removed_image_indexes)
+        void remove_image_bits(std::bitset<65536> const& touched_images)
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
             auto& grid = bitmap_lock.thing.image;
-            cell::remove_image_bits(grid, removed_image_indexes);
+            cell::remove_image_bits(grid, touched_images);
+        }
+        // dtvt: Strike affected image cells on canvas.
+        void _strike_raster_bits(auto pred)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (pred(image_index))
+                {
+                    c.inc_image_stamp(1);
+                }
+            }
         }
         // dtvt: Update touched images on canvas.
         void update_touched_images(std::bitset<65536> const& touched_images)
         {
-            auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto& grid = bitmap_lock.thing.image;
-            for (auto& c : grid)
-            {
-                auto image_index = c.get_image_index();
-                if (touched_images[image_index])
-                {
-                    c.inc_image_stamp(1);
-                }
-            }
+            _strike_raster_bits([&](auto image_index){ return touched_images[image_index]; });
         }
         // dtvt: Update image metadata on canvas.
         void update_image_bits(ui16 updated_image_index)
         {
-            auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto& grid = bitmap_lock.thing.image;
-            for (auto& c : grid)
-            {
-                auto image_index = c.get_image_index();
-                if (image_index == updated_image_index)
-                {
-                    c.inc_image_stamp(1);
-                }
-            }
+            _strike_raster_bits([&](auto image_index){ return image_index == updated_image_index; });
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()
