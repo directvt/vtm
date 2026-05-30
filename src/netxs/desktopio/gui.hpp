@@ -3217,20 +3217,26 @@ namespace netxs::gui
             }
             void handle(s11n::xs::img_list         lock)
             {
-                s11n::receive_img(lock);
-                netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+                s11n::receive_img(lock, [&](std::bitset<65536> const& touched_images)
+                {
+                    auto hit = owner.update_touched_images(touched_images); // Update in order to forward to FE.
+                    if (hit)
+                    {
+                        netxs::set_flag<task::inner>(owner.reload);
+                        owner.check_blinky();
+                        if (faux) owner._print_dirty_regions("img_list");
+                    }
+                });
             }
             void handle(s11n::xs::remove_img_request  lock)
             {
                 auto& image = lock.thing;
-                auto images = cell::images(); // Lock.
-                auto hit = s11n::remove_image_indexes(images, image.indexes);
-                if (hit)
+                s11n::remove_image_indexes(image.indexes, [&](std::bitset<65536> const& touched_images)
                 {
-                    owner.remove_image_bits(image.indexes);
-                    // Always re-render viewport because of layers.
+                    owner.remove_image_bits(touched_images);
+                    // Always re-render viewport because of layers, header/footer/tooltips.
                     netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
-                }
+                });
             }
             void handle(s11n::xs::update_img_request  lock)
             {
@@ -3251,10 +3257,10 @@ namespace netxs::gui
                         }
                         if (owner.update_image_bits(image_index))
                         {
-                            //todo optimize: scan bitmap_dtvt
-                            netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update images.
+                            netxs::set_flag<task::inner>(owner.reload);
+                            owner.check_blinky();
+                            if (faux) owner._print_dirty_regions("update_img_request");
                         }
-                        // No need to notify? We are waiting for the arrival of cells with a new stamp.
                     }
                 }
             }
@@ -4141,28 +4147,75 @@ namespace netxs::gui
                 }
             }
         }
-        bool remove_image_bits(std::vector<ui16>& removed_image_indexes)
+        bool _update_master_bitmap(auto pred)
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto hit = cell::remove_image_bits(bitmap_lock.thing.image, removed_image_indexes);
+            auto hit = faux;
+            auto& bitmap = bitmap_lock.thing.image;
+            auto head = bitmap.begin();
+            auto iter = head;
+            auto tail = bitmap.end();
+            while (iter != tail) // Scan the bitmap_dtvt grid and mark all dirty regions.
+            {
+                auto& c = *iter;
+                if (pred(c)) //todo optimize repeats
+                {
+                    auto offset = (si32)(iter - head);
+                    auto origin = twod{ offset % gridsz.x, offset / gridsz.x } * cellsz;
+                    fill_stripe(iter, iter + 1, origin, offset);
+                    auto dirty = rect{ origin + blinky.area.coor, cellsz };
+                    master.strike(dirty);
+                    hit = true;
+                }
+                ++iter;
+            }
+            return hit;
+        }
+        bool remove_image_bits(std::bitset<65536> const& touched_images)
+        {
+            //todo Full redraw is required because of layers, header/footer/tooltips. Or we must scan all image layers, header/footer/tooltips.
+            //auto hit = _update_master_bitmap([&](ui16 image_index)
+            //{
+            //    return touched_images[image_index];
+            //});
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto hit = cell::remove_image_bits(bitmap_lock.thing.image, touched_images);
+            return hit;
+        }
+        void _print_dirty_regions(view prefix)
+        {
+            auto t = text{};
+            for (auto r : master.sync)
+                t += utf::fprint("  %%;", r);
+            log("%%: strike regions: ", prefix, t);
+        }
+        bool hit_layers(auto& images, ui16 image_index, auto pred)
+        {
+            auto hit = faux;
+            if (auto image_ptr = images.map[image_index])
+            {
+                hit = image_ptr->hit_layers(pred);
+            }
+            return hit;
+        }
+        bool update_touched_images(std::bitset<65536> const& touched_images)
+        {
+            auto images = cell::images(); // Lock.
+            auto hit = _update_master_bitmap([&](cell& c)
+            {
+                auto image_index = c.get_image_index();
+                return touched_images[image_index] || hit_layers(images, image_index, [&](auto& layer){ return touched_images[layer.index]; });
+            });
             return hit;
         }
         bool update_image_bits(ui16 updated_image_index)
         {
-            auto hit = faux;
-            auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto& grid = bitmap_lock.thing.image;
-            for (auto& c : grid)
+            auto images = cell::images(); // Lock.
+            auto hit = _update_master_bitmap([&](cell& c)
             {
                 auto image_index = c.get_image_index();
-                if (image_index == updated_image_index)
-                {
-                    hit = true;
-                    break;
-                    //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
-                    //c.inc_image_stamp(1);
-                }
-            }
+                return image_index == updated_image_index || hit_layers(images, image_index, [&](auto& layer){ return layer.index == updated_image_index; });
+            });
             return hit;
         }
         void update_gui()

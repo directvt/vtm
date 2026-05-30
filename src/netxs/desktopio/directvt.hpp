@@ -2087,7 +2087,7 @@ namespace netxs::directvt
                     {
                         if (auto image_ptr = images.map[local_index])
                         {
-                            proc(local_index);
+                            images.touched.set(local_index);
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
                             auto layers_updated = image.receive_image_attributes(new_image.global_attributes);
@@ -2098,9 +2098,19 @@ namespace netxs::directvt
                         }
                     }
                 }
+                proc(images.touched);
+                for (auto& new_image : lock.thing) // Clear the index of touched images.
+                {
+                    auto remote_index = new_image.index;
+                    if (auto local_index = s11n::nat[remote_index])
+                    {
+                        images.touched.reset(local_index);
+                    }
+                }
             }
-            auto remove_image_indexes(auto& images, std::vector<ui16>& image_indexes)
+            void remove_image_indexes(std::vector<ui16>& image_indexes, auto proc)
             {
+                auto images = cell::images(); // Lock.
                 auto hit = faux;
                 auto is_remote = s11n::nat[0];
                 if (is_remote)
@@ -2112,15 +2122,30 @@ namespace netxs::directvt
                         if (image_index)
                         {
                             images.remove(image_index);
-                            hit |= !!image_index;
+                            images.touched.set(image_index);
+                            hit = true;
                         }
                     }
                 }
                 else
                 {
-                    hit = !image_indexes.empty();
+                    for (auto& image_index : image_indexes)
+                    {
+                        if (image_index)
+                        {
+                            images.touched.set(image_index);
+                            hit = true;
+                        }
+                    }
                 }
-                return hit;
+                if (hit)
+                {
+                    proc(images.touched);
+                    for (auto& image_index : image_indexes)
+                    {
+                        images.touched.reset(image_index);
+                    }
+                }
             }
             // s11n: Receive jumbo clusters.
             void receive_jgc(s11n::xs::jgc_list& lock)
