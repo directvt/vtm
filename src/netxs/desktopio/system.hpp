@@ -970,7 +970,7 @@ namespace netxs::os
             }
 
             template<class T1, class T2 = si32>
-            auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
+            auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode, bool pressed, bool extflag)
             {
                 auto prevstate = modstate;
                 if (scancode == 0x2a)
@@ -983,15 +983,25 @@ namespace netxs::os
                     if (pressed) modstate |= input::hids::RShift;
                     else         modstate &=~input::hids::RShift;
                 }
-                else if (scancode == 0x5b)
+                else if (scancode == 0x5b && extflag)
                 {
                     if (pressed) modstate |= input::hids::LWin;
                     else         modstate &=~input::hids::LWin;
                 }
-                else if (scancode == 0x5c)
+                else if (scancode == 0x5c && extflag)
                 {
                     if (pressed) modstate |= input::hids::RWin;
                     else         modstate &=~input::hids::RWin;
+                }
+                else if (scancode == 0x5b && !extflag)
+                {
+                    if (pressed) modstate |= input::hids::LHyper;
+                    else         modstate &=~input::hids::LHyper;
+                }
+                else if (scancode == 0x5c && !extflag)
+                {
+                    if (pressed) modstate |= input::hids::RHyper;
+                    else         modstate &=~input::hids::RHyper;
                 }
                 if (!(modstate & input::hids::anyShift) && ms_ctrls & SHIFT_PRESSED) // Restore Shift after refocusing.
                 {
@@ -1001,6 +1011,8 @@ namespace netxs::os
                 auto rshift = modstate & input::hids::RShift;
                 auto lwin   = modstate & input::hids::LWin;
                 auto rwin   = modstate & input::hids::RWin;
+                auto lhyper = modstate & input::hids::LHyper;
+                auto rhyper = modstate & input::hids::RHyper;
                 bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
                 bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
                 bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
@@ -1017,6 +1029,8 @@ namespace netxs::os
                 if (rctrl ) state |= input::hids::RCtrl;
                 if (lwin  ) state |= input::hids::LWin;
                 if (rwin  ) state |= input::hids::RWin;
+                if (lhyper) state |= input::hids::LHyper;
+                if (rhyper) state |= input::hids::RHyper;
                 if (nums  ) state |= input::hids::NumLock;
                 if (caps  ) state |= input::hids::CapsLock;
                 if (scrl  ) state |= input::hids::ScrlLock;
@@ -1032,15 +1046,17 @@ namespace netxs::os
                     bool changed{}; // Modifiers state changed.
                     bool repeats{}; // Modifier repeated.
                 } stat;
-                stat.changed = kbstate(modstate, ms_ctrls, scancode, pressed);
+                stat.changed = kbstate(modstate, ms_ctrls, scancode, pressed, ms_ctrls & ENHANCED_KEY);
                 if (!pressed) return stat;
                 if (stat.changed) return stat;
                 scancode |= ms_ctrls & ENHANCED_KEY;
                 stat.repeats = scancode == 0x002a  // input::hids::LShift
                             || scancode == 0x0036  // input::hids::RShift (Windows command prompt)
                             || scancode == 0x0136  // input::hids::RShift (Windows terminal)
-                            || scancode == 0x005b  // input::hids::LWin
-                            || scancode == 0x005c  // input::hids::RWin
+                            || scancode == 0x015b  // input::hids::LWin
+                            || scancode == 0x015c  // input::hids::RWin
+                            || scancode == 0x005b  // input::hids::LHyper
+                            || scancode == 0x005c  // input::hids::RHyper
                             || scancode == 0x001d  // input::hids::LCtrl
                             || scancode == 0x011d  // input::hids::RCtrl
                             || scancode == 0x0038  // input::hids::LAlt
@@ -4335,7 +4351,7 @@ namespace netxs::os
                     if (os::stdin_fd != os::invalid_fd && os::stdout_fd != os::invalid_fd)
                     {
                         auto lock = netxs::generics::waitable{};
-                        io::send(os::stdout_fd, "\x1b[c"sv); // Send "\e[c" request. Primary device attributes (DA1).
+                        io::send(os::stdout_fd, "\x1b[?u\x1b[c"sv); // Send "\e[?u\e[c" request. KKP + DA1.
                         auto reading_thread = std::thread{ [&]
                         {
                             auto buffer = std::array<char, os::pipebuf>{};
@@ -4348,6 +4364,10 @@ namespace netxs::os
                             }
                             if (answer.size())
                             {
+                                if (answer.find("u\x1b[") != text::npos) // Check the answer for "\x1b[?...u\x1b[...c". KKP is available.
+                                {
+                                    dtvt::vtmode |= ui::console::vt_KKP;
+                                }
                                 if (answer.find("10060") != text::npos) // Check the answer for "\x1b[?1;2;10060c".
                                 {
                                     vtm_env = "1";
@@ -4388,6 +4408,9 @@ namespace netxs::os
                                               : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
                                               : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
                                                                                   : "xterm VT2D (TrueColor with 2D Character Geometry)");
+                log(prompt::os, "Keybd mode: ", dtvt::vtmode & ui::console::nt     ? "Win32 Console API"
+                                              : dtvt::vtmode & ui::console::vt_KKP ? "KKP"
+                                                                                   : "VT-style");
                 log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "Kernel input device"
                                               : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                   : "VT-style");
@@ -5584,6 +5607,7 @@ namespace netxs::os
                     style,
                     paste,
                     mousevtim,
+                    kkp,
                 };
                 static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
                 auto take_sequence = [](qiew& cache)
@@ -5623,6 +5647,10 @@ namespace netxs::os
                                 if (c == 'm' || c == 'M')
                                 {
                                     if (len > 3 && s[2] == '<') t = type::mouse;
+                                }
+                                else if (os::dtvt::vtmode & ui::console::vt_KKP && "u~ABCDEFHPQS"s.find(c) != text::npos) // KKP
+                                {
+                                    t = type::kkp;
                                 }
                                 else if (c == 'p')
                                 {
@@ -5747,103 +5775,103 @@ namespace netxs::os
                     };
                     auto m = utf::unordered_map<text, std::pair<text, si32>>
                     {
-                        //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt     << 8 }},
-                        { "\033\x7f"  , { "",     key::KeySlash      |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},
-                        { "\033\x00"s , { "",     key::Space         | hids::LCtrlAlt << 8 }},
-                        { "\x00"s     , { " ",    key::Space         | hids::LCtrl    << 8 }},
-                        { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl    << 8 }},
-                        { "\033\x08"  , { "",     key::Backspace     | hids::LCtrlAlt << 8 }},
-                        { "\033[Z"    , { "",     key::Tab           | hids::LShift   << 8 }}, //todo: revise Alt+Shift+Z ?
-                        { "\033[1;3I" , { "",     key::Tab           | hids::LAlt     << 8 }},
-                        { "\033\033"  , { "",     key::Esc           | hids::LAlt     << 8 }},
-                        { "\x7f"      , { "\x08", key::Backspace                           }},
-                        { "\x09"      , { "\x09", key::Tab                                 }},
-                        { "\x0d"      , { "\x0d", key::KeyEnter                            }},
-                        { "\x0a"      , { "\x0a", key::KeyEnter      | hids::LCtrl    << 8 }},
+                        //{ "\033\x7f"  , { "\x08", key::Backspace     | (hids::LAlt     << key::idbits) }},
+                        { "\033\x7f"  , { "",     key::KeySlash      |((hids::LCtrl | hids::LAlt | hids::LShift) << key::idbits) }},
+                        { "\033\x00"s , { "",     key::Space         | (hids::LCtrlAlt << key::idbits) }},
+                        { "\x00"s     , { " ",    key::Space         | (hids::LCtrl    << key::idbits) }},
+                        { "\x08"      , { "\x7f", key::Backspace     | (hids::LCtrl    << key::idbits) }},
+                        { "\033\x08"  , { "",     key::Backspace     | (hids::LCtrlAlt << key::idbits) }},
+                        { "\033[Z"    , { "",     key::Tab           | (hids::LShift   << key::idbits) }}, //todo: revise Alt+Shift+Z ?
+                        { "\033[1;3I" , { "",     key::Tab           | (hids::LAlt     << key::idbits) }},
+                        { "\033\033"  , { "",     key::Esc           | (hids::LAlt     << key::idbits) }},
+                        { "\x7f"      , { "\x08", key::Backspace                                       }},
+                        { "\x09"      , { "\x09", key::Tab                                             }},
+                        { "\x0d"      , { "\x0d", key::KeyEnter                                        }},
+                        { "\x0a"      , { "\x0a", key::KeyEnter      | (hids::LCtrl    << key::idbits) }},
 
-                        //{ "\x1a"      , { "",     key::Pause                               }},
-                        //{ "\x1a"      , { "\x1a", key::KeyZ          | hids::LCtrl    << 8 }},
-                        { "\033"      , { "\033", key::Esc                                 }},
-                        { "\x1c"      , { "",     key::Key4          | hids::LCtrl    << 8 }},
-                        { "\x1d"      , { "",     key::Key5          | hids::LCtrl    << 8 }},
-                        { "\x1e"      , { "",     key::Key6          | hids::LCtrl    << 8 }},
-                        { "\x1f"      , { "",     key::KeySlash      | hids::LCtrl    << 8 }},
-                        { "\033\x1f"  , { "",     key::KeySlash      | hids::LCtrlAlt << 8 }},
-                        { "\x20"      , { " ",    key::Space                               }},
-                        { "\x21"      , { "!",    key::Key1          | hids::LShift   << 8 }},
-                        { "\x22"      , { "\"",   key::SingleQuote   | hids::LShift   << 8 }},
-                        { "\x23"      , { "#",    key::Key3          | hids::LShift   << 8 }},
-                        { "\x24"      , { "$",    key::Key4          | hids::LShift   << 8 }},
-                        { "\x25"      , { "%",    key::Key5          | hids::LShift   << 8 }},
-                        { "\x26"      , { "&",    key::Key7          | hids::LShift   << 8 }},
-                        { "\x27"      , { "'",    key::SingleQuote                         }},
-                        { "\x28"      , { "(",    key::Key9          | hids::LShift   << 8 }},
-                        { "\x29"      , { ")",    key::Key0          | hids::LShift   << 8 }},
-                        { "\x2a"      , { "*",    key::KeyMultiply                         }},
-                        { "\x2b"      , { "+",    key::KeyPlus                             }},
-                        { "\x2c"      , { ",",    key::Comma                               }},
-                        { "\x2d"      , { "-",    key::KeyMinus                            }},
-                        { "\x2e"      , { ".",    key::KeyPeriod                           }},
-                        { "\x2f"      , { "/",    key::KeySlash                            }},
+                        //{ "\x1a"      , { "",     key::Pause                                           }},
+                        //{ "\x1a"      , { "\x1a", key::KeyZ          | (hids::LCtrl    << key::idbits) }},
+                        { "\033"      , { "\033", key::Esc                                             }},
+                        { "\x1c"      , { "",     key::Key4          | (hids::LCtrl    << key::idbits) }},
+                        { "\x1d"      , { "",     key::Key5          | (hids::LCtrl    << key::idbits) }},
+                        { "\x1e"      , { "",     key::Key6          | (hids::LCtrl    << key::idbits) }},
+                        { "\x1f"      , { "",     key::KeySlash      | (hids::LCtrl    << key::idbits) }},
+                        { "\033\x1f"  , { "",     key::KeySlash      | (hids::LCtrlAlt << key::idbits) }},
+                        { "\x20"      , { " ",    key::Space                                           }},
+                        { "\x21"      , { "!",    key::Key1          | (hids::LShift   << key::idbits) }},
+                        { "\x22"      , { "\"",   key::SingleQuote   | (hids::LShift   << key::idbits) }},
+                        { "\x23"      , { "#",    key::Key3          | (hids::LShift   << key::idbits) }},
+                        { "\x24"      , { "$",    key::Key4          | (hids::LShift   << key::idbits) }},
+                        { "\x25"      , { "%",    key::Key5          | (hids::LShift   << key::idbits) }},
+                        { "\x26"      , { "&",    key::Key7          | (hids::LShift   << key::idbits) }},
+                        { "\x27"      , { "'",    key::SingleQuote                                     }},
+                        { "\x28"      , { "(",    key::Key9          | (hids::LShift   << key::idbits) }},
+                        { "\x29"      , { ")",    key::Key0          | (hids::LShift   << key::idbits) }},
+                        { "\x2a"      , { "*",    key::KeyMultiply                                     }},
+                        { "\x2b"      , { "+",    key::KeyPlus                                         }},
+                        { "\x2c"      , { ",",    key::Comma                                           }},
+                        { "\x2d"      , { "-",    key::KeyMinus                                        }},
+                        { "\x2e"      , { ".",    key::KeyPeriod                                       }},
+                        { "\x2f"      , { "/",    key::KeySlash                                        }},
 
-                        { "\x3a"      , { ":",    key::Semicolon     | hids::LShift << 8 }},
-                        { "\x3b"      , { ";",    key::Semicolon                         }},
-                        { "\x3c"      , { "<",    key::Comma         | hids::LShift << 8 }},
-                        { "\x3d"      , { "=",    key::Equal                             }},
-                        { "\x3e"      , { ">",    key::KeyPeriod     | hids::LShift << 8 }},
-                        { "\x3f"      , { "?",    key::KeySlash      | hids::LShift << 8 }},
-                        { "\x40"      , { "@",    key::Key2          | hids::LShift << 8 }},
+                        { "\x3a"      , { ":",    key::Semicolon     | (hids::LShift   << key::idbits) }},
+                        { "\x3b"      , { ";",    key::Semicolon                                       }},
+                        { "\x3c"      , { "<",    key::Comma         | (hids::LShift   << key::idbits) }},
+                        { "\x3d"      , { "=",    key::Equal                                           }},
+                        { "\x3e"      , { ">",    key::KeyPeriod     | (hids::LShift   << key::idbits) }},
+                        { "\x3f"      , { "?",    key::KeySlash      | (hids::LShift   << key::idbits) }},
+                        { "\x40"      , { "@",    key::Key2          | (hids::LShift   << key::idbits) }},
 
-                        { "\x5b"      , { "[",    key::OpenBracket                       }},
-                        { "\x5c"      , { "\\",   key::BackSlash                         }},
-                        { "\x5d"      , { "]",    key::ClosedBracket                     }},
-                        { "\x5e"      , { "^",    key::Key6          | hids::LShift << 8 }},
-                        { "\x5f"      , { "_",    key::KeyMinus      | hids::LShift << 8 }},
-                        { "\x60"      , { "`",    key::BackQuote                         }},
+                        { "\x5b"      , { "[",    key::OpenBracket                                     }},
+                        { "\x5c"      , { "\\",   key::BackSlash                                       }},
+                        { "\x5d"      , { "]",    key::ClosedBracket                                   }},
+                        { "\x5e"      , { "^",    key::Key6          | (hids::LShift   << key::idbits) }},
+                        { "\x5f"      , { "_",    key::KeyMinus      | (hids::LShift   << key::idbits) }},
+                        { "\x60"      , { "`",    key::BackQuote                                       }},
 
-                        { "\x7b"      , { "{",    key::OpenBracket   | hids::LShift << 8 }},
-                        { "\x7c"      , { "|",    key::BackSlash     | hids::LShift << 8 }},
-                        { "\x7d"      , { "}",    key::ClosedBracket | hids::LShift << 8 }},
-                        { "\x7e"      , { "~",    key::BackQuote     | hids::LShift << 8 }},
+                        { "\x7b"      , { "{",    key::OpenBracket   | (hids::LShift   << key::idbits) }},
+                        { "\x7c"      , { "|",    key::BackSlash     | (hids::LShift   << key::idbits) }},
+                        { "\x7d"      , { "}",    key::ClosedBracket | (hids::LShift   << key::idbits) }},
+                        { "\x7e"      , { "~",    key::BackQuote     | (hids::LShift   << key::idbits) }},
 
-                        { "\033[5~"   , { "",     key::KeyPageUp                         }},
-                        { "\033[6~"   , { "",     key::KeyPageDown                       }},
-                        { "\033[F"    , { "",     key::KeyEnd                            }},
-                        { "\033[H"    , { "",     key::KeyHome                           }},
-                        { "\033[D"    , { "",     key::KeyLeftArrow                      }},
-                        { "\033[A"    , { "",     key::KeyUpArrow                        }},
-                        { "\033[C"    , { "",     key::KeyRightArrow                     }},
-                        { "\033[B"    , { "",     key::KeyDownArrow                      }},
-                        { "\033[2~"   , { "",     key::KeyInsert                         }},
-                        { "\033[3~"   , { "",     key::KeyDelete                         }},
-                        { "\033OP"    , { "",     key::F1                                }},
-                        { "\033OQ"    , { "",     key::F2                                }},
-                        { "\033OR"    , { "",     key::F3                                }},
-                        { "\033OS"    , { "",     key::F4                                }},
-                        { "\033[15~"  , { "",     key::F5                                }},
-                        { "\033[17~"  , { "",     key::F6                                }},
-                        { "\033[18~"  , { "",     key::F7                                }},
-                        { "\033[19~"  , { "",     key::F8                                }},
-                        { "\033[20~"  , { "",     key::F9                                }},
-                        { "\033[21~"  , { "",     key::F10                               }},
-                        { "\033[23~"  , { "",     key::F11                               }},
-                        { "\033[24~"  , { "",     key::F12                               }},
+                        { "\033[5~"   , { "",     key::KeyPageUp                                       }},
+                        { "\033[6~"   , { "",     key::KeyPageDown                                     }},
+                        { "\033[F"    , { "",     key::KeyEnd                                          }},
+                        { "\033[H"    , { "",     key::KeyHome                                         }},
+                        { "\033[D"    , { "",     key::KeyLeftArrow                                    }},
+                        { "\033[A"    , { "",     key::KeyUpArrow                                      }},
+                        { "\033[C"    , { "",     key::KeyRightArrow                                   }},
+                        { "\033[B"    , { "",     key::KeyDownArrow                                    }},
+                        { "\033[2~"   , { "",     key::KeyInsert                                       }},
+                        { "\033[3~"   , { "",     key::KeyDelete                                       }},
+                        { "\033OP"    , { "",     key::F1                                              }},
+                        { "\033OQ"    , { "",     key::F2                                              }},
+                        { "\033OR"    , { "",     key::F3                                              }},
+                        { "\033OS"    , { "",     key::F4                                              }},
+                        { "\033[15~"  , { "",     key::F5                                              }},
+                        { "\033[17~"  , { "",     key::F6                                              }},
+                        { "\033[18~"  , { "",     key::F7                                              }},
+                        { "\033[19~"  , { "",     key::F8                                              }},
+                        { "\033[20~"  , { "",     key::F9                                              }},
+                        { "\033[21~"  , { "",     key::F10                                             }},
+                        { "\033[23~"  , { "",     key::F11                                             }},
+                        { "\033[24~"  , { "",     key::F12                                             }},
                         // Linux VGA Console special keys.
-                        { "\033[1~"   , { "",     key::KeyHome                           }},
-                        { "\033[4~"   , { "",     key::KeyEnd                            }},
-                        { "\033[[A"   , { "",     key::F1                                }},
-                        { "\033[[B"   , { "",     key::F2                                }},
-                        { "\033[[C"   , { "",     key::F3                                }},
-                        { "\033[[D"   , { "",     key::F4                                }},
-                        { "\033[[E"   , { "",     key::F5                                }},
-                        { "\033[25~"  , { "",     key::F1            | hids::LShift << 8 }},
-                        { "\033[26~"  , { "",     key::F2            | hids::LShift << 8 }},
-                        { "\033[28~"  , { "",     key::F3            | hids::LShift << 8 }},
-                        { "\033[29~"  , { "",     key::F4            | hids::LShift << 8 }},
-                        { "\033[31~"  , { "",     key::F5            | hids::LShift << 8 }},
-                        { "\033[32~"  , { "",     key::F6            | hids::LShift << 8 }},
-                        { "\033[33~"  , { "",     key::F7            | hids::LShift << 8 }},
-                        { "\033[34~"  , { "",     key::F8            | hids::LShift << 8 }},
+                        { "\033[1~"   , { "",     key::KeyHome                                         }},
+                        { "\033[4~"   , { "",     key::KeyEnd                                          }},
+                        { "\033[[A"   , { "",     key::F1                                              }},
+                        { "\033[[B"   , { "",     key::F2                                              }},
+                        { "\033[[C"   , { "",     key::F3                                              }},
+                        { "\033[[D"   , { "",     key::F4                                              }},
+                        { "\033[[E"   , { "",     key::F5                                              }},
+                        { "\033[25~"  , { "",     key::F1            | (hids::LShift   << key::idbits) }},
+                        { "\033[26~"  , { "",     key::F2            | (hids::LShift   << key::idbits) }},
+                        { "\033[28~"  , { "",     key::F3            | (hids::LShift   << key::idbits) }},
+                        { "\033[29~"  , { "",     key::F4            | (hids::LShift   << key::idbits) }},
+                        { "\033[31~"  , { "",     key::F5            | (hids::LShift   << key::idbits) }},
+                        { "\033[32~"  , { "",     key::F6            | (hids::LShift   << key::idbits) }},
+                        { "\033[33~"  , { "",     key::F7            | (hids::LShift   << key::idbits) }},
+                        { "\033[34~"  , { "",     key::F8            | (hids::LShift   << key::idbits) }},
                     };
 
                     for (auto i = 1; i < 8; i++)
@@ -5856,18 +5884,194 @@ namespace netxs::os
                         for (auto& [key, utf8] : keymask)
                         {
                             *++(utf8.rbegin()) = mods;
-                            m[utf8] = { "", key | (ctls << 8) };
+                            m[utf8] = { "", key | (ctls << key::idbits) };
                         }
                     }
                     for (auto i = 0; i <= 'Z' - 'A'; i++)
                     {
-                        m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << 8) };
+                        m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << key::idbits) };
                         m[text(1, i + 'a')] = { text(1, i + 'a'),  key::KeyA + i * 2 };
                     }
                     for (auto i = 0; i < 10; i++)
                     {
                         m[text(1, i + '0')] = { text(1, i + '0'), key::Key0 + i * 2 };
                     }
+                    return m;
+                }();
+                static auto kkp2key = []
+                {
+                    using namespace input;
+                    auto m = std::unordered_map<si32, si32>
+                    {
+                     // base key   CSI-suffix   input::key
+                        { 57442  | ('u' << 16), key::LeftCtrl         },
+                        { 57448  | ('u' << 16), key::RightCtrl        },
+                        { 57443  | ('u' << 16), key::LeftAlt          },
+                        { 57446  | ('u' << 16), key::LeftAlt          }, // LEFT_META
+                        { 57449  | ('u' << 16), key::RightAlt         },
+                        { 57452  | ('u' << 16), key::RightAlt         }, // RIGHT_META
+                        { 57441  | ('u' << 16), key::LeftShift        },
+                        { 57447  | ('u' << 16), key::RightShift       },
+                        { 57444  | ('u' << 16), key::LeftWin          }, // LEFT_SUPER
+                        { 57450  | ('u' << 16), key::RightWin         }, // RIGHT_SUPER
+                        { 57445  | ('u' << 16), key::LeftHyper        }, // LEFT_HYPER
+                        { 57451  | ('u' << 16), key::RightHyper       }, // RIGHT_HYPER
+                        { 57363  | ('u' << 16), key::Apps             }, // MENU
+                        { 57360  | ('u' << 16), key::NumLock          },
+                        { 57358  | ('u' << 16), key::CapsLock         },
+                        { 57453  | ('u' << 16), key::IsoLevel3Shift   }, // ISO_LEVEL3_SHIFT
+                        { 57359  | ('u' << 16), key::ScrollLock       },
+                        { 57454  | ('u' << 16), key::IsoLevel5Shift   }, // ISO_LEVEL5_SHIFT
+                        { 27     | ('u' << 16), key::Esc              },
+                        { 32     | ('u' << 16), key::Space            },
+                        { 127    | ('u' << 16), key::Backspace        },
+                        { 9      | ('u' << 16), key::Tab              },
+                        { 57362  | ('u' << 16), key::Pause            },
+                        { 57361  | ('u' << 16), key::PrintScreen      },
+                        { 13     | ('u' << 16), key::KeyEnter         },
+                        { 57414  | ('u' << 16), key::NumpadEnter      }, // KP_ENTER
+                        { 5      | ('~' << 16), key::KeyPageUp        },
+                        { 57421  | ('u' << 16), key::NumpadPageUp     }, // KP_PAGE_UP
+                        { 6      | ('~' << 16), key::KeyPageDown      },
+                        { 57422  | ('u' << 16), key::NumpadPageDown   }, // KP_PAGE_DOWN
+                        { 1      | ('F' << 16), key::KeyEnd           },
+                        { 8      | ('~' << 16), key::KeyEnd           },
+                        { 57424  | ('u' << 16), key::NumpadEnd        }, // KP_END
+                        { 1      | ('H' << 16), key::KeyHome          },
+                        { 7      | ('~' << 16), key::KeyHome          },
+                        { 57423  | ('u' << 16), key::NumpadHome       }, // KP_HOME
+                        { 1      | ('D' << 16), key::KeyLeftArrow     },
+                        { 57417  | ('u' << 16), key::NumpadLeftArrow  }, // KP_LEFT
+                        { 1      | ('C' << 16), key::KeyRightArrow    },
+                        { 57418  | ('u' << 16), key::NumpadRightArrow }, // KP_RIGHT
+                        { 1      | ('A' << 16), key::KeyUpArrow       },
+                        { 57419  | ('u' << 16), key::NumpadUpArrow    }, // KP_UP
+                        { 1      | ('B' << 16), key::KeyDownArrow     },
+                        { 57420  | ('u' << 16), key::NumpadDownArrow  }, // KP_DOWN
+                        { 48     | ('u' << 16), key::Key0             },
+                        { 57399  | ('u' << 16), key::Numpad0          },
+                        { 49     | ('u' << 16), key::Key1             },
+                        { 57400  | ('u' << 16), key::Numpad1          },
+                        { 50     | ('u' << 16), key::Key2             },
+                        { 57401  | ('u' << 16), key::Numpad2          },
+                        { 51     | ('u' << 16), key::Key3             },
+                        { 57402  | ('u' << 16), key::Numpad3          },
+                        { 52     | ('u' << 16), key::Key4             },
+                        { 57403  | ('u' << 16), key::Numpad4          },
+                        { 53     | ('u' << 16), key::Key5             },
+                        { 57404  | ('u' << 16), key::Numpad5          },
+                        { 54     | ('u' << 16), key::Key6             },
+                        { 57405  | ('u' << 16), key::Numpad6          },
+                        { 55     | ('u' << 16), key::Key7             },
+                        { 57406  | ('u' << 16), key::Numpad7          },
+                        { 56     | ('u' << 16), key::Key8             },
+                        { 57407  | ('u' << 16), key::Numpad8          },
+                        { 57     | ('u' << 16), key::Key9             },
+                        { 57408  | ('u' << 16), key::Numpad9          },
+                        { 2      | ('~' << 16), key::KeyInsert        },
+                        { 57425  | ('u' << 16), key::NumpadInsert     }, // KP_INSERT
+                        { 3      | ('~' << 16), key::KeyDelete        },
+                        { 57426  | ('u' << 16), key::NumpadDelete     }, // KP_DELETE
+                        { 1      | ('E' << 16), key::KeyClear         }, // KP_BEGIN
+                        { 57427  | ('~' << 16), key::NumpadClear      }, // KP_BEGIN
+                        { 57411  | ('u' << 16), key::NumpadMultiply   }, // KP_MULTIPLY
+                        { 43     | ('u' << 16), key::KeyPlus          }, // KP_ADD
+                        { 57413  | ('u' << 16), key::NumpadPlus       }, // KP_ADD
+                        { 57416  | ('u' << 16), key::NumpadSeparator  }, // KP_SEPARATOR
+                        { 45     | ('u' << 16), key::KeyMinus         },
+                        { 57412  | ('u' << 16), key::NumpadMinus      }, // KP_SUBTRACT
+                        { 46     | ('u' << 16), key::KeyPeriod        },
+                        { 57409  | ('u' << 16), key::NumpadDecimal    },
+                        { 47     | ('u' << 16), key::KeySlash         }, //KP_DIVIDE
+                        { 57410  | ('u' << 16), key::NumpadSlash      }, //KP_DIVIDE
+                        { 92     | ('u' << 16), key::BackSlash        },
+                        { 61     | ('u' << 16), key::Equal            },
+                        { 57415  | ('u' << 16), key::NumpadEqual      }, // KP_EQUAL
+                        { 91     | ('u' << 16), key::OpenBracket      },
+                        { 93     | ('u' << 16), key::ClosedBracket    },
+                        { 61     | ('u' << 16), key::Equal            },
+                        { 96     | ('u' << 16), key::BackQuote        },
+                        { 39     | ('u' << 16), key::SingleQuote      },
+                        { 44     | ('u' << 16), key::Comma            },
+                        { 59     | ('u' << 16), key::Semicolon        },
+                        { 1      | ('P' << 16), key::F1               },
+                        { 11     | ('~' << 16), key::F1               },
+                        { 1      | ('Q' << 16), key::F2               },
+                        { 12     | ('~' << 16), key::F2               },
+                        { 13     | ('~' << 16), key::F3               },
+                        { 1      | ('S' << 16), key::F4               },
+                        { 14     | ('~' << 16), key::F4               },
+                        { 15     | ('~' << 16), key::F5               },
+                        { 17     | ('~' << 16), key::F6               },
+                        { 18     | ('~' << 16), key::F7               },
+                        { 19     | ('~' << 16), key::F8               },
+                        { 20     | ('~' << 16), key::F9               },
+                        { 21     | ('~' << 16), key::F10              },
+                        { 23     | ('~' << 16), key::F11              },
+                        { 24     | ('~' << 16), key::F12              },
+                        { 57376  | ('u' << 16), key::F13              },
+                        { 57377  | ('u' << 16), key::F14              },
+                        { 57378  | ('u' << 16), key::F15              },
+                        { 57379  | ('u' << 16), key::F16              },
+                        { 57380  | ('u' << 16), key::F17              },
+                        { 57381  | ('u' << 16), key::F18              },
+                        { 57382  | ('u' << 16), key::F19              },
+                        { 57383  | ('u' << 16), key::F20              },
+                        { 57384  | ('u' << 16), key::F21              },
+                        { 57385  | ('u' << 16), key::F22              },
+                        { 57386  | ('u' << 16), key::F23              },
+                        { 57387  | ('u' << 16), key::F24              },
+                        { 57388  | ('u' << 16), key::F25              },
+                        { 57389  | ('u' << 16), key::F26              },
+                        { 57390  | ('u' << 16), key::F27              },
+                        { 57391  | ('u' << 16), key::F28              },
+                        { 57392  | ('u' << 16), key::F29              },
+                        { 57393  | ('u' << 16), key::F30              },
+                        { 57394  | ('u' << 16), key::F31              },
+                        { 57395  | ('u' << 16), key::F32              },
+                        { 57396  | ('u' << 16), key::F33              },
+                        { 57397  | ('u' << 16), key::F34              },
+                        { 57398  | ('u' << 16), key::F35              },
+                        { 97     | ('u' << 16), key::KeyA             },
+                        { 98     | ('u' << 16), key::KeyB             },
+                        { 99     | ('u' << 16), key::KeyC             },
+                        { 100    | ('u' << 16), key::KeyD             },
+                        { 101    | ('u' << 16), key::KeyE             },
+                        { 102    | ('u' << 16), key::KeyF             },
+                        { 103    | ('u' << 16), key::KeyG             },
+                        { 104    | ('u' << 16), key::KeyH             },
+                        { 105    | ('u' << 16), key::KeyI             },
+                        { 106    | ('u' << 16), key::KeyJ             },
+                        { 107    | ('u' << 16), key::KeyK             },
+                        { 108    | ('u' << 16), key::KeyL             },
+                        { 109    | ('u' << 16), key::KeyM             },
+                        { 110    | ('u' << 16), key::KeyN             },
+                        { 111    | ('u' << 16), key::KeyO             },
+                        { 112    | ('u' << 16), key::KeyP             },
+                        { 113    | ('u' << 16), key::KeyQ             },
+                        { 114    | ('u' << 16), key::KeyR             },
+                        { 115    | ('u' << 16), key::KeyS             },
+                        { 116    | ('u' << 16), key::KeyT             },
+                        { 117    | ('u' << 16), key::KeyU             },
+                        { 118    | ('u' << 16), key::KeyV             },
+                        { 119    | ('u' << 16), key::KeyW             },
+                        { 120    | ('u' << 16), key::KeyX             },
+                        { 121    | ('u' << 16), key::KeyY             },
+                        { 122    | ('u' << 16), key::KeyZ             },
+                        { 57428  | ('u' << 16), key::MediaPlay        }, // MEDIA_PLAY
+                        { 57429  | ('u' << 16), key::MediaPause       }, // MEDIA_PAUSE
+                        { 57430  | ('u' << 16), key::MediaPlayPause   }, // MEDIA_PLAY_PAUSE
+                        { 57431  | ('u' << 16), key::MediaReverse     }, // MEDIA_REVERSE // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
+                        { 57432  | ('u' << 16), key::MediaStop        }, // MEDIA_STOP
+                        { 57433  | ('u' << 16), key::MediaFastForward }, // MEDIA_FAST_FORWARD // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
+                        { 57434  | ('u' << 16), key::MediaRewind      }, // MEDIA_REWIND // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
+                        { 57435  | ('u' << 16), key::MediaNext        }, // MEDIA_TRACK_NEXT
+                        { 57436  | ('u' << 16), key::MediaPrev        }, // MEDIA_TRACK_PREVIOUS
+                        { 57437  | ('u' << 16), key::MediaRecord      }, // MEDIA_RECORD // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
+                        { 57438  | ('u' << 16), key::MediaVolDown     }, // LOWER_VOLUME
+                        { 57439  | ('u' << 16), key::MediaVolUp       }, // RAISE_VOLUME
+                        { 57440  | ('u' << 16), key::MediaVolMute     }, // MUTE_VOLUME
+                    };
                     return m;
                 }();
 
@@ -6005,6 +6209,69 @@ namespace netxs::os
                         std::swap(k.virtcod, virtcod);
                         std::swap(k.scancod, scancod);
                     }
+                };
+                auto detect_kkp = [&](qiew sequence)
+                {
+                    // ESC [ unicode_code:shifted_key:base_key ; ctlstat:evtype ; codepoints suffix
+                    log("KKP: ", ansi::hi(utf::debase<faux, faux>(sequence)));
+                    using namespace input;
+                    sequence.remove_prefix(2); // Pop ESC [
+
+                    auto q = ansi::fifo32{ ansi::ccc_nop }; // Reserve for the command type.
+                    ansi::read_CSI(sequence, q, noop{});
+
+                    auto suffix       = q(ansi::ccc_nop);
+                    auto unicode_code = q(1);
+                    auto shifted_key  = q.subarg(unicode_code);
+                    auto base_key     = q.subarg(unicode_code);
+                    auto ctlstat      = q(1);
+                    auto evtype       = q.subarg(1);
+                    k.cluster = {};
+                    while (q)
+                    {
+                        auto codepoint = q(0);
+                        if (codepoint == 0) break;
+                        utf::to_utf_from_code(codepoint, k.cluster);
+                    }
+
+                    k.keystat = evtype == 1 ? input::key::pressed
+                              : evtype == 2 ? input::key::repeated
+                                            : input::key::released;
+                    k.ctlstat = {};
+                    if (ctlstat)
+                    {
+                        ctlstat--;
+                        if (ctlstat & hids::kkp::shift    ) k.ctlstat |= hids::LShift;
+                        if (ctlstat & hids::kkp::alt      ) k.ctlstat |= hids::LAlt;
+                        if (ctlstat & hids::kkp::ctrl     ) k.ctlstat |= hids::LCtrl;
+                        if (ctlstat & hids::kkp::super    ) k.ctlstat |= hids::LWin;
+                        if (ctlstat & hids::kkp::hyper    ) k.ctlstat |= hids::LHyper;
+                        if (ctlstat & hids::kkp::meta     ) k.ctlstat |= hids::LAlt;
+                        if (ctlstat & hids::kkp::caps_lock) k.ctlstat |= hids::CapsLock;
+                        if (ctlstat & hids::kkp::num_lock ) k.ctlstat |= hids::NumLock;
+                    }
+                    auto traits = (suffix << 16) | base_key;
+                    auto iter = kkp2key.find(traits);
+                    if (iter != kkp2key.end())
+                    {
+                        auto code = iter->second;
+                        auto& rec = key::map::data(code);
+                        k.keycode = code;
+                        k.virtcod = rec.vkey;
+                        k.scancod = rec.scan;
+                    }
+                    else
+                    {
+                        k.keycode = input::key::undef;
+                        k.virtcod = base_key;    //unicode_code;//base_key ? base_key
+                                                 //: shifted_key ? shifted_key
+                                                 //:  != 1 ? unicode_code : 0;
+                        k.scancod = {};
+                    }
+                    log(" suffix='%%' unicode_code=%% shifted_key=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unicode_code, shifted_key, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
+                    k.handled = {};
+                    chords.build(k);
+                    keybd(k);
                 };
                 auto parser = [&](view accum)
                 {
@@ -6207,6 +6474,10 @@ namespace netxs::os
                                 m.wheelsi = (si32)m.wheelfp;
                                 m.changed++;
                                 mouse(m);
+                            }
+                            else if (t == type::kkp) // KKP: ESC [ ... u~ABCDEFHPQS
+                            {
+                                detect_kkp(s);
                             }
                             else if (t == type::focus) // Focus report:  ESC [ I/O
                             {
@@ -6592,8 +6863,8 @@ namespace netxs::os
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else
-                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16);
-                auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
+                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16).kkp_on(dtvt::vtmode & ui::console::vt_KKP);
+                auto vtend = ansi::kkp_off(dtvt::vtmode & ui::console::vt_KKP).scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
                 io::send(os::stdout_fd, vtrun);
             #endif
 
@@ -6675,6 +6946,17 @@ namespace netxs::os
 
         struct readline
         {
+            struct actions
+            {
+                static constexpr auto _counter   = __COUNTER__ + 1;
+                static constexpr auto ctrl_c     = __COUNTER__ - _counter;
+                static constexpr auto ctrl_d     = __COUNTER__ - _counter;
+                static constexpr auto ctrl_z     = __COUNTER__ - _counter;
+                static constexpr auto backspace  = __COUNTER__ - _counter;
+                static constexpr auto enter      = __COUNTER__ - _counter;
+                static constexpr auto cluster    = __COUNTER__ - _counter;
+            };
+
             std::thread thread;
             fire alarm;
             flag alive;
@@ -6683,7 +6965,7 @@ namespace netxs::os
                 : alive{ true }
             {
                 auto redirected = dtvt::vtmode & ui::console::redirio
-                               && os::stdin_fd != os::invalid_fd;
+                                  && os::stdin_fd != os::invalid_fd;
                 if (redirected) thread = std::thread{ [&, send, shut]
                 {
                     auto line = text{};
@@ -6716,6 +6998,23 @@ namespace netxs::os
                 }};
                 else thread = std::thread{ [&, send, shut]
                 {
+                    static const auto action_chords = []
+                    {
+                        auto m = utf::unordered_map<text, si32>{};
+                        auto a = std::to_array<std::pair<si32, txts>>(
+                        {
+                            { actions::ctrl_c,    input::key::kmap::chord_list("Ctrl+KeyC") },
+                            { actions::ctrl_d,    input::key::kmap::chord_list("Ctrl+KeyD") },
+                            { actions::ctrl_z,    input::key::kmap::chord_list("Ctrl+KeyZ") },
+                            { actions::backspace, input::key::kmap::chord_list("Backspace") },
+                            { actions::enter,     input::key::kmap::chord_list("Enter")     },
+                        });
+                        for (auto& [action, cs] : a)
+                        {
+                            for (auto& c : cs) m[c] = action;
+                        }
+                        return m;
+                    }();
                     dtvt::scroll = true;
                     auto osout = tty::cout;
                     auto width = si32{};
@@ -6783,6 +7082,32 @@ namespace netxs::os
                             else clear(utf8);
                         }
                     });
+                    auto do_it = [&](auto& guard, auto action)
+                    {
+                        switch (action)
+                        {
+                            case actions::ctrl_c: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
+                            case actions::ctrl_d: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
+                            case actions::ctrl_z: enter(ansi::err("Ctrl+Z\r\n")); alarm.bell(); break;
+                            case actions::backspace:
+                                if (block.size())
+                                {
+                                    block.pop_back();
+                                    print(true);
+                                }
+                                break;
+                            case actions::enter:
+                            {
+                                auto line = block + '\n';
+                                block.clear();
+                                clear();
+                                print(faux);
+                                guard.unlock(); // Allow to use log() inside send().
+                                send(line);
+                                break;
+                            }
+                        }
+                    };
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
@@ -6794,33 +7119,37 @@ namespace netxs::os
                                 print(true);
                                 break;
                             case input::keybd::type::keypress:
-                                if (!data.keystat) return;
+                                if (!alive || !data.keystat) return;
+                                //if (dtvt::vtmode & ui::console::vt_KKP)
+                                {
+                                    if (auto iter = action_chords.find(data.vkchord); iter != action_chords.end())
+                                    {
+                                        auto action = iter->second;
+                                        do_it(guard, action);
+                                        break;
+                                    }
+                                    //else if (data.cluster.size())
+                                    //{
+                                    //    block += data.cluster;
+                                    //    print(true);
+                                    //    break;
+                                    //}
+                                }
                                 [[fallthrough]];
                             case input::keybd::type::imeinput:
                                 if (!alive || data.cluster.empty()) return;
                                 switch (data.cluster.front())
                                 {
-                                    case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
-                                    case 0x04: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
-                                    case 0x1A: enter(ansi::err("Ctrl+Z\r\n")); alarm.bell(); break;
+                                    case 0x03: do_it(guard, actions::ctrl_c); break;
+                                    case 0x04: do_it(guard, actions::ctrl_d); break;
+                                    case 0x1A: do_it(guard, actions::ctrl_z); break;
                                     case 0x08: // Backspace
                                     case 0x7F: //
-                                        if (block.size())
-                                        {
-                                            block.pop_back();
-                                            print(true);
-                                        }
+                                        do_it(guard, actions::backspace);
                                         break;
                                     case '\n':
                                     case '\r': // Enter
-                                        {
-                                            auto line = block + '\n';
-                                            block.clear();
-                                            clear();
-                                            print(faux);
-                                            guard.unlock(); // Allow to use log() inside send().
-                                            send(line);
-                                        }
+                                        do_it(guard, actions::enter);
                                         break;
                                     default:
                                         block += data.cluster;
@@ -6848,7 +7177,8 @@ namespace netxs::os
                         {
                             {
                                 auto guard = std::lock_guard{ mutex };
-                                enter(ansi::styled(faux)); // Disable style reporting.
+                                auto restore = ansi::styled(faux).kkp_off(dtvt::vtmode & ui::console::vt_KKP);
+                                enter(restore); // Disable style reporting.
                             }
                             {
                                 auto lock = logger::globals(); // Sync with logger.
@@ -6865,7 +7195,8 @@ namespace netxs::os
                     };
                     {
                         auto lock = logger::globals(); // Sync with logger.
-                        enter(ansi::styled(true)); // Enable style reporting (wrapping).
+                        auto init = ansi::styled(true).kkp_on(dtvt::vtmode & ui::console::vt_KKP); // Enable KKP and style reporting (wrapping).
+                        enter(init);
                         os::autosync = faux; // Synchronize viewport only when the vt-sequence "show caret" is received.
                         std::swap(tty::cout, write); // Activate log proxy.
                     }

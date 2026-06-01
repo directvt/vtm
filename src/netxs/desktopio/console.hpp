@@ -23,6 +23,7 @@ namespace netxs::ui
         static constexpr auto direct  = 1 << (__COUNTER__ - _counter);
         static constexpr auto vtrgb   = 1 << (__COUNTER__ - _counter);
         static constexpr auto vt_2D   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt_KKP  = 1 << (__COUNTER__ - _counter);
 
         template<class T>
         auto str(T mode)
@@ -37,6 +38,7 @@ namespace netxs::ui
                 if (mode & vtrgb  ) result += "vtrgb ";
                 if (mode & vt_2D  ) result += "vt_2D ";
                 if (mode & direct ) result += "direct ";
+                if (mode & vt_KKP ) result += "KKP ";
                 if (result.size()) result.pop_back();
             }
             else result = "unknown";
