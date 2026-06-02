@@ -6212,8 +6212,8 @@ namespace netxs::os
                 };
                 auto detect_kkp = [&](qiew sequence)
                 {
-                    // ESC [ unicode_code:shifted_key:base_key ; ctlstat:evtype ; codepoints suffix
-                    log("KKP: ", ansi::hi(utf::debase<faux, faux>(sequence)));
+                    // ESC [ unicode_code:shifted_code:base_key ; ctlstat:evtype ; codepoints suffix
+                    if constexpr (debugmode) log("KKP: ", ansi::hi(utf::debase<faux, faux>(sequence)));
                     using namespace input;
                     sequence.remove_prefix(2); // Pop ESC [
 
@@ -6221,8 +6221,8 @@ namespace netxs::os
                     ansi::read_CSI(sequence, q, noop{});
 
                     auto suffix       = q(ansi::ccc_nop);
-                    auto unicode_code = q(1);
-                    auto shifted_key  = q.subarg(unicode_code);
+                    auto unicode_code = q(1); // Unshifted code.
+                    auto shifted_code = q.subarg(unicode_code);
                     auto base_key     = q.subarg(unicode_code);
                     auto ctlstat      = q(1);
                     auto evtype       = q.subarg(1);
@@ -6263,12 +6263,22 @@ namespace netxs::os
                     else
                     {
                         k.keycode = input::key::undef;
-                        k.virtcod = base_key;    //unicode_code;//base_key ? base_key
-                                                 //: shifted_key ? shifted_key
-                                                 //:  != 1 ? unicode_code : 0;
+                        k.virtcod = base_key;
                         k.scancod = {};
                     }
-                    log(" suffix='%%' unicode_code=%% shifted_key=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unicode_code, shifted_key, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
+                    if (k.cluster.empty() && suffix == 'u') // Form cluster.
+                    {
+                        auto c = utf::to_upper((char)base_key);
+                        if (k.ctlstat & hids::anyCtrl && base_key < 128 && c >= 0x40 && c <= 0x5F) // Map @ABC...XYZ[\]^_  to  C0
+                        {
+                            k.cluster = text(1, c & 0b00011111);
+                        }
+                        else if (k.cluster.empty() && unicode_code > 0 && unicode_code < 57358) // Exclude any function keys.
+                        {
+                            utf::to_utf_from_code(k.ctlstat & hids::CapsLock ? unicode_code : shifted_code, k.cluster);
+                        }
+                    }
+                    if constexpr (debugmode) log(" suffix='%%' unicode_code=%% shifted_code=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unicode_code, shifted_code, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
                     k.handled = {};
                     chords.build(k);
                     keybd(k);
