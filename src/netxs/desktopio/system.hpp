@@ -5901,177 +5901,22 @@ namespace netxs::os
                 static auto kkp2key = []
                 {
                     using namespace input;
-                    auto m = std::unordered_map<si32, si32>
+                    auto extra_defs = std::to_array<std::pair<si32, si32>>(
                     {
                      // base key   CSI-suffix   input::key
-                        { 57442  | ('u' << 16), key::LeftCtrl         },
-                        { 57448  | ('u' << 16), key::RightCtrl        },
-                        { 57443  | ('u' << 16), key::LeftAlt          },
                         { 57446  | ('u' << 16), key::LeftAlt          }, // LEFT_META
-                        { 57449  | ('u' << 16), key::RightAlt         },
                         { 57452  | ('u' << 16), key::RightAlt         }, // RIGHT_META
-                        { 57441  | ('u' << 16), key::LeftShift        },
-                        { 57447  | ('u' << 16), key::RightShift       },
-                        { 57444  | ('u' << 16), key::LeftWin          }, // LEFT_SUPER
-                        { 57450  | ('u' << 16), key::RightWin         }, // RIGHT_SUPER
-                        { 57445  | ('u' << 16), key::LeftHyper        }, // LEFT_HYPER
-                        { 57451  | ('u' << 16), key::RightHyper       }, // RIGHT_HYPER
-                        { 57363  | ('u' << 16), key::Apps             }, // MENU
-                        { 57360  | ('u' << 16), key::NumLock          },
-                        { 57358  | ('u' << 16), key::CapsLock         },
-                        { 57453  | ('u' << 16), key::IsoLevel3Shift   }, // ISO_LEVEL3_SHIFT
-                        { 57359  | ('u' << 16), key::ScrollLock       },
-                        { 57454  | ('u' << 16), key::IsoLevel5Shift   }, // ISO_LEVEL5_SHIFT
-                        { 27     | ('u' << 16), key::Esc              },
-                        { 32     | ('u' << 16), key::Space            },
-                        { 127    | ('u' << 16), key::Backspace        },
-                        { 9      | ('u' << 16), key::Tab              },
-                        { 57362  | ('u' << 16), key::Pause            },
-                        { 57361  | ('u' << 16), key::PrintScreen      },
-                        { 13     | ('u' << 16), key::KeyEnter         },
-                        { 57414  | ('u' << 16), key::NumpadEnter      }, // KP_ENTER
-                        { 5      | ('~' << 16), key::KeyPageUp        },
-                        { 57421  | ('u' << 16), key::NumpadPageUp     }, // KP_PAGE_UP
-                        { 6      | ('~' << 16), key::KeyPageDown      },
-                        { 57422  | ('u' << 16), key::NumpadPageDown   }, // KP_PAGE_DOWN
-                        { 1      | ('F' << 16), key::KeyEnd           },
-                        { 8      | ('~' << 16), key::KeyEnd           },
-                        { 57424  | ('u' << 16), key::NumpadEnd        }, // KP_END
                         { 1      | ('H' << 16), key::KeyHome          },
-                        { 7      | ('~' << 16), key::KeyHome          },
-                        { 57423  | ('u' << 16), key::NumpadHome       }, // KP_HOME
-                        { 1      | ('D' << 16), key::KeyLeftArrow     },
-                        { 57417  | ('u' << 16), key::NumpadLeftArrow  }, // KP_LEFT
-                        { 1      | ('C' << 16), key::KeyRightArrow    },
-                        { 57418  | ('u' << 16), key::NumpadRightArrow }, // KP_RIGHT
-                        { 1      | ('A' << 16), key::KeyUpArrow       },
-                        { 57419  | ('u' << 16), key::NumpadUpArrow    }, // KP_UP
-                        { 1      | ('B' << 16), key::KeyDownArrow     },
-                        { 57420  | ('u' << 16), key::NumpadDownArrow  }, // KP_DOWN
-                        { 48     | ('u' << 16), key::Key0             },
-                        { 57399  | ('u' << 16), key::Numpad0          },
-                        { 49     | ('u' << 16), key::Key1             },
-                        { 57400  | ('u' << 16), key::Numpad1          },
-                        { 50     | ('u' << 16), key::Key2             },
-                        { 57401  | ('u' << 16), key::Numpad2          },
-                        { 51     | ('u' << 16), key::Key3             },
-                        { 57402  | ('u' << 16), key::Numpad3          },
-                        { 52     | ('u' << 16), key::Key4             },
-                        { 57403  | ('u' << 16), key::Numpad4          },
-                        { 53     | ('u' << 16), key::Key5             },
-                        { 57404  | ('u' << 16), key::Numpad5          },
-                        { 54     | ('u' << 16), key::Key6             },
-                        { 57405  | ('u' << 16), key::Numpad6          },
-                        { 55     | ('u' << 16), key::Key7             },
-                        { 57406  | ('u' << 16), key::Numpad7          },
-                        { 56     | ('u' << 16), key::Key8             },
-                        { 57407  | ('u' << 16), key::Numpad8          },
-                        { 57     | ('u' << 16), key::Key9             },
-                        { 57408  | ('u' << 16), key::Numpad9          },
-                        { 2      | ('~' << 16), key::KeyInsert        },
-                        { 57425  | ('u' << 16), key::NumpadInsert     }, // KP_INSERT
-                        { 3      | ('~' << 16), key::KeyDelete        },
-                        { 57426  | ('u' << 16), key::NumpadDelete     }, // KP_DELETE
-                        { 1      | ('E' << 16), key::KeyClear         }, // KP_BEGIN
-                        { 57427  | ('~' << 16), key::NumpadClear      }, // KP_BEGIN
-                        { 57411  | ('u' << 16), key::NumpadMultiply   }, // KP_MULTIPLY
-                        { 43     | ('u' << 16), key::KeyPlus          }, // KP_ADD
-                        { 57413  | ('u' << 16), key::NumpadPlus       }, // KP_ADD
-                        { 57416  | ('u' << 16), key::NumpadSeparator  }, // KP_SEPARATOR
-                        { 45     | ('u' << 16), key::KeyMinus         },
-                        { 57412  | ('u' << 16), key::NumpadMinus      }, // KP_SUBTRACT
-                        { 46     | ('u' << 16), key::KeyPeriod        },
-                        { 57409  | ('u' << 16), key::NumpadDecimal    },
-                        { 47     | ('u' << 16), key::KeySlash         }, //KP_DIVIDE
-                        { 57410  | ('u' << 16), key::NumpadSlash      }, //KP_DIVIDE
-                        { 92     | ('u' << 16), key::BackSlash        },
-                        { 61     | ('u' << 16), key::Equal            },
-                        { 57415  | ('u' << 16), key::NumpadEqual      }, // KP_EQUAL
-                        { 91     | ('u' << 16), key::OpenBracket      },
-                        { 93     | ('u' << 16), key::ClosedBracket    },
-                        { 61     | ('u' << 16), key::Equal            },
-                        { 96     | ('u' << 16), key::BackQuote        },
-                        { 39     | ('u' << 16), key::SingleQuote      },
-                        { 44     | ('u' << 16), key::Comma            },
-                        { 59     | ('u' << 16), key::Semicolon        },
+                        { 1      | ('F' << 16), key::KeyEnd           },
                         { 1      | ('P' << 16), key::F1               },
-                        { 11     | ('~' << 16), key::F1               },
                         { 1      | ('Q' << 16), key::F2               },
-                        { 12     | ('~' << 16), key::F2               },
-                        { 13     | ('~' << 16), key::F3               },
                         { 1      | ('S' << 16), key::F4               },
-                        { 14     | ('~' << 16), key::F4               },
-                        { 15     | ('~' << 16), key::F5               },
-                        { 17     | ('~' << 16), key::F6               },
-                        { 18     | ('~' << 16), key::F7               },
-                        { 19     | ('~' << 16), key::F8               },
-                        { 20     | ('~' << 16), key::F9               },
-                        { 21     | ('~' << 16), key::F10              },
-                        { 23     | ('~' << 16), key::F11              },
-                        { 24     | ('~' << 16), key::F12              },
-                        { 57376  | ('u' << 16), key::F13              },
-                        { 57377  | ('u' << 16), key::F14              },
-                        { 57378  | ('u' << 16), key::F15              },
-                        { 57379  | ('u' << 16), key::F16              },
-                        { 57380  | ('u' << 16), key::F17              },
-                        { 57381  | ('u' << 16), key::F18              },
-                        { 57382  | ('u' << 16), key::F19              },
-                        { 57383  | ('u' << 16), key::F20              },
-                        { 57384  | ('u' << 16), key::F21              },
-                        { 57385  | ('u' << 16), key::F22              },
-                        { 57386  | ('u' << 16), key::F23              },
-                        { 57387  | ('u' << 16), key::F24              },
-                        { 57388  | ('u' << 16), key::F25              },
-                        { 57389  | ('u' << 16), key::F26              },
-                        { 57390  | ('u' << 16), key::F27              },
-                        { 57391  | ('u' << 16), key::F28              },
-                        { 57392  | ('u' << 16), key::F29              },
-                        { 57393  | ('u' << 16), key::F30              },
-                        { 57394  | ('u' << 16), key::F31              },
-                        { 57395  | ('u' << 16), key::F32              },
-                        { 57396  | ('u' << 16), key::F33              },
-                        { 57397  | ('u' << 16), key::F34              },
-                        { 57398  | ('u' << 16), key::F35              },
-                        { 97     | ('u' << 16), key::KeyA             },
-                        { 98     | ('u' << 16), key::KeyB             },
-                        { 99     | ('u' << 16), key::KeyC             },
-                        { 100    | ('u' << 16), key::KeyD             },
-                        { 101    | ('u' << 16), key::KeyE             },
-                        { 102    | ('u' << 16), key::KeyF             },
-                        { 103    | ('u' << 16), key::KeyG             },
-                        { 104    | ('u' << 16), key::KeyH             },
-                        { 105    | ('u' << 16), key::KeyI             },
-                        { 106    | ('u' << 16), key::KeyJ             },
-                        { 107    | ('u' << 16), key::KeyK             },
-                        { 108    | ('u' << 16), key::KeyL             },
-                        { 109    | ('u' << 16), key::KeyM             },
-                        { 110    | ('u' << 16), key::KeyN             },
-                        { 111    | ('u' << 16), key::KeyO             },
-                        { 112    | ('u' << 16), key::KeyP             },
-                        { 113    | ('u' << 16), key::KeyQ             },
-                        { 114    | ('u' << 16), key::KeyR             },
-                        { 115    | ('u' << 16), key::KeyS             },
-                        { 116    | ('u' << 16), key::KeyT             },
-                        { 117    | ('u' << 16), key::KeyU             },
-                        { 118    | ('u' << 16), key::KeyV             },
-                        { 119    | ('u' << 16), key::KeyW             },
-                        { 120    | ('u' << 16), key::KeyX             },
-                        { 121    | ('u' << 16), key::KeyY             },
-                        { 122    | ('u' << 16), key::KeyZ             },
-                        { 57428  | ('u' << 16), key::MediaPlay        }, // MEDIA_PLAY
-                        { 57429  | ('u' << 16), key::MediaPause       }, // MEDIA_PAUSE
-                        { 57430  | ('u' << 16), key::MediaPlayPause   }, // MEDIA_PLAY_PAUSE
-                        { 57431  | ('u' << 16), key::MediaReverse     }, // MEDIA_REVERSE // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
-                        { 57432  | ('u' << 16), key::MediaStop        }, // MEDIA_STOP
-                        { 57433  | ('u' << 16), key::MediaFastForward }, // MEDIA_FAST_FORWARD // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
-                        { 57434  | ('u' << 16), key::MediaRewind      }, // MEDIA_REWIND // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
-                        { 57435  | ('u' << 16), key::MediaNext        }, // MEDIA_TRACK_NEXT
-                        { 57436  | ('u' << 16), key::MediaPrev        }, // MEDIA_TRACK_PREVIOUS
-                        { 57437  | ('u' << 16), key::MediaRecord      }, // MEDIA_RECORD // case WM_APPCOMMAND: извлекая макросом GET_APPCOMMAND_LPARAM(lParam)
-                        { 57438  | ('u' << 16), key::MediaVolDown     }, // LOWER_VOLUME
-                        { 57439  | ('u' << 16), key::MediaVolUp       }, // RAISE_VOLUME
-                        { 57440  | ('u' << 16), key::MediaVolMute     }, // MUTE_VOLUME
-                    };
+                    });
+                    auto m = input::key::kkpmap;
+                    for (auto [KKPDef, keycode] : extra_defs)
+                    {
+                        m[KKPDef] = keycode;
+                    }
                     return m;
                 }();
 
@@ -6226,12 +6071,13 @@ namespace netxs::os
                     auto base_key     = q.subarg(unicode_code);
                     auto ctlstat      = q(1);
                     auto evtype       = q.subarg(1);
+                    auto codepoint    = q(0);
+
                     k.cluster = {};
-                    while (q)
+                    while (codepoint) // cpoint : cpoint : ... : cpoint
                     {
-                        auto codepoint = q(0);
-                        if (codepoint == 0) break;
                         utf::to_utf_from_code(codepoint, k.cluster);
+                        codepoint = q.subarg(0);
                     }
 
                     k.keystat = evtype == 1 ? input::key::pressed
