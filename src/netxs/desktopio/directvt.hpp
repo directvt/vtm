@@ -1044,7 +1044,9 @@ namespace netxs::directvt
                                          (text, cluster)  // syskeybd: Generated string.
                                          (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                          (text, scchord)  // sysmouse: Key scancode-based chord.
-                                         (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
+                                         (text, chchord)  // sysmouse: Key virtcode+cluster-based chord.
+                                         (text, shifted)  // syskeybd: Shifted key code (KKP).
+                                         (text, unshift)) // syskeybd: Unshifted key code (KKP).
         STRUCT_macro(sysmouse,           (id_t, gear_id)  // sysmouse: Device id.
                                          (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                          (time, timecod)  // sysmouse: Event time code.

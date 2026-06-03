@@ -3558,6 +3558,7 @@ namespace netxs::gui
 
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
         virtual void keybd_sync_layout() = 0;
+        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, si32 cs, text& shifted, text& unshift) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -4697,6 +4698,8 @@ namespace netxs::gui
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.cluster = cluster;
+            keybd_peek_layout(virtcod, scancod, cs, gear.shifted, gear.unshift);
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lwin     || virtcod == vkey::rwin);
@@ -5543,6 +5546,32 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
+        void keybd_peek_layout(si32 virtcod, si32 scancod, si32 cs, text& shifted, text& unshift)
+        {
+            shifted.clear();
+            unshift.clear();
+            if (virtcod >= 0x30 && virtcod <= 0xE6) // Alphanumeric + punctuation.
+            {
+                auto buf = wide(8, 0);
+                auto current_layout = ::GetKeyboardLayout(0);
+                auto flags = cs & input::key::ExtendedKey ? 1u : 0u;
+                flags |= 2; // 2 PDT_SHAREABLE (don't touch our thread state).
+                auto vk_un = std::array<byte, 256>{};
+                auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, current_layout);
+                if (rc > 0)
+                {
+                    utf::to_utf(buf.data(), rc, unshift);
+                }
+                auto vk_sh = std::array<byte, 256>{};
+                vk_sh[vkey::shift ] = 0x80;
+                vk_sh[vkey::lshift] = 0x80;
+                rc = ::ToUnicodeEx(virtcod, scancod, vk_sh.data(), buf.data(), 8, flags, current_layout);
+                if (rc > 0)
+                {
+                    utf::to_utf(buf.data(), rc, shifted);
+                }
+            }
+        }
         void layer_present(layer& s)
         {
             if (!s.hdc) return;
@@ -6058,6 +6087,7 @@ namespace netxs::gui
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, si32 /*cs*/, text& /*shifted*/, text& /*unshift*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}

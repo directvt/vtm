@@ -6112,14 +6112,28 @@ namespace netxs::os
                         k.virtcod = base_key;
                         k.scancod = {};
                     }
+                    if (suffix == 'u')
+                    {
+                        k.shifted = utf::to_utf_from_code(shifted_code);
+                        k.unshift = utf::to_utf_from_code(unicode_code);
+                    }
+                    else
+                    {
+                        k.shifted.clear();
+                        k.unshift.clear();
+                    }
                     if (k.cluster.empty() && suffix == 'u') // Form cluster.
                     {
-                        auto c = utf::to_upper((char)base_key);
-                        if (k.ctlstat & hids::anyCtrl && base_key < 128 && c >= 0x40 && c <= 0x5F) // Map @ABC...XYZ[\]^_  to  C0
+                        auto& rec = input::key::map::data(k.keycode);
+                        if (k.ctlstat & hids::anyCtrl && rec.KKPCtl != -1)
                         {
-                            k.cluster = text(1, c & 0b00011111);
+                            k.cluster = text(1, (char)rec.KKPCtl);
                         }
-                        else if (k.cluster.empty() && unicode_code > 0 && unicode_code < 57358) // Exclude any function keys.
+                        else if (k.ctlstat & hids::anyCtrl && unicode_code > 0 && unicode_code < 128)
+                        {
+                            k.cluster = text(1, (char)(unicode_code & 31));
+                        }
+                        else if (unicode_code > 0 && unicode_code < 57358) // Exclude any function keys.
                         {
                             utf::to_utf_from_code(k.ctlstat & hids::CapsLock ? unicode_code : shifted_code, k.cluster);
                         }
