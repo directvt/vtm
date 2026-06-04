@@ -6055,6 +6055,7 @@ namespace netxs::os
                         std::swap(k.scancod, scancod);
                     }
                 };
+                auto current_layout = input::key::layout::undef;
                 auto detect_kkp = [&](qiew sequence)
                 {
                     // ESC [ unshift_code:shifted_code:base_key ; ctlstat:evtype ; codepoints suffix
@@ -6073,12 +6074,32 @@ namespace netxs::os
                     auto evtype       = q.subarg(1);
                     auto codepoint    = q(0);
 
-                    if (unshift_code >= 'a' && unshift_code <= 'z') // Fix for custom kb layouts (QWERTZ, AZERTY, Dvorak, etc).
+                    // Fix for custom kb layouts (QWERTZ, AZERTY, Dvorak, BEPO).
+                    auto detected = input::key::detect_layout(unshift_code, base_key);
+                    if (detected != input::key::layout::undef)
                     {
-                        if (unshift_code != base_key)
-                        {
-                            base_key = unshift_code;
-                        }
+                        current_layout = detected;
+                    }
+                    switch (current_layout)
+                    {
+                        case input::key::layout::undef:
+                        case input::key::layout::qwerty:
+                            break;
+                        case input::key::layout::qwertz:
+                                 if (base_key == 'y') base_key = 'z';
+                            else if (base_key == 'z') base_key = 'y';
+                            break;
+                        case input::key::layout::azerty:
+                                 if (base_key == 'q') base_key = 'a';
+                            else if (base_key == 'a') base_key = 'q';
+                            else if (base_key == 'z') base_key = 'w';
+                            break;
+                        case input::key::layout::dvorak:
+                            input::key::remap_dvorak(base_key);
+                            break;
+                        case input::key::layout::bepo:
+                            input::key::remap_bepo(base_key);
+                            break;
                     }
 
                     k.cluster = {};

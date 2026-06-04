@@ -80,7 +80,6 @@ namespace netxs::input
 
         //todo check non-us kb layouts with key::Slash
         // Notes:
-        //  IsoLevel3Shift: It is effectively AltGR.
         //  IsoLevel5Shift: 5th-level of kb layout (mathematical signs, Greek letters). Physical keyboards don't have this key; in Linux, it's usually remapped to Caps Lock or the right Ctrl key.
         //  Hyper:          Users specifically create Hyper (for example, by remapping Caps Lock) to bind hotkeys, which are guaranteed to not interact with anything.
         #define key_list \
@@ -101,7 +100,7 @@ namespace netxs::input
             X(14,  0x90, 0x90, 0x45,           0, 0x0000'00'FF, 0, NumLock         , "NumLock"         , 57360, 'u', -1    , -1    )\
             X(16,  0x14, 0x14, 0x3A,           0, 0x0100'00'FF, 0, CapsLock        , "CapsLock"        , 57358, 'u', -1    , -1    )\
             X(18,  0x91, 0x91, 0x45,           0, 0x0100'00'FF, 0, ScrollLock      , "ScrollLock"      , 57359, 'u', -1    , -1    )\
-            X(20,  0x14, 0x14, 0x3A, ExtendedKey, 0x0100'00'FF, 0, IsoLevel3Shift  , "IsoLevel3Shift"  , 57453, 'u', -1    , -1    )\
+            X(20,  0x14, 0x14, 0x3A, ExtendedKey, 0x0100'00'FF, 0, AltGR           , "AltGr"           , 57453, 'u', -1    , -1    )/*IsoLevel3Shift*/\
             X(22,  0x91, 0x91, 0x45, ExtendedKey, 0x0100'00'FF, 0, IsoLevel5Shift  , "IsoLevel5Shift"  , 57454, 'u', -1    , -1    )\
             X(24,  0x1B, 0x1B, 0x01,           0, 0x0000'00'FF, 1, Esc             , "Esc"             , 27   , 'u', '\x1b', '\x1b')\
             X(26,  0x20, 0x20, 0x39,           0, 0x0000'00'FF, 1, Space           , "Space"           , 32   , 'u', '\x20', '\0'  )\
@@ -2046,12 +2045,17 @@ namespace netxs::input
                             //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
                             return is_released;
                         });
+                        auto valid_codepoint = [](view utf8)
+                        {
+                            auto codepoint = utf::to_code(utf8);
+                            return codepoint > 0 && (codepoint < 57358 || codepoint > 57454);
+                        };
                         auto sign = !!k.keystat;
                         auto shift_state = k.ctlstat & hids::anyShift;
                         auto altgr_state = k.ctlstat & hids::AltGr;
                         auto has_cluster = k.cluster.size() && k.cluster.front();
-                        auto has_unshift = k.unshift.size() && k.unshift.front() && !altgr_state && !shift_state;
-                        auto has_shifted = k.shifted.size() && k.shifted.front() && !altgr_state && shift_state;
+                        auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !altgr_state && !shift_state;
+                        auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && !altgr_state && shift_state;
                         if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
                         {
                             k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
@@ -2314,6 +2318,169 @@ namespace netxs::input
                 return crop;
             }
         };
+        struct layout
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto undef  = __COUNTER__ - _counter;
+            static constexpr auto qwerty = __COUNTER__ - _counter;
+            static constexpr auto qwertz = __COUNTER__ - _counter;
+            static constexpr auto azerty = __COUNTER__ - _counter;
+            static constexpr auto dvorak = __COUNTER__ - _counter;
+            static constexpr auto bepo   = __COUNTER__ - _counter;
+        };
+        //todo use lut
+        auto detect_layout(si32 unshift, si32 base)
+        {
+            // QWERTY:
+            if (unshift == base)
+            {
+                if ((unshift >= 'a' && unshift <= 'z') || unshift == ',' || unshift == '.')
+                {
+                    if (unshift != 'a' && unshift != 'm' && unshift != 'u'
+                     && unshift != 'i' && unshift != 'o' && unshift != 'p'
+                     && unshift != 'h' && unshift != 'j' && unshift != 'k' && unshift != 'l') 
+                    {
+                        return layout::qwerty;
+                    }
+                }
+            }
+            //if (unshift == 'q' && base == 'q') return layout::qwerty;
+            //if (unshift == 'w' && base == 'w') return layout::qwerty;
+            //if (unshift == 'y' && base == 'y') return layout::qwerty;
+            //if (unshift == 'z' && base == 'z') return layout::qwerty;
+            //if (unshift == ',' && base == ',') return layout::qwerty;
+            //if (unshift == '.' && base == '.') return layout::qwerty;
+            // QWERTZ:
+            if (unshift == 'z' && base == 'y') return layout::qwertz;
+            if (unshift == 'y' && base == 'z') return layout::qwertz;
+            // AZERTY:
+            if (unshift == 'a' && base == 'q') return layout::azerty;
+            if (unshift == 'q' && base == 'a') return layout::azerty;
+            if (unshift == 'w' && base == 'z') return layout::azerty;
+            if (unshift == 'z' && base == 'w') return layout::azerty;
+            if (unshift == 'm' && base == ';') return layout::azerty;
+            // DVORAK:
+            if (unshift == ',' && base == 'w') return layout::dvorak;
+            if (unshift == '.' && base == 'e') return layout::dvorak;
+            if (unshift == 'p' && base == 'r') return layout::dvorak;
+            if (unshift == 'o' && base == 's') return layout::dvorak;
+            if (unshift == 'e' && base == 'd') return layout::dvorak;
+            if (unshift == 'u' && base == 'f') return layout::dvorak;
+            if (unshift == 'i' && base == 'g') return layout::dvorak;
+            if (unshift == 'd' && base == 'h') return layout::dvorak;
+            // BEPO:
+            if (unshift == 'w' && base == ']') return layout::bepo;
+            if (unshift == 'v' && base == 'k') return layout::bepo;
+            if (unshift == 'p' && base == 'l') return layout::bepo;
+            if (unshift == 'o' && base == 'r') return layout::bepo;
+            if (unshift == 'u' && base == 'i') return layout::bepo;
+            if (unshift == 'b' && base == 'q') return layout::bepo;
+            if (unshift == 'i' && base == 'd') return layout::bepo;
+            return layout::undef;
+        }
+        void remap_bepo(si32& base)
+        {
+            switch (base)
+            {
+                // Digit row (punctuation.)
+                case '1':  base = '"';  break;
+                case '2':  base = 171;  break; // «
+                case '3':  base = 187;  break; // »
+                case '4':  base = '(';  break;
+                case '5':  base = ')';  break;
+                case '6':  base = '@';  break;
+                case '7':  base = '+';  break;
+                case '8':  base = '-';  break;
+                case '9':  base = '/';  break;
+                case '0':  base = '*';  break;
+                case '-':  base = '=';  break;
+                case '=':  base = '%';  break;
+                // Top row
+                case 'q':  base = 'b';  break;
+                case 'w':  base = 233;  break; // é
+                case 'e':  base = 'p';  break;
+                case 'r':  base = 'o';  break;
+                case 't':  base = 232;  break; // è
+                case 'y':  base = '!';  break;
+                case 'u':  base = 'v';  break;
+                case 'i':  base = 'd';  break;
+                case 'o':  base = 'l';  break;
+                case 'p':  base = 'j';  break;
+                case '[':  base = 'z';  break;
+                case ']':  base = 'w';  break;
+                // Home Row
+                //case 'a':  base = 'a';  break; // same
+                case 's':  base = 'u';  break;
+                case 'd':  base = 'i';  break;
+                case 'f':  base = 'e';  break;
+                case 'g':  base = ',';  break;
+                case 'h':  base = 't';  break;
+                case 'j':  base = 's';  break;
+                case 'k':  base = 'r';  break;
+                case 'l':  base = 'n';  break;
+                case ';':  base = 'm';  break;
+                case '\'': base = 231;  break; // ç (ANSI)
+                case '\\': base = 231;  break; // ç (ISO)
+                // Bottom row
+                case 'z':  base = 234;  break; // ê
+                case 'x':  base = 224;  break; // à
+                case 'c':  base = 'y';  break;
+                case 'v':  base = 'x';  break;
+                case 'b':  base = 'k';  break;
+                case 'n':  base = '\''; break;
+                case 'm':  base = 'q';  break;
+                case ',':  base = 'g';  break;
+                case '.':  base = 'h';  break;
+                case '/':  base = 'f';  break;
+                default: break;
+            }
+        }
+        void remap_dvorak(si32& base)
+        {
+            switch (base)
+            {
+                // Digits
+                case '-':  base = '[';  break;
+                case '=':  base = ']';  break;
+                // Top
+                case 'q':  base = '\''; break;
+                case 'w':  base = ',';  break;
+                case 'e':  base = '.';  break;
+                case 'r':  base = 'p';  break;
+                case 't':  base = 'y';  break;
+                case 'y':  base = 'f';  break;
+                case 'u':  base = 'g';  break;
+                case 'i':  base = 'c';  break;
+                case 'o':  base = 'r';  break;
+                case 'p':  base = 'l';  break;
+                case '[':  base = '/';  break;
+                case ']':  base = '=';  break;
+                // Home Row
+                //case 'a':  base = 'a';  break; // same
+                case 's':  base = 'o';  break;
+                case 'd':  base = 'e';  break;
+                case 'f':  base = 'u';  break;
+                case 'g':  base = 'i';  break;
+                case 'h':  base = 'd';  break;
+                case 'j':  base = 'h';  break;
+                case 'k':  base = 't';  break;
+                case 'l':  base = 'n';  break;
+                case ';':  base = 's';  break;
+                case '\'': base = '-';  break;
+                // Bottom row
+                case 'z':  base = ';';  break;
+                case 'x':  base = 'q';  break;
+                case 'c':  base = 'j';  break;
+                case 'v':  base = 'k';  break;
+                case 'b':  base = 'x';  break;
+                case 'n':  base = 'b';  break;
+                //case 'm':  base = 'm';  break; // same
+                case ',':  base = 'w';  break;
+                case '.':  base = 'v';  break;
+                case '/':  base = 'z';  break;
+                default: break;
+            }
+        }
     }
 
     namespace bindings
