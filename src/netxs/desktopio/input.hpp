@@ -477,6 +477,8 @@ namespace netxs::input
                 k.vkchord.clear();
                 k.scchord.clear();
                 k.chchord.clear();
+                k.shifted.clear();
+                k.unshift.clear();
                 pushed.clear();
                 keyout = {};
             }
@@ -553,10 +555,16 @@ namespace netxs::input
                             return is_released;
                         });
                         auto sign = !!k.keystat;
-                        if (k.cluster.size() && k.cluster.front() != '\0')
+                        auto shift_state = k.ctlstat & hids::anyShift;
+                        auto has_cluster = k.cluster.size() && k.cluster.front();
+                        auto has_unshift = k.unshift.size() && k.unshift.front() && !shift_state;
+                        auto has_shifted = k.shifted.size() && k.shifted.front() && shift_state;
+                        if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
                         {
                             k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
-                            push_cluster(sign, k.chchord, k.cluster);
+                                 if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
+                            else if (has_shifted) push_cluster(sign, k.chchord, k.shifted);
+                            else                  push_cluster(sign, k.chchord, k.cluster);
                         }
                         push_keyid(sign, k.vkchord, k.keycode);
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
