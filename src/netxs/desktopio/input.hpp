@@ -445,383 +445,6 @@ namespace netxs::input
         #undef mouse_list
         #undef key_list
 
-        // The bind record is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
-        //  15 bit: 0 - virt code, 1 - scan code                     (0x80'00).
-        //  14 bit: 0 - pressed, 1 - released                        (0x40'00).
-        //  13 bit: 1 - all subsequent bytes form a grapheme cluster (0x20'00).
-        //  12 bit: 1 - mouse code                                   (0x10'00).
-        //  0-11 bits: virt (aka KeyId, keycode), scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
-        //  Generic events: (12-15 bits on)  (0xFn ' 00 00 00 00) -- (0xF0 & 4-bit tier ' 32-bit generic event_id).
-        auto is_generic( byte sign) { return  (sign & input::key::generic_sign) == input::key::generic_sign; }
-        auto is_scancode(byte sign) { return   sign & input::key::scancode_sign; }
-        auto is_pressed( byte sign) { return !(sign & input::key::unpressed_sign); }
-        auto is_cluster( byte sign) { return   sign & input::key::cluster_sign; }
-        auto is_mouse(   byte sign) { return  (sign & input::key::generic_sign) == input::key::mouse_sign; }
-
-        struct kmap
-        {
-            struct chord_item_t
-            {
-                si32 index;
-                si32 scode;
-                time stamp;
-            };
-
-            using cmap = std::map<si32, chord_item_t>; // std::unordered_map doesn't sort items.
-
-            cmap pushed{}; // kmap: Pushed key map.
-            bool keyout{}; // kmap: Some key has left the key chord.
-
-            void reset(auto& k)
-            {
-                k.vkchord.clear();
-                k.scchord.clear();
-                k.chchord.clear();
-                k.shifted.clear();
-                k.unshift.clear();
-                pushed.clear();
-                keyout = {};
-            }
-            auto exist(si32 keyid)
-            {
-                auto iter = pushed.find(keyid);
-                return iter != pushed.end();
-            }
-            static void push_generic(si32 sign, si32 event_id, text& g_chord)
-            {
-                g_chord += (byte)sign;
-                g_chord += view{ (char*)&event_id, sizeof(event_id) };
-            }
-            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
-            {
-                keyid &= 0x0FFF; // 12 bit max.
-                auto hi_12bit_keyid = (byte)(keyid >> 8);
-                auto lo_12bit_keyid = (byte)(keyid & 0xFF);
-                vkchord.push_back(hi_12bit_keyid | (byte)(ispressed ? 0x00 : input::key::unpressed_sign));
-                vkchord.push_back(lo_12bit_keyid);
-            }
-            static void push_scode(bool ispressed, text& scchord, si32 scode)
-            {
-                scode &= 0x0FFF; // 12 bit max.
-                auto hi_12bit_scode = (byte)((scode >> 8) & 0x01);
-                auto lo_12bit_scode = (byte)(scode & 0xFF);
-                scchord.push_back(hi_12bit_scode | (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign));
-                scchord.push_back(lo_12bit_scode);
-            }
-            static void push_cluster(bool ispressed, text& chchord, view cluster)
-            {
-                chchord += (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::cluster_sign);
-                chchord += '\xFF';
-                chchord += cluster;
-            }
-            static void push_mouse(si32 sign, si32 action_id, si32 button_id, text& m_chord)
-            {
-                m_chord += (byte)sign;
-                m_chord += (byte)action_id;
-                m_chord += (byte)button_id;
-            }
-            template<class P = noop>
-            void build(auto& k, P test_key_released = {})
-            {
-                if (k.keystat != input::key::repeated)
-                {
-                    //log("key=%% pressed=%%", input::key::map::data(k.keycode).name, k.keystat);
-                    if (k.keystat == input::key::released)
-                    {
-                        pushed.erase(k.keycode);
-                    }
-                    k.vkchord.clear();
-                    k.scchord.clear();
-                    k.chchord.clear();
-                    auto vk_valid = k.keycode > input::key::config;
-                    auto sc_valid = k.scancod > 0;
-                    if (!keyout || k.keystat != input::key::released)
-                    {
-                        keyout = k.keystat == input::key::released;
-                        //log(" erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
-                        std::erase_if(pushed, [&](auto& rec)
-                        {
-                            auto& [keyid, val] = rec;
-                            //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
-                            auto is_released = test_key_released(val.index); // Check if it is still pressed.
-                            if (!is_released && keyid != k.keycode/*exclude repeated key*/)
-                            {
-                                if (keyid <= input::key::config) vk_valid = faux;
-                                if (val.scode == 0) sc_valid = faux;
-                                push_keyid(true, k.vkchord, keyid);
-                                push_scode(true, k.scchord, val.scode);
-                            }
-                            //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
-                            return is_released;
-                        });
-                        auto sign = !!k.keystat;
-                        auto shift_state = k.ctlstat & hids::anyShift;
-                        auto has_cluster = k.cluster.size() && k.cluster.front();
-                        auto has_unshift = k.unshift.size() && k.unshift.front() && !shift_state;
-                        auto has_shifted = k.shifted.size() && k.shifted.front() && shift_state;
-                        if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
-                        {
-                            k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
-                                 if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
-                            else if (has_shifted) push_cluster(sign, k.chchord, k.shifted);
-                            else                  push_cluster(sign, k.chchord, k.cluster);
-                        }
-                        push_keyid(sign, k.vkchord, k.keycode);
-                        push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
-                        if (!vk_valid) k.vkchord.clear();
-                        if (!sc_valid) k.scchord.clear();
-                    }
-                    if (k.keystat == input::key::pressed)
-                    {
-                        auto& key = pushed[k.keycode];
-                        key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
-                        key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
-                        key.stamp = datetime::now();
-                    }
-                }
-            }
-            static auto to_string(qiew chord, bool generic)
-            {
-                auto crop = text{};
-                while (chord.size() > 1)
-                {
-                    auto s = (si32)(byte)chord.pop_front();
-                    auto v = (si32)(byte)chord.pop_front();
-                    if (crop.size() || s & input::key::unpressed_sign) crop += s & input::key::unpressed_sign ? '-' : '+';
-                    if (s & input::key::scancode_sign) // Scancodes.
-                    {
-                        auto scancode = v | (s & 0x01 ? 0x100 : 0);
-                        auto length = scancode & 0xF00 ? 3 : 2;
-                        crop += "0x" + utf::to_hex<true>(scancode, length);
-                    }
-                    else if (s & input::key::cluster_sign) // Cluster.
-                    {
-                        auto plain = utf::debase<faux, faux>(chord);
-                        utf::replace_all(plain, "'", "\\'");
-                        crop += '\'' + plain + '\'';
-                        chord.clear();
-                    }
-                    else // 12-bit Keyid
-                    {
-                        auto keyid = v | ((s & 0x0F) << 8);
-                        crop += generic ? input::key::map::data(keyid).generic : input::key::map::data(keyid).name;
-                    }
-                }
-                return crop;
-            }
-            static constexpr auto any_key = qiew{ "\0"sv };
-            static auto chord_list(qiew chord)
-            {
-                struct key_t
-                {
-                    byte sign;
-                    si32 code1; // Left (or specific) key code.
-                    si32 code2; // Right (if chord is generic) key code
-                    text utf8;
-                };
-                auto keys = std::vector<key_t>{};
-                auto crop = std::vector<text>{};
-                //todo reimplement chord_list
-                if (auto anytest = utf::to_lower(chord);
-                   (anytest.starts_with("any") && !anytest.starts_with(tier::str[tier::anycast])) ||
-                   (anytest.starts_with(tier::str[tier::preview])
-                       && utf::get_trimmed((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
-                {
-                    crop.push_back(any_key);
-                    return crop;
-                }
-                auto take = [](qiew& chord)
-                {
-                    auto k = key_t{};
-                    utf::trim(chord, netxs::whitespaces);
-                    if (chord.empty()) return k;
-                    if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
-                    {
-                        auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview
-                                        : chord.starts_with(tier::str[tier::release]) ? tier::release
-                                        : chord.starts_with(tier::str[tier::general]) ? tier::general
-                                        : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
-                                        : chord.starts_with(tier::str[tier::request]) ? tier::request
-                                                                                      : tier::unknown;
-                        if (event_tier != tier::unknown)
-                        {
-                            auto event_str = chord;
-                            event_str.remove_prefix(tier::str[event_tier].size());
-                            utf::trim(event_str, netxs::whitespaces_and<':'>);
-                            auto& rtti = netxs::events::rtti();
-                            auto iter = rtti.find(event_str);
-                            if (iter != rtti.end())
-                            {
-                                auto metadata = iter->second;
-                                k.sign = (byte)(input::key::generic_sign | event_tier);
-                                k.code1 = metadata.event_id;
-                                if constexpr (debugmode) log("generic event: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
-                            }
-                            else
-                            {
-                                log("generic event: unknown event '%%'", chord);
-                            }
-                        }
-                        chord = {};
-                        return k;
-                    }
-                    if (chord.starts_with(tier::str[tier::preview])) // Drop the "preview:" prefix (it is not used here).
-                    {
-                        chord.remove_prefix(tier::str[tier::preview].size());
-                        utf::trim_front(chord, netxs::whitespaces_and<':'>);
-                    }
-                    auto c = chord.front();
-                    if (c != '-') // Is pressed.
-                    {
-                        if (c == '+')
-                        {
-                            chord.pop_front(); // Pop '+'.
-                            utf::trim(chord, netxs::whitespaces);
-                            if (chord.empty()) return k;
-                            c = chord.front();
-                        }
-                    }
-                    else if (chord.size() > 1)
-                    {
-                        k.sign |= input::key::unpressed_sign;
-                        chord.pop_front(); // Pop '-'.
-                        utf::trim(chord, netxs::whitespaces);
-                        if (chord.empty()) return k;
-                        c = chord.front();
-                    }
-                    utf::trim(chord, netxs::whitespaces);
-                    if (chord.empty()) return k;
-                    if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
-                    {
-                        chord.remove_prefix(2);
-                        if (auto v = utf::to_int<si32, 16>(chord))
-                        {
-                            k.sign |= input::key::scancode_sign;
-                            k.code1 = v.value();
-                        }
-                    }
-                    else if (chord.size() > 2 && chord.front() == chord.back() && (chord.front() == '\'' || chord.front() == '\"')) // The literal key must be the last key in a sequence.
-                    {
-                        k.sign |= input::key::cluster_sign;
-                        k.utf8 = utf::unescape(chord.substr(1, chord.size() - 2));
-                        k.code1 = 0xFF;
-                        chord.clear();
-                    }
-                    else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
-                    {
-                        auto name = utf::to_lower(key_name);
-                        auto name_shadow = qiew{ name };
-                        auto digits = utf::pop_back_chars(name_shadow, netxs::onlydigits);
-                        if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
-                        {
-                            auto [action_index, button_index] = iter_m->second;
-                            if (digits.size())
-                            {
-                                auto d = digits.front();
-                                if (d == '0' || d == '1') // MouseClick001  binary format.
-                                {
-                                    auto str = text{ digits };
-                                    std::reverse(str.begin(), str.end());
-                                    if (auto v = utf::to_int<si32, 2>(str))
-                                    {
-                                        button_index = v.value();
-                                    }
-                                }
-                                else // MouseClick3  decimal format. B1 to B8 mouse buttons.
-                                {
-                                    button_index = 1 << std::min(7, d - '0' - 1);
-                                }
-                            }
-                            k.sign = (byte)(input::key::mouse_sign);
-                            k.code1 = action_index;
-                            k.code2 = button_index;
-                            //log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
-                        }
-                        else if (auto iter = input::key::generic_names.find(name); iter == input::key::generic_names.end()) // Is specific.
-                        {
-                            auto iter2 = input::key::specific_names.find(name);
-                            if (iter2 != input::key::specific_names.end())
-                            {
-                                k.code1 = iter2->second;
-                            }
-                        }
-                        else // Is generic.
-                        {
-                            auto code = iter->second & -2;
-                            auto n1 = input::key::map::data(code).name.size();
-                            auto n2 = input::key::map::data(code + 1).name.size();
-                            k.code1 = n1 ? code : 0;
-                            k.code2 = n2 ? code + 1 : 0;
-                        }
-                    }
-                    utf::trim(chord, netxs::whitespaces);
-                    return k;
-                };
-                // Split.
-                while (chord)
-                {
-                    auto k = take(chord); // Unfold.
-                    if (!input::key::is_mouse(k.sign) && !k.code1) return crop; // Unknown key or generic event.
-                    keys.push_back(k);
-                }
-                if (keys.empty() || keys.size() > 8)
-                {
-                    if (keys.size()) log("%%A maximum of eight keys are allowed per chord", prompt::hids);
-                    return crop;
-                }
-                if (auto& k = keys.front(); input::key::is_generic(k.sign)) // It is generic event.
-                {
-                    auto& g_chord = crop.emplace_back();
-                    push_generic(k.sign, k.code1, g_chord);
-                    return crop;
-                }
-                if (auto& k = keys.front(); input::key::is_mouse(k.sign)) // It is mouse event.
-                {
-                    auto& m_chord = crop.emplace_back();
-                    push_mouse(k.sign, k.code1, k.code2, m_chord);
-                    return crop;
-                }
-                // Sort all but last.
-                std::sort(keys.begin(), std::prev(keys.end()), [](auto& l, auto& r){ return l.code1 < r.code1; });
-                // Generate.
-                auto count = 1 << keys.size();
-                auto temp = text{};
-                while (count--)
-                {
-                    auto bits = count;
-                    for (auto& k : keys)
-                    {
-                        if (auto code = bits & 1 ? k.code1 : k.code2)
-                        {
-                            auto sign = input::key::is_pressed(k.sign);
-                            if (input::key::is_scancode(k.sign))
-                            {
-                                push_scode(sign, temp, code);
-                            }
-                            else if (input::key::is_cluster(k.sign))
-                            {
-                                push_cluster(sign, temp, k.utf8);
-                                break;
-                            }
-                            else
-                            {
-                                push_keyid(sign, temp, code);
-                            }
-                        }
-                        else
-                        {
-                            temp.clear();
-                            break;
-                        }
-                        bits >>= 1;
-                    }
-                    if (temp.size()) crop.push_back(temp);
-                    temp.clear();
-                }
-                return crop;
-            }
-        };
-
         template<class ...Args>
         auto xlat(Args&&... args)
         {
@@ -2311,6 +1934,387 @@ namespace netxs::input
             return text{};
         }
     };
+
+    namespace key
+    {
+        // The bind record is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
+        //  15 bit: 0 - virt code, 1 - scan code                     (0x80'00).
+        //  14 bit: 0 - pressed, 1 - released                        (0x40'00).
+        //  13 bit: 1 - all subsequent bytes form a grapheme cluster (0x20'00).
+        //  12 bit: 1 - mouse code                                   (0x10'00).
+        //  0-11 bits: virt (aka KeyId, keycode), scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
+        //  Generic events: (12-15 bits on)  (0xFn ' 00 00 00 00) -- (0xF0 & 4-bit tier ' 32-bit generic event_id).
+        auto is_generic( byte sign) { return  (sign & input::key::generic_sign) == input::key::generic_sign; }
+        auto is_scancode(byte sign) { return   sign & input::key::scancode_sign; }
+        auto is_pressed( byte sign) { return !(sign & input::key::unpressed_sign); }
+        auto is_cluster( byte sign) { return   sign & input::key::cluster_sign; }
+        auto is_mouse(   byte sign) { return  (sign & input::key::generic_sign) == input::key::mouse_sign; }
+
+        struct kmap
+        {
+            struct chord_item_t
+            {
+                si32 index;
+                si32 scode;
+                time stamp;
+            };
+
+            using cmap = std::map<si32, chord_item_t>; // std::unordered_map doesn't sort items.
+
+            cmap pushed{}; // kmap: Pushed key map.
+            bool keyout{}; // kmap: Some key has left the key chord.
+
+            void reset(auto& k)
+            {
+                k.vkchord.clear();
+                k.scchord.clear();
+                k.chchord.clear();
+                k.shifted.clear();
+                k.unshift.clear();
+                pushed.clear();
+                keyout = {};
+            }
+            auto exist(si32 keyid)
+            {
+                auto iter = pushed.find(keyid);
+                return iter != pushed.end();
+            }
+            static void push_generic(si32 sign, si32 event_id, text& g_chord)
+            {
+                g_chord += (byte)sign;
+                g_chord += view{ (char*)&event_id, sizeof(event_id) };
+            }
+            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
+            {
+                keyid &= 0x0FFF; // 12 bit max.
+                auto hi_12bit_keyid = (byte)(keyid >> 8);
+                auto lo_12bit_keyid = (byte)(keyid & 0xFF);
+                vkchord.push_back(hi_12bit_keyid | (byte)(ispressed ? 0x00 : input::key::unpressed_sign));
+                vkchord.push_back(lo_12bit_keyid);
+            }
+            static void push_scode(bool ispressed, text& scchord, si32 scode)
+            {
+                scode &= 0x0FFF; // 12 bit max.
+                auto hi_12bit_scode = (byte)((scode >> 8) & 0x01);
+                auto lo_12bit_scode = (byte)(scode & 0xFF);
+                scchord.push_back(hi_12bit_scode | (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign));
+                scchord.push_back(lo_12bit_scode);
+            }
+            static void push_cluster(bool ispressed, text& chchord, view cluster)
+            {
+                chchord += (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::cluster_sign);
+                chchord += '\xFF';
+                chchord += cluster;
+            }
+            static void push_mouse(si32 sign, si32 action_id, si32 button_id, text& m_chord)
+            {
+                m_chord += (byte)sign;
+                m_chord += (byte)action_id;
+                m_chord += (byte)button_id;
+            }
+            template<class P = noop>
+            void build(auto& k, P test_key_released = {})
+            {
+                if (k.keystat != input::key::repeated)
+                {
+                    //log("key=%% pressed=%%", input::key::map::data(k.keycode).name, k.keystat);
+                    if (k.keystat == input::key::released)
+                    {
+                        pushed.erase(k.keycode);
+                    }
+                    k.vkchord.clear();
+                    k.scchord.clear();
+                    k.chchord.clear();
+                    auto vk_valid = k.keycode > input::key::config;
+                    auto sc_valid = k.scancod > 0;
+                    if (!keyout || k.keystat != input::key::released)
+                    {
+                        keyout = k.keystat == input::key::released;
+                        //log(" erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
+                        std::erase_if(pushed, [&](auto& rec)
+                        {
+                            auto& [keyid, val] = rec;
+                            //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
+                            auto is_released = test_key_released(val.index); // Check if it is still pressed.
+                            if (!is_released && keyid != k.keycode/*exclude repeated key*/)
+                            {
+                                if (keyid <= input::key::config) vk_valid = faux;
+                                if (val.scode == 0) sc_valid = faux;
+                                push_keyid(true, k.vkchord, keyid);
+                                push_scode(true, k.scchord, val.scode);
+                            }
+                            //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
+                            return is_released;
+                        });
+                        auto sign = !!k.keystat;
+                        auto shift_state = k.ctlstat & hids::anyShift;
+                        auto altgr_state = k.ctlstat & hids::AltGr;
+                        auto has_cluster = k.cluster.size() && k.cluster.front();
+                        auto has_unshift = k.unshift.size() && k.unshift.front() && !altgr_state && !shift_state;
+                        auto has_shifted = k.shifted.size() && k.shifted.front() && !altgr_state && shift_state;
+                        if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
+                        {
+                            k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
+                                 if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
+                            else if (has_shifted) push_cluster(sign, k.chchord, k.shifted);
+                            else                  push_cluster(sign, k.chchord, k.cluster);
+                        }
+                        push_keyid(sign, k.vkchord, k.keycode);
+                        push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
+                        if (!vk_valid) k.vkchord.clear();
+                        if (!sc_valid) k.scchord.clear();
+                    }
+                    if (k.keystat == input::key::pressed)
+                    {
+                        auto& key = pushed[k.keycode];
+                        key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
+                        key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                        key.stamp = datetime::now();
+                    }
+                }
+            }
+            static auto to_string(qiew chord, bool generic)
+            {
+                auto crop = text{};
+                while (chord.size() > 1)
+                {
+                    auto s = (si32)(byte)chord.pop_front();
+                    auto v = (si32)(byte)chord.pop_front();
+                    if (crop.size() || s & input::key::unpressed_sign) crop += s & input::key::unpressed_sign ? '-' : '+';
+                    if (s & input::key::scancode_sign) // Scancodes.
+                    {
+                        auto scancode = v | (s & 0x01 ? 0x100 : 0);
+                        auto length = scancode & 0xF00 ? 3 : 2;
+                        crop += "0x" + utf::to_hex<true>(scancode, length);
+                    }
+                    else if (s & input::key::cluster_sign) // Cluster.
+                    {
+                        auto plain = utf::debase<faux, faux>(chord);
+                        utf::replace_all(plain, "'", "\\'");
+                        crop += '\'' + plain + '\'';
+                        chord.clear();
+                    }
+                    else // 12-bit Keyid
+                    {
+                        auto keyid = v | ((s & 0x0F) << 8);
+                        crop += generic ? input::key::map::data(keyid).generic : input::key::map::data(keyid).name;
+                    }
+                }
+                return crop;
+            }
+            static constexpr auto any_key = qiew{ "\0"sv };
+            static auto chord_list(qiew chord)
+            {
+                struct key_t
+                {
+                    byte sign;
+                    si32 code1; // Left (or specific) key code.
+                    si32 code2; // Right (if chord is generic) key code
+                    text utf8;
+                };
+                auto keys = std::vector<key_t>{};
+                auto crop = std::vector<text>{};
+                //todo reimplement chord_list
+                if (auto anytest = utf::to_lower(chord);
+                   (anytest.starts_with("any") && !anytest.starts_with(tier::str[tier::anycast])) ||
+                   (anytest.starts_with(tier::str[tier::preview])
+                       && utf::get_trimmed((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
+                {
+                    crop.push_back(any_key);
+                    return crop;
+                }
+                auto take = [](qiew& chord)
+                {
+                    auto k = key_t{};
+                    utf::trim(chord, netxs::whitespaces);
+                    if (chord.empty()) return k;
+                    if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
+                    {
+                        auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview
+                                        : chord.starts_with(tier::str[tier::release]) ? tier::release
+                                        : chord.starts_with(tier::str[tier::general]) ? tier::general
+                                        : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
+                                        : chord.starts_with(tier::str[tier::request]) ? tier::request
+                                                                                      : tier::unknown;
+                        if (event_tier != tier::unknown)
+                        {
+                            auto event_str = chord;
+                            event_str.remove_prefix(tier::str[event_tier].size());
+                            utf::trim(event_str, netxs::whitespaces_and<':'>);
+                            auto& rtti = netxs::events::rtti();
+                            auto iter = rtti.find(event_str);
+                            if (iter != rtti.end())
+                            {
+                                auto metadata = iter->second;
+                                k.sign = (byte)(input::key::generic_sign | event_tier);
+                                k.code1 = metadata.event_id;
+                                if constexpr (debugmode) log("generic event: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
+                            }
+                            else
+                            {
+                                log("generic event: unknown event '%%'", chord);
+                            }
+                        }
+                        chord = {};
+                        return k;
+                    }
+                    if (chord.starts_with(tier::str[tier::preview])) // Drop the "preview:" prefix (it is not used here).
+                    {
+                        chord.remove_prefix(tier::str[tier::preview].size());
+                        utf::trim_front(chord, netxs::whitespaces_and<':'>);
+                    }
+                    auto c = chord.front();
+                    if (c != '-') // Is pressed.
+                    {
+                        if (c == '+')
+                        {
+                            chord.pop_front(); // Pop '+'.
+                            utf::trim(chord, netxs::whitespaces);
+                            if (chord.empty()) return k;
+                            c = chord.front();
+                        }
+                    }
+                    else if (chord.size() > 1)
+                    {
+                        k.sign |= input::key::unpressed_sign;
+                        chord.pop_front(); // Pop '-'.
+                        utf::trim(chord, netxs::whitespaces);
+                        if (chord.empty()) return k;
+                        c = chord.front();
+                    }
+                    utf::trim(chord, netxs::whitespaces);
+                    if (chord.empty()) return k;
+                    if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
+                    {
+                        chord.remove_prefix(2);
+                        if (auto v = utf::to_int<si32, 16>(chord))
+                        {
+                            k.sign |= input::key::scancode_sign;
+                            k.code1 = v.value();
+                        }
+                    }
+                    else if (chord.size() > 2 && chord.front() == chord.back() && (chord.front() == '\'' || chord.front() == '\"')) // The literal key must be the last key in a sequence.
+                    {
+                        k.sign |= input::key::cluster_sign;
+                        k.utf8 = utf::unescape(chord.substr(1, chord.size() - 2));
+                        k.code1 = 0xFF;
+                        chord.clear();
+                    }
+                    else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
+                    {
+                        auto name = utf::to_lower(key_name);
+                        auto name_shadow = qiew{ name };
+                        auto digits = utf::pop_back_chars(name_shadow, netxs::onlydigits);
+                        if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
+                        {
+                            auto [action_index, button_index] = iter_m->second;
+                            if (digits.size())
+                            {
+                                auto d = digits.front();
+                                if (d == '0' || d == '1') // MouseClick001  binary format.
+                                {
+                                    auto str = text{ digits };
+                                    std::reverse(str.begin(), str.end());
+                                    if (auto v = utf::to_int<si32, 2>(str))
+                                    {
+                                        button_index = v.value();
+                                    }
+                                }
+                                else // MouseClick3  decimal format. B1 to B8 mouse buttons.
+                                {
+                                    button_index = 1 << std::min(7, d - '0' - 1);
+                                }
+                            }
+                            k.sign = (byte)(input::key::mouse_sign);
+                            k.code1 = action_index;
+                            k.code2 = button_index;
+                            //log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
+                        }
+                        else if (auto iter = input::key::generic_names.find(name); iter == input::key::generic_names.end()) // Is specific.
+                        {
+                            auto iter2 = input::key::specific_names.find(name);
+                            if (iter2 != input::key::specific_names.end())
+                            {
+                                k.code1 = iter2->second;
+                            }
+                        }
+                        else // Is generic.
+                        {
+                            auto code = iter->second & -2;
+                            auto n1 = input::key::map::data(code).name.size();
+                            auto n2 = input::key::map::data(code + 1).name.size();
+                            k.code1 = n1 ? code : 0;
+                            k.code2 = n2 ? code + 1 : 0;
+                        }
+                    }
+                    utf::trim(chord, netxs::whitespaces);
+                    return k;
+                };
+                // Split.
+                while (chord)
+                {
+                    auto k = take(chord); // Unfold.
+                    if (!input::key::is_mouse(k.sign) && !k.code1) return crop; // Unknown key or generic event.
+                    keys.push_back(k);
+                }
+                if (keys.empty() || keys.size() > 8)
+                {
+                    if (keys.size()) log("%%A maximum of eight keys are allowed per chord", prompt::hids);
+                    return crop;
+                }
+                if (auto& k = keys.front(); input::key::is_generic(k.sign)) // It is generic event.
+                {
+                    auto& g_chord = crop.emplace_back();
+                    push_generic(k.sign, k.code1, g_chord);
+                    return crop;
+                }
+                if (auto& k = keys.front(); input::key::is_mouse(k.sign)) // It is mouse event.
+                {
+                    auto& m_chord = crop.emplace_back();
+                    push_mouse(k.sign, k.code1, k.code2, m_chord);
+                    return crop;
+                }
+                // Sort all but last.
+                std::sort(keys.begin(), std::prev(keys.end()), [](auto& l, auto& r){ return l.code1 < r.code1; });
+                // Generate.
+                auto count = 1 << keys.size();
+                auto temp = text{};
+                while (count--)
+                {
+                    auto bits = count;
+                    for (auto& k : keys)
+                    {
+                        if (auto code = bits & 1 ? k.code1 : k.code2)
+                        {
+                            auto sign = input::key::is_pressed(k.sign);
+                            if (input::key::is_scancode(k.sign))
+                            {
+                                push_scode(sign, temp, code);
+                            }
+                            else if (input::key::is_cluster(k.sign))
+                            {
+                                push_cluster(sign, temp, k.utf8);
+                                break;
+                            }
+                            else
+                            {
+                                push_keyid(sign, temp, code);
+                            }
+                        }
+                        else
+                        {
+                            temp.clear();
+                            break;
+                        }
+                        bits >>= 1;
+                    }
+                    if (temp.size()) crop.push_back(temp);
+                    temp.clear();
+                }
+                return crop;
+            }
+        };
+    }
 
     namespace bindings
     {
