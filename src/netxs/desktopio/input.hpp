@@ -2334,7 +2334,8 @@ namespace netxs::input
             // QWERTY:
             if (unshift == base)
             {
-                if ((unshift >= 'a' && unshift <= 'z') || unshift == ',' || unshift == '.')
+                if ((unshift >= 'a' && unshift <= 'z') || unshift == ',' || unshift == '.' || unshift == '-'
+                 || (unshift >= '1' && unshift <= '9'))
                 {
                     if (unshift != 'a' && unshift != 'm' && unshift != 'u'
                      && unshift != 'i' && unshift != 'o' && unshift != 'p'
@@ -2359,6 +2360,16 @@ namespace netxs::input
             if (unshift == 'w' && base == 'z') return layout::azerty;
             if (unshift == 'z' && base == 'w') return layout::azerty;
             if (unshift == 'm' && base == ';') return layout::azerty;
+            if (unshift == '&' && base == '1') return layout::azerty;
+            if (unshift == 233 && base == '2') return layout::azerty; // é
+            if (unshift == '"' && base == '3') return layout::azerty;
+            if (unshift =='\'' && base == '4') return layout::azerty;
+            if (unshift == '(' && base == '5') return layout::azerty;
+            if (unshift == '-' && base == '6') return layout::azerty;
+            if (unshift == 232 && base == '7') return layout::azerty; // è
+            if (unshift == '_' && base == '8') return layout::azerty;
+            if (unshift == 231 && base == '9') return layout::azerty; // ç
+            if (unshift == 224 && base == '0') return layout::azerty; // à
             // DVORAK:
             if (unshift == ',' && base == 'w') return layout::dvorak;
             if (unshift == '.' && base == 'e') return layout::dvorak;
@@ -2369,13 +2380,32 @@ namespace netxs::input
             if (unshift == 'i' && base == 'g') return layout::dvorak;
             if (unshift == 'd' && base == 'h') return layout::dvorak;
             // BEPO:
-            if (unshift == 'w' && base == ']') return layout::bepo;
-            if (unshift == 'v' && base == 'k') return layout::bepo;
-            if (unshift == 'p' && base == 'l') return layout::bepo;
-            if (unshift == 'o' && base == 'r') return layout::bepo;
-            if (unshift == 'u' && base == 'i') return layout::bepo;
-            if (unshift == 'b' && base == 'q') return layout::bepo;
-            if (unshift == 'i' && base == 'd') return layout::bepo;
+            if (unshift == '"' && base == '1') return layout::bepo;
+            if (unshift == 171 && base == '2') return layout::bepo; // «
+            if (unshift == 187 && base == '3') return layout::bepo; // »
+            if (unshift == '(' && base == '4') return layout::bepo;
+            if (unshift == ')' && base == '5') return layout::bepo;
+            if (unshift == '@' && base == '6') return layout::bepo;
+            if (unshift == '+' && base == '7') return layout::bepo;
+            if (unshift == '-' && base == '8') return layout::bepo;
+            if (unshift == '/' && base == '9') return layout::bepo;
+            if (unshift == '*' && base == '0') return layout::bepo;
+            if (unshift == '=' && base == '-') return layout::bepo;
+            if (unshift == '%' && base == '=') return layout::bepo;
+            if (unshift == 'w' && base == ']') return layout::bepo; // ']' -> 'w'
+            if (unshift == 'b' && base == 'q') return layout::bepo; // 'Q' -> 'b'
+            if (unshift == 233 && base == 'w') return layout::bepo; // 'W' -> 'é'
+            if (unshift == 'p' && base == 'e') return layout::bepo; // 'E' -> 'p'
+            if (unshift == 'o' && base == 'r') return layout::bepo; // 'R' -> 'o'
+            if (unshift == 232 && base == 't') return layout::bepo; // 'T' -> 'è'
+            if (unshift == 'v' && base == 'u') return layout::bepo; // 'U' -> 'v'
+            if (unshift == 'u' && base == 'i') return layout::bepo; // 'I' -> 'u'
+            if (unshift == 'i' && base == 'd') return layout::bepo; // 'D' -> 'i'
+            if (unshift == 234 && base == 'z') return layout::bepo; // 'Z' -> 'ê'
+            if (unshift == 224 && base == 'x') return layout::bepo; // 'X' -> 'à'
+            if (unshift == 'y' && base == 'c') return layout::bepo; // 'C' -> 'y'
+            if (unshift == 'x' && base == 'v') return layout::bepo; // 'V' -> 'x'
+            if (unshift == 'k' && base == 'b') return layout::bepo; // 'B' -> 'k'
             return layout::undef;
         }
         void remap_bepo(si32& base)
