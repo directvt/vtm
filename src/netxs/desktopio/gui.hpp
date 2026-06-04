@@ -3513,6 +3513,7 @@ namespace netxs::gui
         kmap  chords; // winbase: Pressed key table (key chord).
         bool  fake_ctrl; // winbase: Fake ctrl key event on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
+        si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -5550,7 +5551,7 @@ namespace netxs::gui
         {
             shifted.clear();
             unshift.clear();
-            if (virtcod >= 0x30 && virtcod <= 0xE6) // Alphanumeric + punctuation.
+            if (scancod && virtcod >= 0x30 && virtcod <= 0xE6 && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
                 auto buf = wide(8, 0);
                 auto current_layout = ::GetKeyboardLayout(0);
@@ -5686,7 +5687,13 @@ namespace netxs::gui
                 }
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-            if (keytype != 2) // Do not notify dead keys.
+            auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
+            if (is_deadkey_released) // Do not notify dead keys.
+            {
+                last_deadkey_vkey = {};
+                //if constexpr (debugmode) log("deadkey released");
+            }
+            else if (keytype != 2)
             {
                 toUTF8.clear();
                 if (keytype == 1)
@@ -5702,6 +5709,11 @@ namespace netxs::gui
                     }
                 }
                 keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8);
+            }
+            else
+            {
+                last_deadkey_vkey = virtcod;
+                //if constexpr (debugmode) log("deadkey pressed");
             }
             toWIDE.clear();
             //print_vkstat("keybd_read_input");

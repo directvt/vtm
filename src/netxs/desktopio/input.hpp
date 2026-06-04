@@ -359,6 +359,55 @@ namespace netxs::input
                 key_list
             #undef X
         };
+        static constexpr auto ctrl_lut = [] // Ctrl+Key lookup table.
+        {
+            auto lut = std::array<si32, 128>{ -1 };
+            auto pairs = std::to_array<std::pair<byte, byte>>(
+            {
+                { 127, 8 }, { 8, 127 },
+                { 9, 9 }, { 13, 10 }, { 27, 27 },
+                { '`', '`' }, { '!', '!' }, { '"', '"' }, { '#', '#' }, { '$', '$' }, { '%', '%' }, { '&', '&' },
+                { '\'', '\'' },
+                { '(', '(' }, { ')', ')' }, { '*', '*' }, { '+', '+' }, { '=', '=' }, { ',', ',' }, { '.', '.' },
+                { ':', ':' }, { ';', ';' }, { '<', '<' }, { '>', '>' },
+                { '@', 0   }, { ' ', 0   },
+                { 'a', 1   }, { 'f', 6   }, { 'k', 11  }, { 'p', 16  }, { 'u', 21  },
+                { 'b', 2   }, { 'g', 7   }, { 'l', 12  }, { 'q', 17  }, { 'v', 22  },
+                { 'c', 3   }, { 'h', 8   }, { 'm', 13  }, { 'r', 18  }, { 'w', 23  },
+                { 'd', 4   }, { 'i', 9   }, { 'n', 14  }, { 's', 19  }, { 'x', 24  },
+                { 'e', 5   }, { 'j', 10  }, { 'o', 15  }, { 't', 20  }, { 'y', 25  }, { 'z', 26  },
+                { 'A', 1   }, { 'F', 6   }, { 'K', 11  }, { 'P', 16  }, { 'U', 21  },
+                { 'B', 2   }, { 'G', 7   }, { 'L', 12  }, { 'Q', 17  }, { 'V', 22  },
+                { 'C', 3   }, { 'H', 8   }, { 'M', 13  }, { 'R', 18  }, { 'W', 23  },
+                { 'D', 4   }, { 'I', 9   }, { 'N', 14  }, { 'S', 19  }, { 'X', 24  },
+                { 'E', 5   }, { 'J', 10  }, { 'O', 15  }, { 'T', 20  }, { 'Y', 25  }, { 'Z', 26  },
+                { '[', 27  }, { '{', 27  }, // { '{', '{' }, ???
+                { '\\',28  }, { '|', 28  }, // { '|', '|' }, ???
+                { ']', 29  }, { '}', 29  }, // { '}', '}' }, ???
+                { '~', 30  }, { '^', 30  },
+                { '/', 31  }, { '_', 31  },
+                { '-', 31 }, //  { '-', '-' }, ???
+                { '?', 127 },
+                { '0', '0' }, { '2', 0   }, { '4', 28  }, { '6', 30  }, { '8', 127 },
+                { '1', '1' }, { '3', 27  }, { '5', 29  }, { '7', 31  }, { '9', '9' },
+            });
+            for (auto [asc, c] : pairs) lut[asc] = c;
+            return lut;
+        }();
+        text interpret_ctrl(auto& k, bool ctrl, bool shift)
+        {
+            auto crop = text{};
+            auto asc = utf::to_code(shift ? k.shifted : k.unshift);
+            if (ctrl && asc > 0 && asc < 128)
+            {
+                auto converted_char = input::key::ctrl_lut[asc];
+                if (converted_char != -1)
+                {
+                    crop += (char)converted_char;
+                }
+            }
+            return crop;
+        }
 
         #define mouse_list \
             X(MouseAny           , 0x00, 0)\
@@ -1489,9 +1538,10 @@ namespace netxs::input
                 { key::Backspace | (hids::anyCtrlAlt << key::idbits), { "\033\x08"  }},
                 { key::Tab       | (hids::anyCtrl    << key::idbits), { "\t"        }},
                 { key::Tab       | (hids::anyShift   << key::idbits), { "\033[Z"    }},
-                { key::Tab       | (hids::anyAlt     << key::idbits), { "\033[1;3I" }},
+                { key::Tab       | (hids::anyAlt     << key::idbits), { "\033\t"    }},
                 { key::Esc       | (hids::anyAlt     << key::idbits), { "\033\033"  }},
                 { key::Key1      | (hids::anyCtrl    << key::idbits), { "1"         }},
+                { key::Key2      | (hids::anyCtrl    << key::idbits), { "\x00"      }},
                 { key::Key3      | (hids::anyCtrl    << key::idbits), { "\x1b"      }},
                 { key::Key4      | (hids::anyCtrl    << key::idbits), { "\x1c"      }},
                 { key::Key5      | (hids::anyCtrl    << key::idbits), { "\x1d"      }},
@@ -2160,7 +2210,7 @@ namespace netxs::input
             focus::state ? owner.base::signal(tier::release, input::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
                          : owner.base::signal(tier::release, input::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
         }
-        text interpret(bool decckm)
+        text interpret(bool decckm) const
         {
             static auto alone_key = build_alone_key();
             static auto shift_key = build_shift_key();
@@ -2191,7 +2241,12 @@ namespace netxs::input
                         if (ctrl ) mods += 4;
                         return it_shift->second;
                     }
-                    else if (auto it_other = other_key.find(v | (shift | alt | ctrl) << key::idbits); it_other != other_key.end())
+                    if (auto crop = input::key::interpret_ctrl(*this, ctrl, shift); crop.size())
+                    {
+                        if (alt) crop = '\x1b' + crop;
+                        return crop;
+                    }
+                    if (auto it_other = other_key.find(v | (shift | alt | ctrl) << key::idbits); it_other != other_key.end())
                     {
                         return it_other->second;
                     }

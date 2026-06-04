@@ -1372,6 +1372,10 @@ namespace netxs::utf
         }
         return !first_part;
     }
+    utfx to_code(qiew utf8)
+    {
+        return utf::cpit{ utf8 }.take().cdpoint;
+    }
     namespace
     {
         void _to_utf(utfx code, auto push)

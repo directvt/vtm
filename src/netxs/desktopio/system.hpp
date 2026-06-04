@@ -6057,7 +6057,7 @@ namespace netxs::os
                 };
                 auto detect_kkp = [&](qiew sequence)
                 {
-                    // ESC [ unicode_code:shifted_code:base_key ; ctlstat:evtype ; codepoints suffix
+                    // ESC [ unshift_code:shifted_code:base_key ; ctlstat:evtype ; codepoints suffix
                     if constexpr (debugmode) log("KKP: ", ansi::hi(utf::debase<faux, faux>(sequence)));
                     using namespace input;
                     sequence.remove_prefix(2); // Pop ESC [
@@ -6066,12 +6066,20 @@ namespace netxs::os
                     ansi::read_CSI(sequence, q, noop{});
 
                     auto suffix       = q(ansi::ccc_nop);
-                    auto unicode_code = q(1); // Unshifted code.
-                    auto shifted_code = q.subarg(unicode_code);
-                    auto base_key     = q.subarg(unicode_code);
+                    auto unshift_code = q(1); // Unshifted code.
+                    auto shifted_code = q.subarg(unshift_code);
+                    auto base_key     = q.subarg(unshift_code);
                     auto ctlstat      = q(1);
                     auto evtype       = q.subarg(1);
                     auto codepoint    = q(0);
+
+                    if (unshift_code >= 'a' && unshift_code <= 'z') // Fix for custom kb layouts (QWERTZ, AZERTY, Dvorak, etc).
+                    {
+                        if (unshift_code != base_key)
+                        {
+                            base_key = unshift_code;
+                        }
+                    }
 
                     k.cluster = {};
                     while (codepoint) // cpoint : cpoint : ... : cpoint
@@ -6115,7 +6123,7 @@ namespace netxs::os
                     if (suffix == 'u')
                     {
                         k.shifted = utf::to_utf_from_code(shifted_code);
-                        k.unshift = utf::to_utf_from_code(unicode_code);
+                        k.unshift = utf::to_utf_from_code(unshift_code);
                     }
                     else
                     {
@@ -6124,21 +6132,28 @@ namespace netxs::os
                     }
                     if (k.cluster.empty() && suffix == 'u') // Form cluster.
                     {
-                        auto& rec = input::key::map::data(k.keycode);
-                        if (k.ctlstat & hids::anyCtrl && rec.KKPCtl != -1)
+                        if (auto crop = input::key::interpret_ctrl(k, k.ctlstat & hids::anyCtrl, k.ctlstat & hids::anyShift); crop.size())
                         {
-                            k.cluster = text(1, (char)rec.KKPCtl);
+                            k.cluster = crop;
                         }
-                        else if (k.ctlstat & hids::anyCtrl && unicode_code > 0 && unicode_code < 128)
+                        else
                         {
-                            k.cluster = text(1, (char)(unicode_code & 31));
-                        }
-                        else if (unicode_code > 0 && unicode_code < 57358) // Exclude any function keys.
-                        {
-                            utf::to_utf_from_code(k.ctlstat & hids::CapsLock ? unicode_code : shifted_code, k.cluster);
+                            auto& rec = input::key::map::data(k.keycode);
+                            if (k.ctlstat & hids::anyCtrl && rec.KKPCtl != -1)
+                            {
+                                k.cluster = text(1, (char)rec.KKPCtl);
+                            }
+                            else if (k.ctlstat & hids::anyCtrl && unshift_code > 0 && unshift_code < 128)
+                            {
+                                k.cluster = text(1, (char)(unshift_code & 31));
+                            }
+                            else if (unshift_code > 0 && unshift_code < 57358) // Exclude any function keys.
+                            {
+                                utf::to_utf_from_code(k.ctlstat & hids::CapsLock ? unshift_code : shifted_code, k.cluster);
+                            }
                         }
                     }
-                    if constexpr (debugmode) log(" suffix='%%' unicode_code=%% shifted_code=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unicode_code, shifted_code, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
+                    if constexpr (debugmode) log(" suffix='%%' unshift_code=%% shifted_code=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unshift_code, shifted_code, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
                     k.handled = {};
                     chords.build(k);
                     keybd(k);
