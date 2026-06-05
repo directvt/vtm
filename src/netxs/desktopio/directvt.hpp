@@ -1037,6 +1037,7 @@ namespace netxs::directvt
                                          (si32, scancod)  // syskeybd: Scancode.
                                          (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                          (si32, keycode)  // syskeybd: Key id.
+                                         (si32, xlayout)  // syskeybd: Keyboard layout ID (KLID).
                                          (byte, payload)  // syskeybd: Payload type.
                                          (bool, extflag)  // syskeybd: Win32 extflag.
                                          (bool, handled)  // syskeybd: Key event is handled.

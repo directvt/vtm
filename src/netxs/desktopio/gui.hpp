@@ -3514,6 +3514,7 @@ namespace netxs::gui
         bool  fake_ctrl; // winbase: Fake ctrl key event on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
+        si32  xlayout; // winbase: Current keyboard layout (KLID).
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -3546,7 +3547,8 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
               fake_ctrl{ faux },
-              wait_ralt{ faux }
+              wait_ralt{ faux },
+              xlayout{ input::key::klid::k00000409 }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -3559,7 +3561,7 @@ namespace netxs::gui
 
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
         virtual void keybd_sync_layout() = 0;
-        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, si32 cs, text& shifted, text& unshift) = 0;
+        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -4694,12 +4696,13 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            auto keycode = input::key::xlat(virtcod, scancod, cs);
+            auto keycode = input::key::xlat(virtcod, scancod, cs, xlayout);
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
+            gear.xlayout = xlayout;
             gear.cluster = cluster;
-            keybd_peek_layout(virtcod, scancod, cs, gear.shifted, gear.unshift);
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
@@ -5547,7 +5550,7 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
-        void keybd_peek_layout(si32 virtcod, si32 scancod, si32 cs, text& shifted, text& unshift)
+        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
         {
             shifted.clear();
             unshift.clear();
@@ -5555,7 +5558,7 @@ namespace netxs::gui
             {
                 auto buf = wide(8, 0);
                 auto current_layout = ::GetKeyboardLayout(0);
-                auto flags = cs & input::key::ExtendedKey ? 1u : 0u;
+                auto flags = extflag ? 1u : 0u;
                 flags |= 2; // 2 PDT_SHAREABLE (don't touch our thread state).
                 auto vk_un = std::array<byte, 256>{};
                 auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, current_layout);
@@ -5773,11 +5776,15 @@ namespace netxs::gui
         void keybd_sync_layout()
         {
             keybd_sync_state();
-            //todo sync kb layout
-            //auto hkl = ::GetKeyboardLayout(0);
-            auto kblayout = wide(KL_NAMELENGTH, '\0');
-            ::GetKeyboardLayoutNameW(kblayout.data());
-            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+            auto klid_buf = wide(KL_NAMELENGTH, '\0');
+            ::GetKeyboardLayoutNameW(klid_buf.data());
+            xlayout = 0;
+            for(auto i = 0; i < 8; ++i)
+            {
+                xlayout = (xlayout << 4) | (klid_buf[i] >= 'a' ? klid_buf[i] - 'a' + 10 :
+                                            klid_buf[i] >= 'A' ? klid_buf[i] - 'A' + 10 : klid_buf[i] - '0');
+            }
+            log("%%Keyboard layout changed to ", prompt::gui, utf::to_hex_0x(xlayout));
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
@@ -5891,6 +5898,7 @@ namespace netxs::gui
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
             window_make_foreground();
+            keybd_sync_layout(); // Sync keyboad layout id.
         }
 
         //todo static
@@ -6099,7 +6107,7 @@ namespace netxs::gui
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, si32 /*cs*/, text& /*shifted*/, text& /*unshift*/) {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}

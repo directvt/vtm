@@ -63,8 +63,8 @@ namespace netxs::input
 
     namespace key
     {
-        static constexpr auto ExtendedKey = 0x0100;
-        static constexpr auto NumLockMode = 0x0020;
+        static constexpr auto ExtendedKey = 0x0100; // ENHANCED_KEY
+        static constexpr auto NumLockMode = 0x0020; // NUMLOCK_ON
 
         static constexpr auto _counter    = __COUNTER__ + 1;
         static constexpr auto released    = __COUNTER__ - _counter;
@@ -78,205 +78,300 @@ namespace netxs::input
         static constexpr auto cluster_sign   = 0x20;
         static constexpr auto mouse_sign     = 0x10;
 
-        //todo check non-us kb layouts with key::Slash
+        struct layout
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto undef    = __COUNTER__ - _counter;
+            static constexpr auto qwerty   = __COUNTER__ - _counter;
+            static constexpr auto qwertz   = __COUNTER__ - _counter;
+            static constexpr auto azerty   = __COUNTER__ - _counter;
+            static constexpr auto dvorak   = __COUNTER__ - _counter;
+            static constexpr auto colemak  = __COUNTER__ - _counter;
+            static constexpr auto bepo     = __COUNTER__ - _counter;
+        };
+
+        struct klid // Latin-based Keyboard Layouts (20 klids).
+        {
+            static constexpr auto k00000409 = 0x00000409; // English (US)        | United States Standard            | `qwerty`
+            static constexpr auto k00000407 = 0x00000407; // German (Germany)    | Germany Standard                  | `qwertz`
+            static constexpr auto k00010407 = 0x00010407; // German (Germany)    | Germany (IBM)                     | `qwertz`
+            static constexpr auto k00000C07 = 0x00000C07; // German (Austria)    | Austrian Standard                 | `qwertz`
+            static constexpr auto k0000040C = 0x0000040C; // French (France)     | France Standard                   | `azerty`
+            static constexpr auto k0000080C = 0x0000080C; // French (Belgium)    | Belgian Standard                  | `azerty`
+            static constexpr auto k0005040C = 0x0005040C; // French (France)     | French BÉPO Layout                | `bepo`
+            static constexpr auto k00010409 = 0x00010409; // English (US)        | United States-Dvorak              | `dvorak`
+            static constexpr auto k00020409 = 0x00020409; // English (US)        | United States-Dvorak (Left hand)  | `dvorak`
+            static constexpr auto k00030409 = 0x00030409; // English (US)        | United States-Dvorak (Right hand) | `dvorak`
+            static constexpr auto k00060409 = 0x00060409; // English (US)        | Colemak NATIVE (Win 11 24H2+)     | `colemak`
+            static constexpr auto k00000405 = 0x00000405; // Czech (Czechia)     | Czech QWERTZ                      | `qwertz`
+            static constexpr auto k00010405 = 0x00010405; // Czech (Czechia)     | Czech QWERTY                      | `qwerty`
+            static constexpr auto k0000041B = 0x0000041B; // Slovak (Slovakia)   | Slovak QWERTZ                     | `qwertz`
+            static constexpr auto k0001041B = 0x0001041B; // Slovak (Slovakia)   | Slovak QWERTY                     | `qwerty`
+            static constexpr auto k0000040E = 0x0000040E; // Hungarian (Hungary) | Hungarian Standard                | `qwertz`
+            static constexpr auto k0000041A = 0x0000041A; // Croatian            | Croatian Standard (South Slavic)  | `qwertz`
+            static constexpr auto k00000424 = 0x00000424; // Slovenian           | Slovenian Standard (South Slavic) | `qwertz`
+            static constexpr auto k00000415 = 0x00000415; // Polish (Poland)     | Polish (Programmers)              | `qwerty`
+            static constexpr auto k00000418 = 0x00000418; // Romanian            | Romanian Standard                 | `qwertz`
+        };
+        auto get_layout_type(si32 klid)
+        {
+            if (klid == 0x00000409 || klid == 0) return layout::qwerty;
+            if (klid == 0x00010409) return layout::dvorak; // US Dvorak Standard
+            if (klid == 0x00020409) return layout::dvorak; // US Dvorak Left-Hand
+            if (klid == 0x00030409) return layout::dvorak; // US Dvorak Right-Hand
+            if (klid == 0x00000419) return layout::undef;
+            if (klid == 0x00000405 || klid == 0x00010405) return layout::qwertz; // Czech
+            if (klid == 0x00000407 || klid == 0x00010407) return layout::qwertz; // German (Austria)
+            if (klid == 0x0000040c || klid == 0x0000080c) return layout::azerty; // French (Belgium)
+            if (klid == 0x0005040c)                       return layout::bepo;   // French BEPO
+            if (klid == 0x0000040e)                       return layout::qwertz; // Hungarian
+            if (klid == 0x0000041a)                       return layout::qwertz; // Croatian
+            if (klid == 0x0000041b)                       return layout::qwertz; // Slovak
+            return layout::qwerty;
+        }
+
         // Notes:
         //  IsoLevel5Shift: 5th-level of kb layout (mathematical signs, Greek letters). Physical keyboards don't have this key; in Linux, it's usually remapped to Caps Lock or the right Ctrl key.
         //  Hyper:          Users specifically create Hyper (for example, by remapping Caps Lock) to bind hotkeys, which are guaranteed to not interact with anything.
         #define key_list \
-            /*Id   Index Vkey  Scan    CtrlState          Mask  I  Name              GenericName      KKP base,suffix,ascii,control */\
-            X(0,      0,    0,    0,           0, 0x0000'00'FF, 1, undef           , "undef"           , 0    , 'u', -1    , -1    )\
-            X(1,      0, 0xFF, 0xFF,           0, 0x0100'FF'FF, 0, config          , "config"          , 0    , 'u', -1    , -1    )\
-            X(2,   0xA2, 0x11, 0x1D,           0, 0x0100'00'FF, 0, LeftCtrl        , "Ctrl"            , 57442, 'u', -1    , -1    )\
-            X( 3,  0xA3, 0x11, 0x1D, ExtendedKey, 0x0100'00'FF, 0, RightCtrl       , "Ctrl"            , 57448, 'u', -1    , -1    )\
-            X(4,   0xA4, 0x12, 0x38,           0, 0x0100'00'FF, 0, LeftAlt         , "Alt"             , 57443, 'u', -1    , -1    )\
-            X( 5,  0xA5, 0x12, 0x38, ExtendedKey, 0x0100'00'FF, 0, RightAlt        , "Alt"             , 57449, 'u', -1    , -1    )\
-            X(6,   0xA0, 0x10, 0x2A,           0, 0x0000'FF'FF, 0, LeftShift       , "Shift"           , 57441, 'u', -1    , -1    )\
-            X( 7,  0xA1, 0x10, 0x36,           0, 0x0000'FF'FF, 0, RightShift      , "Shift"           , 57447, 'u', -1    , -1    )\
-            X(8,   0x5B, 0x5B, 0x5B, ExtendedKey, 0x0100'00'FF, 0, LeftWin         , "Win"             , 57444, 'u', -1    , -1    )\
-            X( 9,  0x5C, 0x5C, 0x5C, ExtendedKey, 0x0100'00'FF, 0, RightWin        , "Win"             , 57450, 'u', -1    , -1    )\
-            X(10,  0x5B, 0x5B, 0x5B,           0, 0x0100'00'FF, 0, LeftHyper       , "Hyper"           , 57445, 'u', -1    , -1    )\
-            X( 11, 0x5C, 0x5C, 0x5C,           0, 0x0100'00'FF, 0, RightHyper      , "Hyper"           , 57451, 'u', -1    , -1    )\
-            X(12,  0x5D, 0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, 0, Apps            , "Apps"            , 57363, 'u', -1    , -1    )\
-            X(14,  0x90, 0x90, 0x45,           0, 0x0000'00'FF, 0, NumLock         , "NumLock"         , 57360, 'u', -1    , -1    )\
-            X(16,  0x14, 0x14, 0x3A,           0, 0x0100'00'FF, 0, CapsLock        , "CapsLock"        , 57358, 'u', -1    , -1    )\
-            X(18,  0x91, 0x91, 0x45,           0, 0x0100'00'FF, 0, ScrollLock      , "ScrollLock"      , 57359, 'u', -1    , -1    )\
-            X(20,  0x14, 0x14, 0x3A, ExtendedKey, 0x0100'00'FF, 0, AltGR           , "AltGr"           , 57453, 'u', -1    , -1    )/*IsoLevel3Shift*/\
-            X(22,  0x91, 0x91, 0x45, ExtendedKey, 0x0100'00'FF, 0, IsoLevel5Shift  , "IsoLevel5Shift"  , 57454, 'u', -1    , -1    )\
-            X(24,  0x1B, 0x1B, 0x01,           0, 0x0000'00'FF, 1, Esc             , "Esc"             , 27   , 'u', '\x1b', '\x1b')\
-            X(26,  0x20, 0x20, 0x39,           0, 0x0000'00'FF, 1, Space           , "Space"           , 32   , 'u', '\x20', '\0'  )\
-            X(28,  0x08, 0x08, 0x0E,           0, 0x0000'00'FF, 1, Backspace       , "Backspace"       , 127  , 'u', '\x7f', '\x08')\
-            X(30,  0x09, 0x09, 0x0F,           0, 0x0000'00'FF, 1, Tab             , "Tab"             , 9    , 'u', '\x09', '\x09')\
-            X(32,  0x03, 0x03, 0x46,           0, 0x0000'FF'FF, 1, Break           , "Break"           , 0    , 'u', '\x1a', '\x03')\
-            X(34,  0x13, 0x13, 0x45,           0, 0x0000'FF'FF, 0, Pause           , "Pause"           , 57362, 'u', '\x1a', '\x03')\
-            X(36,  0x29, 0x29,    0,           0, 0x0000'00'FF, 0, Select          , "Select"          , 0    , 'u', -1    , -1    )\
-            X(38,  0x2C, 0x2C, 0x54,           0, 0x0000'FF'FF, 1, SysRq           , "SysRq"           , 0    , 'u', -1    , '\x03')\
-            X(40,  0x2C, 0x2C, 0x37, ExtendedKey, 0x0100'FF'FF, 0, PrintScreen     , "PrintScreen"     , 57361, 'u', -1    , -1    )\
-            X(42,  0x0D, 0x0D, 0x1C,           0, 0x0100'00'FF, 1, KeyEnter        , "Enter"           , 13   , 'u', '\x0d', '\x0a')\
-            X( 43, 0x0D, 0x0D, 0x1C, ExtendedKey, 0x0100'00'FF, 1, NumpadEnter     , "Enter"           , 57414, 'u', '\x0d', '\x0a')\
-            X(44,  0x21, 0x21, 0x49, ExtendedKey, 0x0100'00'FF, 1, KeyPageUp       , "PageUp"          , 5    , '~', -1    , -1    )\
-            X( 45, 0x21, 0x21, 0x49,           0, 0x0100'00'FF, 1, NumpadPageUp    , "PageUp"          , 57421, 'u', -1    , -1    )\
-            X(46,  0x22, 0x22, 0x51, ExtendedKey, 0x0100'00'FF, 1, KeyPageDown     , "PageDown"        , 6    , '~', -1    , -1    )\
-            X( 47, 0x22, 0x22, 0x51,           0, 0x0100'00'FF, 1, NumpadPageDown  , "PageDown"        , 57422, 'u', -1    , -1    )\
-            X(48,  0x23, 0x23, 0x4F, ExtendedKey, 0x0100'00'FF, 1, KeyEnd          , "End"             , 8    , '~', -1    , -1    )/*don't reorder*/\
-            X( 49, 0x23, 0x23, 0x4F,           0, 0x0100'00'FF, 1, NumpadEnd       , "End"             , 57424, 'u', -1    , -1    )/*don't reorder*/\
-            X(50,  0x24, 0x24, 0x47, ExtendedKey, 0x0100'00'FF, 1, KeyHome         , "Home"            , 7    , '~', -1    , -1    )/*don't reorder*/\
-            X( 51, 0x24, 0x24, 0x47,           0, 0x0100'00'FF, 1, NumpadHome      , "Home"            , 57423, 'u', -1    , -1    )/*don't reorder*/\
-            X(52,  0x25, 0x25, 0x4B, ExtendedKey, 0x0100'00'FF, 1, KeyLeftArrow    , "LeftArrow"       , 1    , 'D', -1    , -1    )/*don't reorder*/\
-            X( 53, 0x25, 0x25, 0x4B,           0, 0x0100'00'FF, 1, NumpadLeftArrow , "LeftArrow"       , 57417, 'u', -1    , -1    )/*don't reorder*/\
-            X(54,  0x26, 0x26, 0x48, ExtendedKey, 0x0100'00'FF, 1, KeyUpArrow      , "UpArrow"         , 1    , 'A', -1    , -1    )/*don't reorder*/\
-            X( 55, 0x26, 0x26, 0x48,           0, 0x0100'00'FF, 1, NumpadUpArrow   , "UpArrow"         , 57419, 'u', -1    , -1    )/*don't reorder*/\
-            X(56,  0x27, 0x27, 0x4D, ExtendedKey, 0x0100'00'FF, 1, KeyRightArrow   , "RightArrow"      , 1    , 'C', -1    , -1    )/*don't reorder*/\
-            X( 57, 0x27, 0x27, 0x4D,           0, 0x0100'00'FF, 1, NumpadRightArrow, "RightArrow"      , 57418, 'u', -1    , -1    )/*don't reorder*/\
-            X(58,  0x28, 0x28, 0x50, ExtendedKey, 0x0100'00'FF, 1, KeyDownArrow    , "DownArrow"       , 1    , 'B', -1    , -1    )/*don't reorder*/\
-            X( 59, 0x28, 0x28, 0x50,           0, 0x0100'00'FF, 1, NumpadDownArrow , "DownArrow"       , 57420, 'u', -1    , -1    )/*don't reorder*/\
-            X(60,  0x30, 0x30, 0x0B,           0, 0x0000'FF'FF, 1, Key0            , "0"               , 48   , 'u', '0'   , '0'   )\
-            X( 61, 0x60, 0x60, 0x52, NumLockMode, 0x0000'FF'FF, 1, Numpad0         , "0"               , 57399, 'u', '0'   , '0'   )\
-            X(62,  0x31, 0x31, 0x02,           0, 0x0000'FF'FF, 1, Key1            , "1"               , 49   , 'u', '1'   , '1'   )\
-            X( 63, 0x61, 0x61, 0x4F, NumLockMode, 0x0000'FF'FF, 1, Numpad1         , "1"               , 57400, 'u', '1'   , '1'   )\
-            X(64,  0x32, 0x32, 0x03,           0, 0x0000'FF'FF, 1, Key2            , "2"               , 50   , 'u', '2'   , '\0'  )\
-            X( 65, 0x62, 0x62, 0x50, NumLockMode, 0x0000'FF'FF, 1, Numpad2         , "2"               , 57401, 'u', '2'   , '\0'  )\
-            X(66,  0x33, 0x33, 0x04,           0, 0x0000'FF'FF, 1, Key3            , "3"               , 51   , 'u', '3'   , '\x1b')\
-            X( 67, 0x63, 0x63, 0x51, NumLockMode, 0x0000'FF'FF, 1, Numpad3         , "3"               , 57402, 'u', '3'   , '\x1b')\
-            X(68,  0x34, 0x34, 0x05,           0, 0x0000'FF'FF, 1, Key4            , "4"               , 52   , 'u', '4'   , '\x1c')\
-            X( 69, 0x64, 0x64, 0x4B, NumLockMode, 0x0000'FF'FF, 1, Numpad4         , "4"               , 57403, 'u', '4'   , '\x1c')\
-            X(70,  0x35, 0x35, 0x06,           0, 0x0000'FF'FF, 1, Key5            , "5"               , 53   , 'u', '5'   , '\x1d')\
-            X( 71, 0x65, 0x65, 0x4C, NumLockMode, 0x0000'FF'FF, 1, Numpad5         , "5"               , 57404, 'u', '5'   , '\x1d')\
-            X(72,  0x36, 0x36, 0x07,           0, 0x0000'FF'FF, 1, Key6            , "6"               , 54   , 'u', '6'   , '\x1e')\
-            X( 73, 0x66, 0x66, 0x4D, NumLockMode, 0x0000'FF'FF, 1, Numpad6         , "6"               , 57405, 'u', '6'   , '\x1e')\
-            X(74,  0x37, 0x37, 0x08,           0, 0x0000'FF'FF, 1, Key7            , "7"               , 55   , 'u', '7'   , '\x1f')\
-            X( 75, 0x67, 0x67, 0x47, NumLockMode, 0x0000'FF'FF, 1, Numpad7         , "7"               , 57406, 'u', '7'   , '\x1f')\
-            X(76,  0x38, 0x38, 0x09,           0, 0x0000'FF'FF, 1, Key8            , "8"               , 56   , 'u', '8'   , '\x7f')\
-            X( 77, 0x68, 0x68, 0x48, NumLockMode, 0x0000'FF'FF, 1, Numpad8         , "8"               , 57407, 'u', '8'   , '\x7f')\
-            X(78,  0x39, 0x39, 0x0A,           0, 0x0000'FF'FF, 1, Key9            , "9"               , 57   , 'u', '9'   , '9'   )\
-            X( 79, 0x69, 0x69, 0x49, NumLockMode, 0x0000'FF'FF, 1, Numpad9         , "9"               , 57408, 'u', '9'   , '9'   )\
-            X(80,  0x2D, 0x2D, 0x52, ExtendedKey, 0x0100'00'FF, 1, KeyInsert       , "Insert"          , 2    , '~', -1    , -1    )\
-            X( 81, 0x2D, 0x2D, 0x52,           0, 0x0100'00'FF, 1, NumpadInsert    , "Insert"          , 57425, 'u', -1    , -1    )\
-            X(82,  0x2E, 0x2E, 0x53, ExtendedKey, 0x0100'00'FF, 1, KeyDelete       , "Delete"          , 3    , '~', -1    , -1    )\
-            X( 83, 0x2E, 0x2E, 0x55,           0, 0x0100'00'FF, 1, NumpadDelete    , "Delete"          , 57426, 'u', -1    , -1    )\
-            X(84,  0x0C, 0x0C, 0x4C, ExtendedKey, 0x0100'00'FF, 1, KeyClear        , "Clear"           , 1    , 'E', -1    , -1    )\
-            X( 85, 0x0C, 0x0C, 0x4C,           0, 0x0100'00'FF, 1, NumpadClear     , "Clear"           , 57427, '~', -1    , -1    )\
-            X(86,  0x6A, 0x6A, 0x09,           0, 0x0000'FF'FF, 1, KeyMultiply     , "*"               , 0    , 'u', '*'   , '*'   )\
-            X( 87, 0x6A, 0x6A, 0x37,           0, 0x0000'FF'FF, 1, NumpadMultiply  , "*"               , 57411, 'u', '*'   , '*'   )\
-            X(88,  0x6B, 0x6B, 0x0D,           0, 0x0000'FF'FF, 1, KeyPlus         , "Plus"            , 43   , 'u', '+'   , '+'   )\
-            X( 89, 0x6B, 0x6B, 0x4E,           0, 0x0000'FF'FF, 1, NumpadPlus      , "Plus"            , 57413, 'u', '+'   , '+'   )\
-            X(90,  0x6C, 0x6C,    0,           0, 0x0020'00'FF, 1, KeySeparator    , "Separator"       , 0    , 'u', ','   , ','   )\
-            X( 91, 0x6C, 0x6C,    0, NumLockMode, 0x0020'00'FF, 1, NumpadSeparator , "Separator"       , 57416, 'u', ','   , ','   )\
-            X(92,  0xBD, 0xBD, 0x0C,           0, 0x0000'00'FF, 1, KeyMinus        , "Minus"           , 45   , 'u', '-'   , '-'   )\
-            X( 93, 0x6D, 0x6D, 0x4A,           0, 0x0000'00'FF, 1, NumpadMinus     , "Minus"           , 57412, 'u', '-'   , '-'   )\
-            X(94,  0xBE, 0xBE, 0x34,           0, 0x0000'00'FF, 1, KeyPeriod       , "."               , 46   , 'u', '.'   , '.'   )\
-            X( 95, 0x6E, 0x6E, 0x53, NumLockMode, 0x0000'00'FF, 1, NumpadDecimal   , "."               , 57409, 'u', '.'   , '.'   )\
-            X(96,  0xBF, 0xBF, 0x35,           0, 0x0000'00'FF, 1, KeySlash        , "/"               , 47   , 'u', '/'   , '\x1f')\
-            X( 97, 0x6F, 0x6F, 0x35, ExtendedKey, 0x0000'00'FF, 1, NumpadSlash     , "/"               , 57410, 'u', '/'   , '\x1f')\
-            X(98,  0xBB, 0xBB, 0x0D,           0, 0x0100'00'FF, 1, Equal           , "="               , 61   , 'u', '='   , '='   )\
-            X( 99, 0xBB, 0xBB, 0x0D, ExtendedKey, 0x0100'00'FF, 1, NumpadEqual     , "="               , 57415, 'u', '='   , '='   )\
-            X(100, 0xDC, 0xDC, 0x2B,           0, 0x0000'00'FF, 1, BackSlash       , "BackSlash"       , 92   , 'u', '\\'  , '\x1c')\
-            X(102, 0xDB, 0xDB, 0x1A,           0, 0x0000'00'FF, 1, OpenBracket     , "["               , 91   , 'u', '['   , '\x1b')\
-            X(104, 0xDD, 0xDD, 0x1B,           0, 0x0000'00'FF, 1, ClosedBracket   , "]"               , 93   , 'u', ']'   , '\x1d')\
-            X(106, 0xC0, 0xC0, 0x29,           0, 0x0000'00'FF, 1, BackQuote       , "`"               , 96   , 'u', '`'   , '`'   )\
-            X(108, 0xDE, 0xDE, 0x28,           0, 0x0000'00'FF, 1, SingleQuote     , "'"               , 39   , 'u', '\''  , '\''  )\
-            X(110, 0xBC, 0xBC, 0x33,           0, 0x0000'00'FF, 1, Comma           , ","               , 44   , 'u', ','   , ','   )\
-            X(112, 0xBA, 0xBA, 0x27,           0, 0x0000'00'FF, 1, Semicolon       , ";"               , 59   , 'u', ';'   , ';'   )\
-            X(114, 0x70, 0x70, 0x3B,           0, 0x0000'00'FF, 1, F1              , "F1"              , 11   , '~', -1    , -1    )\
-            X(116, 0x71, 0x71, 0x3C,           0, 0x0000'00'FF, 1, F2              , "F2"              , 12   , '~', -1    , -1    )\
-            X(118, 0x72, 0x72, 0x3D,           0, 0x0000'00'FF, 1, F3              , "F3"              , 13   , '~', -1    , -1    )\
-            X(120, 0x73, 0x73, 0x3E,           0, 0x0000'00'FF, 1, F4              , "F4"              , 14   , '~', -1    , -1    )\
-            X(122, 0x74, 0x74, 0x3F,           0, 0x0000'00'FF, 1, F5              , "F5"              , 15   , '~', -1    , -1    )\
-            X(124, 0x75, 0x75, 0x40,           0, 0x0000'00'FF, 1, F6              , "F6"              , 17   , '~', -1    , -1    )\
-            X(126, 0x76, 0x76, 0x41,           0, 0x0000'00'FF, 1, F7              , "F7"              , 18   , '~', -1    , -1    )\
-            X(128, 0x77, 0x77, 0x42,           0, 0x0000'00'FF, 1, F8              , "F8"              , 19   , '~', -1    , -1    )\
-            X(130, 0x78, 0x78, 0x43,           0, 0x0000'00'FF, 1, F9              , "F9"              , 20   , '~', -1    , -1    )\
-            X(132, 0x79, 0x79, 0x44,           0, 0x0000'00'FF, 1, F10             , "F10"             , 21   , '~', -1    , -1    )\
-            X(134, 0x7A, 0x7A, 0x57,           0, 0x0000'00'FF, 1, F11             , "F11"             , 23   , '~', -1    , -1    )\
-            X(136, 0x7B, 0x7B, 0x5B,           0, 0x0000'00'FF, 1, F12             , "F12"             , 24   , '~', -1    , -1    )\
-            X(138, 0x7C, 0x7C,    0,           0, 0x0000'00'FF, 1, F13             , "F13"             , 57376, 'u', -1    , -1    )\
-            X(140, 0x7D, 0x7D,    0,           0, 0x0100'00'FF, 1, F14             , "F14"             , 57377, 'u', -1    , -1    )\
-            X(142, 0x7E, 0x7E,    0,           0, 0x0100'00'FF, 1, F15             , "F15"             , 57378, 'u', -1    , -1    )\
-            X(144, 0x7F, 0x7F,    0,           0, 0x0100'00'FF, 1, F16             , "F16"             , 57379, 'u', -1    , -1    )\
-            X(146, 0x80, 0x80,    0,           0, 0x0100'00'FF, 1, F17             , "F17"             , 57380, 'u', -1    , -1    )\
-            X(148, 0x81, 0x81,    0,           0, 0x0100'00'FF, 1, F18             , "F18"             , 57381, 'u', -1    , -1    )\
-            X(150, 0x82, 0x82,    0,           0, 0x0100'00'FF, 1, F19             , "F19"             , 57382, 'u', -1    , -1    )\
-            X(152, 0x83, 0x83,    0,           0, 0x0100'00'FF, 1, F20             , "F20"             , 57383, 'u', -1    , -1    )\
-            X(154, 0x84, 0x84,    0,           0, 0x0100'00'FF, 1, F21             , "F21"             , 57384, 'u', -1    , -1    )\
-            X(156, 0x85, 0x85,    0,           0, 0x0100'00'FF, 1, F22             , "F22"             , 57385, 'u', -1    , -1    )\
-            X(158, 0x86, 0x86,    0,           0, 0x0100'00'FF, 1, F23             , "F23"             , 57386, 'u', -1    , -1    )\
-            X(160, 0x87, 0x87,    0,           0, 0x0100'00'FF, 1, F24             , "F24"             , 57387, 'u', -1    , -1    )\
-            X(162, 0x7D, 0x7D,    0, ExtendedKey, 0x0100'00'FF, 1, F25             , "F25"             , 57388, 'u', -1    , -1    )\
-            X(164, 0x7E, 0x7E,    0, ExtendedKey, 0x0100'00'FF, 1, F26             , "F26"             , 57389, 'u', -1    , -1    )\
-            X(166, 0x7F, 0x7F,    0, ExtendedKey, 0x0100'00'FF, 1, F27             , "F27"             , 57390, 'u', -1    , -1    )\
-            X(168, 0x80, 0x80,    0, ExtendedKey, 0x0100'00'FF, 1, F28             , "F28"             , 57391, 'u', -1    , -1    )\
-            X(170, 0x81, 0x81,    0, ExtendedKey, 0x0100'00'FF, 1, F29             , "F29"             , 57392, 'u', -1    , -1    )\
-            X(172, 0x82, 0x82,    0, ExtendedKey, 0x0100'00'FF, 1, F30             , "F30"             , 57393, 'u', -1    , -1    )\
-            X(174, 0x83, 0x83,    0, ExtendedKey, 0x0100'00'FF, 1, F31             , "F31"             , 57394, 'u', -1    , -1    )\
-            X(176, 0x84, 0x84,    0, ExtendedKey, 0x0100'00'FF, 1, F32             , "F32"             , 57395, 'u', -1    , -1    )\
-            X(178, 0x85, 0x85,    0, ExtendedKey, 0x0100'00'FF, 1, F33             , "F33"             , 57396, 'u', -1    , -1    )\
-            X(180, 0x86, 0x86,    0, ExtendedKey, 0x0100'00'FF, 1, F34             , "F34"             , 57397, 'u', -1    , -1    )\
-            X(182, 0x87, 0x87,    0, ExtendedKey, 0x0100'00'FF, 1, F35             , "F35"             , 57398, 'u', -1    , -1    )\
-            X(184, 0x41, 0x41,    0,           0, 0x0100'00'FF, 1, KeyA            , "A"               , 97   , 'u', 'a'   , '\x01')\
-            X(186, 0x42, 0x42,    0,           0, 0x0100'00'FF, 1, KeyB            , "B"               , 98   , 'u', 'b'   , '\x02')\
-            X(188, 0x43, 0x43,    0,           0, 0x0100'00'FF, 1, KeyC            , "C"               , 99   , 'u', 'c'   , '\x03')\
-            X(190, 0x44, 0x44,    0,           0, 0x0100'00'FF, 1, KeyD            , "D"               , 100  , 'u', 'd'   , '\x04')\
-            X(192, 0x45, 0x45,    0,           0, 0x0100'00'FF, 1, KeyE            , "E"               , 101  , 'u', 'e'   , '\x05')\
-            X(194, 0x46, 0x46,    0,           0, 0x0100'00'FF, 1, KeyF            , "F"               , 102  , 'u', 'f'   , '\x06')\
-            X(196, 0x47, 0x47,    0,           0, 0x0100'00'FF, 1, KeyG            , "G"               , 103  , 'u', 'g'   , '\x07')\
-            X(198, 0x48, 0x48,    0,           0, 0x0100'00'FF, 1, KeyH            , "H"               , 104  , 'u', 'h'   , '\x08')\
-            X(200, 0x49, 0x49,    0,           0, 0x0100'00'FF, 1, KeyI            , "I"               , 105  , 'u', 'i'   , '\x09')\
-            X(202, 0x4A, 0x4A,    0,           0, 0x0100'00'FF, 1, KeyJ            , "J"               , 106  , 'u', 'j'   , '\x0a')\
-            X(204, 0x4B, 0x4B,    0,           0, 0x0100'00'FF, 1, KeyK            , "K"               , 107  , 'u', 'k'   , '\x0b')\
-            X(206, 0x4C, 0x4C,    0,           0, 0x0100'00'FF, 1, KeyL            , "L"               , 108  , 'u', 'l'   , '\x0c')\
-            X(208, 0x4D, 0x4D,    0,           0, 0x0100'00'FF, 1, KeyM            , "M"               , 109  , 'u', 'm'   , '\x0d')\
-            X(210, 0x4E, 0x4E,    0,           0, 0x0100'00'FF, 1, KeyN            , "N"               , 110  , 'u', 'n'   , '\x0e')\
-            X(212, 0x4F, 0x4F,    0,           0, 0x0100'00'FF, 1, KeyO            , "O"               , 111  , 'u', 'o'   , '\x0f')\
-            X(214, 0x50, 0x50,    0,           0, 0x0100'00'FF, 1, KeyP            , "P"               , 112  , 'u', 'p'   , '\x10')\
-            X(216, 0x51, 0x51,    0,           0, 0x0100'00'FF, 1, KeyQ            , "Q"               , 113  , 'u', 'q'   , '\x11')\
-            X(218, 0x52, 0x52,    0,           0, 0x0100'00'FF, 1, KeyR            , "R"               , 114  , 'u', 'r'   , '\x12')\
-            X(220, 0x53, 0x53,    0,           0, 0x0100'00'FF, 1, KeyS            , "S"               , 115  , 'u', 's'   , '\x13')\
-            X(222, 0x54, 0x54,    0,           0, 0x0100'00'FF, 1, KeyT            , "T"               , 116  , 'u', 't'   , '\x14')\
-            X(224, 0x55, 0x55,    0,           0, 0x0100'00'FF, 1, KeyU            , "U"               , 117  , 'u', 'u'   , '\x15')\
-            X(226, 0x56, 0x56,    0,           0, 0x0100'00'FF, 1, KeyV            , "V"               , 118  , 'u', 'v'   , '\x16')\
-            X(228, 0x57, 0x57,    0,           0, 0x0100'00'FF, 1, KeyW            , "W"               , 119  , 'u', 'w'   , '\x17')\
-            X(230, 0x58, 0x58,    0,           0, 0x0100'00'FF, 1, KeyX            , "X"               , 120  , 'u', 'x'   , '\x18')\
-            X(232, 0x59, 0x59,    0,           0, 0x0100'00'FF, 1, KeyY            , "Y"               , 121  , 'u', 'y'   , '\x19')\
-            X(234, 0x5A, 0x5A,    0,           0, 0x0100'00'FF, 1, KeyZ            , "Z"               , 122  , 'u', 'z'   , '\x1a')\
-            X(236, 0x5F, 0x5F,    0, ExtendedKey, 0x0100'00'FF, 0, Sleep           , "Sleep"           , 0    , 'u', -1    , -1    )\
-            X(238, 0xB7, 0xB7,    0, ExtendedKey, 0x0100'00'FF, 0, Calculator      , "Calculator"      , 0    , 'u', -1    , -1    )\
-            X(240, 0x48, 0x48,    0, ExtendedKey, 0x0100'00'FF, 0, Mail            , "Mail"            , 0    , 'u', -1    , -1    )\
-            X(242, 0xAD, 0xAD,    0, ExtendedKey, 0x0100'00'FF, 0, MediaVolMute    , "MediaVolMute"    , 57440, 'u', -1    , -1    )\
-            X(244, 0xAE, 0xAE,    0, ExtendedKey, 0x0100'00'FF, 0, MediaVolDown    , "MediaVolDown"    , 57438, 'u', -1    , -1    )\
-            X(246, 0xAF, 0xAF,    0, ExtendedKey, 0x0100'00'FF, 0, MediaVolUp      , "MediaVolUp"      , 57439, 'u', -1    , -1    )\
-            X(248, 0xB0, 0xB0,    0, ExtendedKey, 0x0100'00'FF, 0, MediaNext       , "MediaNext"       , 57435, 'u', -1    , -1    )\
-            X(250, 0xB1, 0xB1,    0, ExtendedKey, 0x0100'00'FF, 0, MediaPrev       , "MediaPrev"       , 57436, 'u', -1    , -1    )\
-            X(252, 0xB2, 0xB2,    0, ExtendedKey, 0x0100'00'FF, 0, MediaStop       , "MediaStop"       , 57432, 'u', -1    , -1    )\
-            X(254, 0xB2, 0xB2,    0,           0, 0x0100'00'FF, 0, MediaPause      , "MediaPause"      , 57429, 'u', -1    , -1    )\
-            X(256, 0xB3, 0xB3,    0, ExtendedKey, 0x0100'00'FF, 0, MediaPlayPause  , "MediaPlayPause"  , 57430, 'u', -1    , -1    )\
-            X(258, 0xB3, 0xB3,    0,           0, 0x0100'00'FF, 0, MediaPlay       , "MediaPlay"       , 57428, 'u', -1    , -1    )\
-            X(260, 0xB5, 0xB5,    0, ExtendedKey, 0x0100'00'FF, 0, MediaSelect     , "MediaSelect"     , 0    , 'u', -1    , -1    )\
-            X(262, 0xB8, 0xB8,    0, ExtendedKey, 0x0100'00'FF, 0, MediaReverse    , "MediaReverse"    , 57431, 'u', -1    , -1    )\
-            X(264, 0xB8, 0xB8,    0,           0, 0x0100'00'FF, 0, MediaRecord     , "MediaRecord"     , 57437, 'u', -1    , -1    )\
-            X(266, 0xB9, 0xB9,    0, ExtendedKey, 0x0100'00'FF, 0, MediaFastForward, "MediaFastForward", 57433, 'u', -1    , -1    )\
-            X(268, 0xB9, 0xB9,    0,           0, 0x0100'00'FF, 0, MediaRewind     , "MediaRewind"     , 57434, 'u', -1    , -1    )\
-            X(270, 0xA6, 0xA6,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserBack     , "BrowserBack"     , 0    , 'u', -1    , -1    )\
-            X(272, 0xA7, 0xA7,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserForward  , "BrowserForward"  , 0    , 'u', -1    , -1    )\
-            X(274, 0xA8, 0xA8,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserRefresh  , "BrowserRefresh"  , 0    , 'u', -1    , -1    )\
-            X(276, 0xA9, 0xA9,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserStop     , "BrowserStop"     , 0    , 'u', -1    , -1    )\
-            X(278, 0xAA, 0xAA,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserSearch   , "BrowserSearch"   , 0    , 'u', -1    , -1    )\
-            X(280, 0xAB, 0xAB,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserFavorites, "BrowserFavorites", 0    , 'u', -1    , -1    )\
-            X(282, 0xAC, 0xAC,    0, ExtendedKey, 0x0100'00'FF, 0, BrowserHome     , "BrowserHome"     , 0    , 'u', -1    , -1    )\
-            X(284, 0xFF, 0xFF, 0xFF, ExtendedKey, 0x0100'FF'FF, 0, lastKey         , "lastKey"         , 0    , 0  , -1    , -1    )
+            /*Id   Index Vkey  Scan  KLID     CS          Mask  CS KLID VK SC  I  Name                   GenericName      KKP base,suffix,ascii,w\ctrl*/\
+            X(0,      0,    0,    0, 0x00000,           0, 0x0000'00000'00'FF, 1, undef                , "undef"           , 0    , 'u', -1    , -1    )\
+            X(1,      0, 0xFF, 0xFF, 0x00409,           0, 0x0100'00000'FF'FF, 0, config               , "config"          , 0    , 'u', -1    , -1    )\
+            X(2,   0xA2, 0x11, 0x1D, 0x00409,           0, 0x0100'00000'00'FF, 0, LeftCtrl             , "Ctrl"            , 57442, 'u', -1    , -1    )\
+            X( 3,  0xA3, 0x11, 0x1D, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, RightCtrl            , "Ctrl"            , 57448, 'u', -1    , -1    )\
+            X(4,   0xA4, 0x12, 0x38, 0x00409,           0, 0x0100'00000'00'FF, 0, LeftAlt              , "Alt"             , 57443, 'u', -1    , -1    )\
+            X( 5,  0xA5, 0x12, 0x38, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, RightAlt             , "Alt"             , 57449, 'u', -1    , -1    )\
+            X(6,   0xA0, 0x10, 0x2A, 0x00409,           0, 0x0000'00000'FF'FF, 0, LeftShift            , "Shift"           , 57441, 'u', -1    , -1    )\
+            X( 7,  0xA1, 0x10, 0x36, 0x00409,           0, 0x0000'00000'FF'FF, 0, RightShift           , "Shift"           , 57447, 'u', -1    , -1    )\
+            X(8,   0x5B, 0x5B, 0x5B, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, LeftWin              , "Win"             , 57444, 'u', -1    , -1    )\
+            X( 9,  0x5C, 0x5C, 0x5C, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, RightWin             , "Win"             , 57450, 'u', -1    , -1    )\
+            X(10,  0x5B, 0x5B, 0x5B, 0x00409,           0, 0x0100'00000'00'FF, 0, LeftHyper            , "Hyper"           , 57445, 'u', -1    , -1    )\
+            X( 11, 0x5C, 0x5C, 0x5C, 0x00409,           0, 0x0100'00000'00'FF, 0, RightHyper           , "Hyper"           , 57451, 'u', -1    , -1    )\
+            X(12,  0x5D, 0x5D, 0x5D, 0x00409, ExtendedKey, 0x0000'00000'00'FF, 0, Apps                 , "Apps"            , 57363, 'u', -1    , -1    )\
+            X(14,  0x90, 0x90, 0x45, 0x00409,           0, 0x0000'00000'00'FF, 0, NumLock              , "NumLock"         , 57360, 'u', -1    , -1    )\
+            X(16,  0x14, 0x14, 0x3A, 0x00409,           0, 0x0100'00000'00'FF, 0, CapsLock             , "CapsLock"        , 57358, 'u', -1    , -1    )\
+            X(18,  0x91, 0x91, 0x45, 0x00409,           0, 0x0100'00000'00'FF, 0, ScrollLock           , "ScrollLock"      , 57359, 'u', -1    , -1    )\
+            X(20,  0x14, 0x14, 0x3A, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, AltGR                , "AltGr"           , 57453, 'u', -1    , -1    )/*IsoLevel3Shift*/\
+            X(22,  0x91, 0x91, 0x45, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, IsoLevel5Shift       , "IsoLevel5Shift"  , 57454, 'u', -1    , -1    )\
+            X(24,  0x1B, 0x1B, 0x01, 0x00409,           0, 0x0000'00000'00'FF, 1, Esc                  , "Esc"             , 27   , 'u', '\x1b', '\x1b')\
+            X(26,  0x20, 0x20, 0x39, 0x00409,           0, 0x0000'00000'00'FF, 1, Space                , "Space"           , 32   , 'u', '\x20', '\0'  )\
+            X(28,  0x08, 0x08, 0x0E, 0x00409,           0, 0x0000'00000'00'FF, 1, Backspace            , "Backspace"       , 127  , 'u', '\x7f', '\x08')\
+            X(30,  0x09, 0x09, 0x0F, 0x00409,           0, 0x0000'00000'00'FF, 1, Tab                  , "Tab"             , 9    , 'u', '\x09', '\x09')\
+            X(32,  0x03, 0x03, 0x46, 0x00409,           0, 0x0000'00000'FF'FF, 1, Break                , "Break"           , 0    , 'u', '\x1a', '\x03')\
+            X(34,  0x13, 0x13, 0x45, 0x00409,           0, 0x0000'00000'FF'FF, 0, Pause                , "Pause"           , 57362, 'u', '\x1a', '\x03')\
+            X(36,  0x29, 0x29,    0, 0x00409,           0, 0x0000'00000'00'FF, 0, Select               , "Select"          , 0    , 'u', -1    , -1    )\
+            X(38,  0x2C, 0x2C, 0x54, 0x00409,           0, 0x0000'00000'FF'FF, 1, SysRq                , "SysRq"           , 0    , 'u', -1    , '\x03')\
+            X(40,  0x2C, 0x2C, 0x37, 0x00409, ExtendedKey, 0x0100'00000'FF'FF, 0, PrintScreen          , "PrintScreen"     , 57361, 'u', -1    , -1    )\
+            X(42,  0x0D, 0x0D, 0x1C, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyEnter             , "Enter"           , 13   , 'u', '\x0d', '\x0a')\
+            X( 43, 0x0D, 0x0D, 0x1C, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, NumpadEnter          , "Enter"           , 57414, 'u', '\x0d', '\x0a')\
+            X(44,  0x21, 0x21, 0x49, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyPageUp            , "PageUp"          , 5    , '~', -1    , -1    )\
+            X( 45, 0x21, 0x21, 0x49, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadPageUp         , "PageUp"          , 57421, 'u', -1    , -1    )\
+            X(46,  0x22, 0x22, 0x51, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyPageDown          , "PageDown"        , 6    , '~', -1    , -1    )\
+            X( 47, 0x22, 0x22, 0x51, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadPageDown       , "PageDown"        , 57422, 'u', -1    , -1    )\
+            X(48,  0x23, 0x23, 0x4F, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyEnd               , "End"             , 8    , '~', -1    , -1    )/*don't reorder*/\
+            X( 49, 0x23, 0x23, 0x4F, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadEnd            , "End"             , 57424, 'u', -1    , -1    )/*don't reorder*/\
+            X(50,  0x24, 0x24, 0x47, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyHome              , "Home"            , 7    , '~', -1    , -1    )/*don't reorder*/\
+            X( 51, 0x24, 0x24, 0x47, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadHome           , "Home"            , 57423, 'u', -1    , -1    )/*don't reorder*/\
+            X(52,  0x25, 0x25, 0x4B, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyLeftArrow         , "LeftArrow"       , 1    , 'D', -1    , -1    )/*don't reorder*/\
+            X( 53, 0x25, 0x25, 0x4B, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadLeftArrow      , "LeftArrow"       , 57417, 'u', -1    , -1    )/*don't reorder*/\
+            X(54,  0x26, 0x26, 0x48, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyUpArrow           , "UpArrow"         , 1    , 'A', -1    , -1    )/*don't reorder*/\
+            X( 55, 0x26, 0x26, 0x48, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadUpArrow        , "UpArrow"         , 57419, 'u', -1    , -1    )/*don't reorder*/\
+            X(56,  0x27, 0x27, 0x4D, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyRightArrow        , "RightArrow"      , 1    , 'C', -1    , -1    )/*don't reorder*/\
+            X( 57, 0x27, 0x27, 0x4D, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadRightArrow     , "RightArrow"      , 57418, 'u', -1    , -1    )/*don't reorder*/\
+            X(58,  0x28, 0x28, 0x50, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyDownArrow         , "DownArrow"       , 1    , 'B', -1    , -1    )/*don't reorder*/\
+            X( 59, 0x28, 0x28, 0x50, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadDownArrow      , "DownArrow"       , 57420, 'u', -1    , -1    )/*don't reorder*/\
+            X(60,  0x30, 0x30, 0x0B, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key0                 , "0"               , 48   , 'u', '0'   , '0'   )\
+            X( 61, 0x60, 0x60, 0x52, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad0              , "0"               , 57399, 'u', '0'   , '0'   )\
+            X(62,  0x31, 0x31, 0x02, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key1                 , "1"               , 49   , 'u', '1'   , '1'   )\
+            X( 63, 0x61, 0x61, 0x4F, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad1              , "1"               , 57400, 'u', '1'   , '1'   )\
+            X(64,  0x32, 0x32, 0x03, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key2                 , "2"               , 50   , 'u', '2'   , '\0'  )\
+            X( 65, 0x62, 0x62, 0x50, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad2              , "2"               , 57401, 'u', '2'   , '\0'  )\
+            X(66,  0x33, 0x33, 0x04, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key3                 , "3"               , 51   , 'u', '3'   , '\x1b')\
+            X( 67, 0x63, 0x63, 0x51, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad3              , "3"               , 57402, 'u', '3'   , '\x1b')\
+            X(68,  0x34, 0x34, 0x05, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key4                 , "4"               , 52   , 'u', '4'   , '\x1c')\
+            X( 69, 0x64, 0x64, 0x4B, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad4              , "4"               , 57403, 'u', '4'   , '\x1c')\
+            X(70,  0x35, 0x35, 0x06, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key5                 , "5"               , 53   , 'u', '5'   , '\x1d')\
+            X( 71, 0x65, 0x65, 0x4C, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad5              , "5"               , 57404, 'u', '5'   , '\x1d')\
+            X(72,  0x36, 0x36, 0x07, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key6                 , "6"               , 54   , 'u', '6'   , '\x1e')\
+            X( 73, 0x66, 0x66, 0x4D, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad6              , "6"               , 57405, 'u', '6'   , '\x1e')\
+            X(74,  0x37, 0x37, 0x08, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key7                 , "7"               , 55   , 'u', '7'   , '\x1f')\
+            X( 75, 0x67, 0x67, 0x47, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad7              , "7"               , 57406, 'u', '7'   , '\x1f')\
+            X(76,  0x38, 0x38, 0x09, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key8                 , "8"               , 56   , 'u', '8'   , '\x7f')\
+            X( 77, 0x68, 0x68, 0x48, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad8              , "8"               , 57407, 'u', '8'   , '\x7f')\
+            X(78,  0x39, 0x39, 0x0A, 0x00409,           0, 0x0000'00000'FF'FF, 1, Key9                 , "9"               , 57   , 'u', '9'   , '9'   )\
+            X( 79, 0x69, 0x69, 0x49, 0x00409, NumLockMode, 0x0000'00000'FF'FF, 1, Numpad9              , "9"               , 57408, 'u', '9'   , '9'   )\
+            X(80,  0x2D, 0x2D, 0x52, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyInsert            , "Insert"          , 2    , '~', -1    , -1    )\
+            X( 81, 0x2D, 0x2D, 0x52, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadInsert         , "Insert"          , 57425, 'u', -1    , -1    )\
+            X(82,  0x2E, 0x2E, 0x53, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyDelete            , "Delete"          , 3    , '~', -1    , -1    )\
+            X( 83, 0x2E, 0x2E, 0x55, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadDelete         , "Delete"          , 57426, 'u', -1    , -1    )\
+            X(84,  0x0C, 0x0C, 0x4C, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, KeyClear             , "Clear"           , 1    , 'E', -1    , -1    )\
+            X( 85, 0x0C, 0x0C, 0x4C, 0x00409,           0, 0x0100'00000'00'FF, 1, NumpadClear          , "Clear"           , 57427, '~', -1    , -1    )\
+            X(86,  0x6A, 0x6A, 0x09, 0x00409,           0, 0x0000'00000'FF'FF, 1, KeyMultiply          , "*"               , 0    , 'u', '*'   , '*'   )\
+            X( 87, 0x6A, 0x6A, 0x37, 0x00409,           0, 0x0000'00000'FF'FF, 1, NumpadMultiply       , "*"               , 57411, 'u', '*'   , '*'   )\
+            X(88,  0x6B, 0x6B, 0x0D, 0x00409,           0, 0x0000'00000'FF'FF, 1, KeyPlus              , "Plus"            , 43   , 'u', '+'   , '+'   )\
+            X( 89, 0x6B, 0x6B, 0x4E, 0x00409,           0, 0x0000'00000'FF'FF, 1, NumpadPlus           , "Plus"            , 57413, 'u', '+'   , '+'   )\
+            X(90,  0x6C, 0x6C,    0, 0x00409,           0, 0x0020'00000'00'FF, 1, KeySeparator         , "Separator"       , 0    , 'u', ','   , ','   )\
+            X( 91, 0x6C, 0x6C,    0, 0x00409, NumLockMode, 0x0020'00000'00'FF, 1, NumpadSeparator      , "Separator"       , 57416, 'u', ','   , ','   )\
+            X(92,  0xBD, 0xBD, 0x0C, 0x00409,           0, 0x0000'00000'00'FF, 1, KeyMinus             , "Minus"           , 45   , 'u', '-'   , '-'   )\
+            X( 93, 0x6D, 0x6D, 0x4A, 0x00409,           0, 0x0000'00000'00'FF, 1, NumpadMinus          , "Minus"           , 57412, 'u', '-'   , '-'   )\
+            X(94,  0xBE, 0xBE, 0x34, 0x00409,           0, 0x0000'00000'00'FF, 1, KeyPeriod            , "."               , 46   , 'u', '.'   , '.'   )\
+            X( 95, 0x6E, 0x6E, 0x53, 0x00409, NumLockMode, 0x0000'00000'00'FF, 1, NumpadDecimal        , "."               , 57409, 'u', '.'   , '.'   )\
+            X(96,  0xBF, 0xBF, 0x35, 0x00409,           0, 0x0000'00000'00'FF, 1, KeySlash             , "/"               , 47   , 'u', '/'   , '\x1f')\
+            X( 97, 0x6F, 0x6F, 0x35, 0x00409, ExtendedKey, 0x0000'00000'00'FF, 1, NumpadSlash          , "/"               , 57410, 'u', '/'   , '\x1f')\
+            X(98,  0xBB, 0xBB, 0x0D, 0x00409,           0, 0x0100'00000'00'FF, 1, Equal                , "="               , 61   , 'u', '='   , '='   )\
+            X( 99, 0xBB, 0xBB, 0x0D, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, NumpadEqual          , "="               , 57415, 'u', '='   , '='   )\
+            X(100, 0xDC, 0xDC, 0x2B, 0x00409,           0, 0x0000'00000'00'FF, 1, BackSlash            , "BackSlash"       , 92   , 'u', '\\'  , '\x1c')\
+            X(102, 0xDB, 0xDB, 0x1A, 0x00409,           0, 0x0000'00000'00'FF, 1, OpenBracket          , "["               , 91   , 'u', '['   , '\x1b')\
+            X(104, 0xDD, 0xDD, 0x1B, 0x00409,           0, 0x0000'00000'00'FF, 1, ClosedBracket        , "]"               , 93   , 'u', ']'   , '\x1d')\
+            X(106, 0xC0, 0xC0, 0x29, 0x00409,           0, 0x0000'00000'00'FF, 1, BackQuote            , "`"               , 96   , 'u', '`'   , '`'   )\
+            X(108, 0xDE, 0xDE, 0x28, 0x00409,           0, 0x0000'00000'00'FF, 1, SingleQuote          , "'"               , 39   , 'u', '\''  , '\''  )\
+            X(110, 0xBC, 0xBC, 0x33, 0x00409,           0, 0x0000'00000'00'FF, 1, Comma                , ","               , 44   , 'u', ','   , ','   )\
+            X(112, 0xBA, 0xBA, 0x27, 0x00409,           0, 0x0000'00000'00'FF, 1, Semicolon            , ";"               , 59   , 'u', ';'   , ';'   )\
+            X(114, 0xBC, 0xBC, 0x33, 0x00415,           0, 0x0000'FFFFF'00'FF, 1, LessThan             , "<"               , 60   , 'u', ';'   , ';'   )/*bepo  */\
+            X(116, 0xBE, 0xBE, 0x34, 0x00418,           0, 0x0000'FFFFF'00'FF, 1, GreaterThan          , ">"               , 62   , 'u', ';'   , ';'   )/*bepo  */\
+            X(118, 0xC0, 0xC0, 0x29, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, DegreeSign           , "°"               , 176  , 'u', '"'   , '"'   )/*qwertz Hungarian*/\
+            X(120, 0x33, 0x33, 0x04, 0x5040C,           0, 0x0000'FFFFF'00'FF, 1, DoubleQuote          , "\""              , 34   , 'u', '"'   , '"'   )/*azerty*/\
+            X(122, 0x35, 0x35, 0x06, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, OpenRoundBracket     , "("               , 40   , 'u', '('   , '('   )/*azerty*/\
+            X(124, 0x38, 0x38, 0x2D, 0x5040C,           0, 0x0000'FFFFF'00'FF, 1, ClosedRoundBracket   , ")"               , 41   , 'u', ')'   , ')'   )/*azerty*/\
+            X(126, 0x36, 0x36, 0x07, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, AtSign               , "@"               , 64   , 'u', '@'   , '\0'  )/*bepo  */\
+            X(128, 0xDD, 0xDD, 0x0D, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, Percent              , "%"               , 37   , 'u', '%'   , '%'   )/*bepo  */\
+            X(130, 0xDF, 0xDF, 0x35, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, ExclamationMark      , "!"               , 33   , 'u', '!'   , '!'   )/*azerty*/\
+            X(132, 0x31, 0x31, 0x02, 0x0040E,           0, 0x0000'FFFFF'00'FF, 1, Ampersand            , "&"               , 38   , 'u', '&'   , '&'   )/*azerty*/\
+            X(134, 0x38, 0x38, 0x09, 0x0040E,           0, 0x0000'FFFFF'00'FF, 1, Underscore           , "_"               , 95   , 'u', '_'   , '\x1f')/*azerty*/\
+            X(136, 0x32, 0x32, 0x03, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, LeftDoubleAngleQuote , "«"               , 171  , 'u', -1    , -1    )/*bepo  */\
+            X(138, 0x33, 0x33, 0x04, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, RightDoubleAngleQuote, "»"               , 187  , 'u', -1    , -1    )/*bepo  */\
+            X(140, 0xDB, 0xDB, 0x2D, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, Eszett               , "ß"               , 223  , 'u', -1    , -1    )/*qwertz*/\
+            X(142, 0x38, 0x38, 0x09, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, AcuteA               , "á"               , 225  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(144, 0x32, 0x32, 0x03, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, AcuteE               , "é"               , 233  , 'u', -1    , -1    )/*azerty*/\
+            X(146, 0x39, 0x39, 0x0A, 0x0041B,           0, 0x0000'FFFFF'00'FF, 1, AcuteI               , "í"               , 237  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(148, 0x38, 0x38, 0x09, 0x0041B,           0, 0x0000'FFFFF'00'FF, 1, AcuteO               , "ó"               , 243  , 'u', -1    , -1    )/*qwertz Hungarian*/\
+            X(150, 0x35, 0x35, 0x06, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, AcuteU               , "ú"               , 250  , 'u', -1    , -1    )/*qwertz Hungarian*/\
+            X(152, 0x37, 0x37, 0x08, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, AcuteY               , "ý"               , 253  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(154, 0x34, 0x34, 0x05, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, DoubleAcuteO         , "ő"               , 337  , 'u', -1    , -1    )/*qwertz Hungarian*/\
+            X(156, 0x39, 0x39, 0x0A, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, CedillaC             , "ç"               , 231  , 'u', -1    , -1    )/*azerty*/\
+            X(158, 0x5A, 0x5A, 0x2C, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, CircumflexE          , "ê"               , 234  , 'u', -1    , -1    )/*bepo  */\
+            X(160, 0x32, 0x32, 0x03, 0x5040C,           0, 0x0000'FFFFF'00'FF, 1, CaronE               , "ě"               , 283  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(162, 0x33, 0x33, 0x04, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, CaronS               , "š"               , 353  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(164, 0x34, 0x34, 0x05, 0x0040E,           0, 0x0000'FFFFF'00'FF, 1, CaronC               , "č"               , 269  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(166, 0x35, 0x35, 0x06, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, CaronR               , "ř"               , 345  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(168, 0x36, 0x36, 0x07, 0x0040E,           0, 0x0000'FFFFF'00'FF, 1, CaronZ               , "ž"               , 282  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(170, 0x32, 0x32, 0x03, 0x0040E,           0, 0x0000'FFFFF'00'FF, 1, CaronL               , "ľ"               , 318  , 'u', -1    , -1    )/*qwertz Slovak*/\
+            X(172, 0x35, 0x35, 0x06, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, CaronT               , "ť"               , 357  , 'u', -1    , -1    )/*qwertz Slovak*/\
+            X(174, 0x30, 0x30, 0x0B, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, GraveA               , "à"               , 224  , 'u', -1    , -1    )/*azerty*/\
+            X(176, 0x37, 0x37, 0x08, 0x00405,           0, 0x0000'FFFFF'00'FF, 1, GraveE               , "è"               , 232  , 'u', -1    , -1    )/*azerty*/\
+            X(178, 0xDE, 0xDE, 0x28, 0x00407,           0, 0x0000'FFFFF'00'FF, 1, UmlautA              , "ä"               , 228  , 'u', -1    , -1    )/*qwertz*/\
+            X(180, 0xBF, 0xBF, 0x27, 0x5040C,           0, 0x0000'0FFFF'00'FF, 1, UmlautO              , "ö"               , 246  , 'u', -1    , -1    )/*qwertz*/\
+            X(182, 0xBA, 0xBA, 0x1A, 0x5040C,           0, 0x0000'0FFFF'00'FF, 1, UmlautU              , "ü"               , 252  , 'u', -1    , -1    )/*qwertz*/\
+            X(184, 0xBA, 0xBA, 0x27, 0x0040C,           0, 0x0000'FFFFF'00'FF, 1, RingU                , "ů"               , 367  , 'u', -1    , -1    )/*qwertz Czech*/\
+            X(186, 0xDC, 0xDC, 0x29, 0x5040C,           0, 0x0000'FFFFF'00'FF, 0, Circumflex           , "^"               , 94   , 'u', -1    , -1    )/*qwertz*/\
+            X(188, 0xDD, 0xDD, 0x0D, 0x5040C,           0, 0x0000'FFFFF'00'FF, 0, AcuteAccent          , "´"               , 180  , 'u', -1    , -1    )/*qwertz*/\
+            X(190, 0xC0, 0xC0, 0x29, 0x0040C,           0, 0x0000'FFFFF'00'FF, 0, GraveAccent          , "`"               , 96   , 'u', -1    , -1    )/*bepo  */\
+            X(192, 0xDD, 0xDD, 0x1A, 0x0040C,           0, 0x0000'FFFFF'00'FF, 0, Umlaut               , "¨"               , 168  , 'u', -1    , -1    )/*azerty*/\
+            X(194, 0x4E, 0x4E, 0x31, 0x0040C,           0, 0x0000'FFFFF'00'FF, 0, CombiningTilde       , "~"               , 771  , 'u', -1    , -1    )/*bepo  */\
+            X(196, 0xDC, 0xDC, 0x29, 0x0040E,           0, 0x0000'FFFFF'00'FF, 0, CombiningCaron       , "ˇ"               , 780  , 'u', -1    , -1    )/*qwertz Hungarian*/\
+            X(198, 0xDC, 0xDC, 0x29, 0x5040C,           0, 0x0000'FFFFF'00'FF, 0, CombiningBreve       , "˘"               , 774  , 'u', -1    , -1    )/*bepo French*/\
+            X(200, 0xDE, 0xDE, 0x28, 0x5040C,           0, 0x0000'FFFFF'00'FF, 0, CombiningOgonek      , "˛"               , 731  , 'u', -1    , -1    )/*bepo French*/\
+            X(202, 0x70, 0x70, 0x3B, 0x00409,           0, 0x0000'00000'00'FF, 1, F1                   , "F1"              , 11   , '~', -1    , -1    )\
+            X(204, 0x71, 0x71, 0x3C, 0x00409,           0, 0x0000'00000'00'FF, 1, F2                   , "F2"              , 12   , '~', -1    , -1    )\
+            X(206, 0x72, 0x72, 0x3D, 0x00409,           0, 0x0000'00000'00'FF, 1, F3                   , "F3"              , 13   , '~', -1    , -1    )\
+            X(208, 0x73, 0x73, 0x3E, 0x00409,           0, 0x0000'00000'00'FF, 1, F4                   , "F4"              , 14   , '~', -1    , -1    )\
+            X(210, 0x74, 0x74, 0x3F, 0x00409,           0, 0x0000'00000'00'FF, 1, F5                   , "F5"              , 15   , '~', -1    , -1    )\
+            X(212, 0x75, 0x75, 0x40, 0x00409,           0, 0x0000'00000'00'FF, 1, F6                   , "F6"              , 17   , '~', -1    , -1    )\
+            X(214, 0x76, 0x76, 0x41, 0x00409,           0, 0x0000'00000'00'FF, 1, F7                   , "F7"              , 18   , '~', -1    , -1    )\
+            X(216, 0x77, 0x77, 0x42, 0x00409,           0, 0x0000'00000'00'FF, 1, F8                   , "F8"              , 19   , '~', -1    , -1    )\
+            X(218, 0x78, 0x78, 0x43, 0x00409,           0, 0x0000'00000'00'FF, 1, F9                   , "F9"              , 20   , '~', -1    , -1    )\
+            X(220, 0x79, 0x79, 0x44, 0x00409,           0, 0x0000'00000'00'FF, 1, F10                  , "F10"             , 21   , '~', -1    , -1    )\
+            X(222, 0x7A, 0x7A, 0x57, 0x00409,           0, 0x0000'00000'00'FF, 1, F11                  , "F11"             , 23   , '~', -1    , -1    )\
+            X(224, 0x7B, 0x7B, 0x5B, 0x00409,           0, 0x0000'00000'00'FF, 1, F12                  , "F12"             , 24   , '~', -1    , -1    )\
+            X(226, 0x7C, 0x7C,    0, 0x00409,           0, 0x0000'00000'00'FF, 1, F13                  , "F13"             , 57376, 'u', -1    , -1    )\
+            X(228, 0x7D, 0x7D,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F14                  , "F14"             , 57377, 'u', -1    , -1    )\
+            X(230, 0x7E, 0x7E,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F15                  , "F15"             , 57378, 'u', -1    , -1    )\
+            X(232, 0x7F, 0x7F,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F16                  , "F16"             , 57379, 'u', -1    , -1    )\
+            X(234, 0x80, 0x80,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F17                  , "F17"             , 57380, 'u', -1    , -1    )\
+            X(236, 0x81, 0x81,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F18                  , "F18"             , 57381, 'u', -1    , -1    )\
+            X(238, 0x82, 0x82,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F19                  , "F19"             , 57382, 'u', -1    , -1    )\
+            X(240, 0x83, 0x83,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F20                  , "F20"             , 57383, 'u', -1    , -1    )\
+            X(242, 0x84, 0x84,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F21                  , "F21"             , 57384, 'u', -1    , -1    )\
+            X(244, 0x85, 0x85,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F22                  , "F22"             , 57385, 'u', -1    , -1    )\
+            X(246, 0x86, 0x86,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F23                  , "F23"             , 57386, 'u', -1    , -1    )\
+            X(248, 0x87, 0x87,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, F24                  , "F24"             , 57387, 'u', -1    , -1    )\
+            X(250, 0x7D, 0x7D,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F25                  , "F25"             , 57388, 'u', -1    , -1    )\
+            X(252, 0x7E, 0x7E,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F26                  , "F26"             , 57389, 'u', -1    , -1    )\
+            X(254, 0x7F, 0x7F,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F27                  , "F27"             , 57390, 'u', -1    , -1    )\
+            X(256, 0x80, 0x80,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F28                  , "F28"             , 57391, 'u', -1    , -1    )\
+            X(258, 0x81, 0x81,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F29                  , "F29"             , 57392, 'u', -1    , -1    )\
+            X(260, 0x82, 0x82,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F30                  , "F30"             , 57393, 'u', -1    , -1    )\
+            X(262, 0x83, 0x83,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F31                  , "F31"             , 57394, 'u', -1    , -1    )\
+            X(264, 0x84, 0x84,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F32                  , "F32"             , 57395, 'u', -1    , -1    )\
+            X(266, 0x85, 0x85,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F33                  , "F33"             , 57396, 'u', -1    , -1    )\
+            X(268, 0x86, 0x86,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F34                  , "F34"             , 57397, 'u', -1    , -1    )\
+            X(270, 0x87, 0x87,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 1, F35                  , "F35"             , 57398, 'u', -1    , -1    )\
+            X(272, 0x41, 0x41,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyA                 , "A"               , 97   , 'u', 'a'   , '\x01')\
+            X(274, 0x42, 0x42,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyB                 , "B"               , 98   , 'u', 'b'   , '\x02')\
+            X(276, 0x43, 0x43,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyC                 , "C"               , 99   , 'u', 'c'   , '\x03')\
+            X(278, 0x44, 0x44,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyD                 , "D"               , 100  , 'u', 'd'   , '\x04')\
+            X(280, 0x45, 0x45,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyE                 , "E"               , 101  , 'u', 'e'   , '\x05')\
+            X(282, 0x46, 0x46,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyF                 , "F"               , 102  , 'u', 'f'   , '\x06')\
+            X(284, 0x47, 0x47,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyG                 , "G"               , 103  , 'u', 'g'   , '\x07')\
+            X(286, 0x48, 0x48,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyH                 , "H"               , 104  , 'u', 'h'   , '\x08')\
+            X(288, 0x49, 0x49,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyI                 , "I"               , 105  , 'u', 'i'   , '\x09')\
+            X(290, 0x4A, 0x4A,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyJ                 , "J"               , 106  , 'u', 'j'   , '\x0a')\
+            X(292, 0x4B, 0x4B,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyK                 , "K"               , 107  , 'u', 'k'   , '\x0b')\
+            X(294, 0x4C, 0x4C,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyL                 , "L"               , 108  , 'u', 'l'   , '\x0c')\
+            X(296, 0x4D, 0x4D,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyM                 , "M"               , 109  , 'u', 'm'   , '\x0d')\
+            X(298, 0x4E, 0x4E,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyN                 , "N"               , 110  , 'u', 'n'   , '\x0e')\
+            X(300, 0x4F, 0x4F,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyO                 , "O"               , 111  , 'u', 'o'   , '\x0f')\
+            X(302, 0x50, 0x50,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyP                 , "P"               , 112  , 'u', 'p'   , '\x10')\
+            X(304, 0x51, 0x51,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyQ                 , "Q"               , 113  , 'u', 'q'   , '\x11')\
+            X(306, 0x52, 0x52,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyR                 , "R"               , 114  , 'u', 'r'   , '\x12')\
+            X(308, 0x53, 0x53,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyS                 , "S"               , 115  , 'u', 's'   , '\x13')\
+            X(310, 0x54, 0x54,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyT                 , "T"               , 116  , 'u', 't'   , '\x14')\
+            X(312, 0x55, 0x55,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyU                 , "U"               , 117  , 'u', 'u'   , '\x15')\
+            X(314, 0x56, 0x56,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyV                 , "V"               , 118  , 'u', 'v'   , '\x16')\
+            X(316, 0x57, 0x57,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyW                 , "W"               , 119  , 'u', 'w'   , '\x17')\
+            X(318, 0x58, 0x58,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyX                 , "X"               , 120  , 'u', 'x'   , '\x18')\
+            X(320, 0x59, 0x59,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyY                 , "Y"               , 121  , 'u', 'y'   , '\x19')\
+            X(322, 0x5A, 0x5A,    0, 0x00409,           0, 0x0100'00000'00'FF, 1, KeyZ                 , "Z"               , 122  , 'u', 'z'   , '\x1a')\
+            X(324, 0x5F, 0x5F,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, Sleep                , "Sleep"           , 0    , 'u', -1    , -1    )\
+            X(326, 0xB7, 0xB7,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, Calculator           , "Calculator"      , 0    , 'u', -1    , -1    )\
+            X(328, 0x48, 0x48,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, Mail                 , "Mail"            , 0    , 'u', -1    , -1    )\
+            X(330, 0xAD, 0xAD,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaVolMute         , "MediaVolMute"    , 57440, 'u', -1    , -1    )\
+            X(332, 0xAE, 0xAE,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaVolDown         , "MediaVolDown"    , 57438, 'u', -1    , -1    )\
+            X(334, 0xAF, 0xAF,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaVolUp           , "MediaVolUp"      , 57439, 'u', -1    , -1    )\
+            X(336, 0xB0, 0xB0,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaNext            , "MediaNext"       , 57435, 'u', -1    , -1    )\
+            X(338, 0xB1, 0xB1,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaPrev            , "MediaPrev"       , 57436, 'u', -1    , -1    )\
+            X(340, 0xB2, 0xB2,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaStop            , "MediaStop"       , 57432, 'u', -1    , -1    )\
+            X(342, 0xB2, 0xB2,    0, 0x00409,           0, 0x0100'00000'00'FF, 0, MediaPause           , "MediaPause"      , 57429, 'u', -1    , -1    )\
+            X(344, 0xB3, 0xB3,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaPlayPause       , "MediaPlayPause"  , 57430, 'u', -1    , -1    )\
+            X(346, 0xB3, 0xB3,    0, 0x00409,           0, 0x0100'00000'00'FF, 0, MediaPlay            , "MediaPlay"       , 57428, 'u', -1    , -1    )\
+            X(348, 0xB5, 0xB5,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaSelect          , "MediaSelect"     , 0    , 'u', -1    , -1    )\
+            X(350, 0xB8, 0xB8,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaReverse         , "MediaReverse"    , 57431, 'u', -1    , -1    )\
+            X(352, 0xB8, 0xB8,    0, 0x00409,           0, 0x0100'00000'00'FF, 0, MediaRecord          , "MediaRecord"     , 57437, 'u', -1    , -1    )\
+            X(354, 0xB9, 0xB9,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, MediaFastForward     , "MediaFastForward", 57433, 'u', -1    , -1    )\
+            X(356, 0xB9, 0xB9,    0, 0x00409,           0, 0x0100'00000'00'FF, 0, MediaRewind          , "MediaRewind"     , 57434, 'u', -1    , -1    )\
+            X(368, 0xA6, 0xA6,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserBack          , "BrowserBack"     , 0    , 'u', -1    , -1    )\
+            X(360, 0xA7, 0xA7,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserForward       , "BrowserForward"  , 0    , 'u', -1    , -1    )\
+            X(362, 0xA8, 0xA8,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserRefresh       , "BrowserRefresh"  , 0    , 'u', -1    , -1    )\
+            X(364, 0xA9, 0xA9,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserStop          , "BrowserStop"     , 0    , 'u', -1    , -1    )\
+            X(366, 0xAA, 0xAA,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserSearch        , "BrowserSearch"   , 0    , 'u', -1    , -1    )\
+            X(368, 0xAB, 0xAB,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserFavorites     , "BrowserFavorites", 0    , 'u', -1    , -1    )\
+            X(370, 0xAC, 0xAC,    0, 0x00409, ExtendedKey, 0x0100'00000'00'FF, 0, BrowserHome          , "BrowserHome"     , 0    , 'u', -1    , -1    )\
+            X(372, 0xFF, 0xFF, 0xFF, 0x00000, ExtendedKey, 0x0100'FFFFF'FF'FF, 0, lastKey              , "lastKey"         , 0    , 0  , -1    , -1    )
             // Max 12 bits for KeyId.
             static constexpr auto idbits = 12;
 
-        #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
+        #define X(KeyId, Index, Vkey, Scan, Klid, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
             static constexpr auto Name = KeyId;
             key_list
         #undef X
 
         struct map
         {
-            sz_t hash; // map: Key hash.
+            si64 hash; // map: Key hash.
 
             static auto& mask()
             {
-                static auto m = std::vector<si32>(input::key::lastKey);
+                static auto m = std::vector<decltype(map::hash)>(input::key::lastKey);
                 return m;
             }
             static auto& mask(si32 vk)
@@ -291,6 +386,7 @@ namespace netxs::input
                     view generic;
                     si32 vkey;
                     si32 scan;
+                    si32 klid;
                     si32 edit;
                     si32 KKPDef;
                     si32 KKPSuffix;
@@ -301,23 +397,24 @@ namespace netxs::input
                 return data[std::clamp(keycode, 0, input::key::lastKey - 1)];
             }
 
-            map(si32 vk, si32 sc, si32 cs)
-                : hash{ (sz_t)(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
+            map(si32 vk, si32 sc, si32 cs, si32 klid)
+                : hash{ (si64)(mask(vk) & (vk | (sc << 8) | (klid << 16) | ((si64)cs << 36))) }
             { }
-            map(si32 vk, si32 sc, si32 cs, si32 keymask, view keyname, view generic_keyname, si32 doinput, si32 id,
+            map(si32 vk, si32 sc, si32 klid, si32 cs, si64 keymask, view keyname, view generic_keyname, si32 doinput, si32 id,
                 si32 KKPDef, si32 KKPSuffix, si32 KKPAscii, si32 KKPCtl)
             {
                 mask(vk) = keymask;
                 data(id) = { .name      = keyname,
                              .generic   = generic_keyname,
-                             .vkey      = vk, 
+                             .vkey      = vk,
                              .scan      = sc,
+                             .klid      = klid,
                              .edit      = doinput,
                              .KKPDef    = KKPDef,
                              .KKPSuffix = KKPSuffix,
                              .KKPAscii  = KKPAscii,
                              .KKPCtl    = KKPCtl };
-                hash = (sz_t)(keymask & (vk | (sc << 8) | (cs << 16)));
+                hash = (si64)(keymask & (vk | (sc << 8) | (klid << 16) | ((si64)cs << 36)));
             }
 
             bool operator == (map const& m) const = default;
@@ -332,28 +429,28 @@ namespace netxs::input
 
         static const auto keymap = std::unordered_map<map, si32, map::hashproc>
         {
-            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
-                { map{ Vkey, Scan, CtrlState, Mask, #Name, GenericName, Input, KeyId, KKPDef, KKPSuffix, KKPAscii, KKPCtl }, Name },
+            #define X(KeyId, Index, Vkey, Scan, Klid, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
+                { map{ Vkey, Scan, Klid, CtrlState, Mask, #Name, GenericName, Input, KeyId, KKPDef, KKPSuffix, KKPAscii, KKPCtl }, Name },
                 key_list
             #undef X
         };
         static const auto kkpmap = std::unordered_map<si32, si32>
         {
-            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
+            #define X(KeyId, Index, Vkey, Scan, Klid, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
                 { KKPDef | (KKPSuffix << 16), KeyId },
                 key_list
             #undef X
         };
         static const auto specific_names = utf::unordered_map<text, si32>
         {
-            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
+            #define X(KeyId, Index, Vkey, Scan, Klid, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
                 { utf::to_lower(#Name), KeyId },
                 key_list
             #undef X
         };
         static const auto generic_names = utf::unordered_map<text, si32>
         {
-            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
+            #define X(KeyId, Index, Vkey, Scan, Klid, CtrlState, Mask, Input, Name, GenericName, KKPDef, KKPSuffix, KKPAscii, KKPCtl) \
                 { utf::to_lower(GenericName), KeyId & -2 },
                 key_list
             #undef X
@@ -829,6 +926,7 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        si32 xlayout{};
         bool extflag{};
         bool handled{};
         si64 touched{};
@@ -1075,7 +1173,7 @@ namespace netxs::input
             NumLock      = 1 << 12, // ⇭ Num Lock
             CapsLock     = 1 << 13, // ⇪ Caps Lock
             ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
-            AltGr        = 1 << 15, // AltGr on non-us keyboard
+            AltGr        = 1 << 15, // AltGr on non-US keyboards
             LCtrlAlt     = LAlt   | LCtrl,
             anyCtrl      = LCtrl  | RCtrl,
             anyAlt       = LAlt   | RAlt,
@@ -2318,16 +2416,6 @@ namespace netxs::input
                 return crop;
             }
         };
-        struct layout
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto undef  = __COUNTER__ - _counter;
-            static constexpr auto qwerty = __COUNTER__ - _counter;
-            static constexpr auto qwertz = __COUNTER__ - _counter;
-            static constexpr auto azerty = __COUNTER__ - _counter;
-            static constexpr auto dvorak = __COUNTER__ - _counter;
-            static constexpr auto bepo   = __COUNTER__ - _counter;
-        };
         //todo use lut
         auto detect_layout(si32 unshift, si32 base)
         {
@@ -2439,7 +2527,7 @@ namespace netxs::input
                 case '[':  base = 'z';  break;
                 case ']':  base = 'w';  break;
                 // Home Row
-                //case 'a':  base = 'a';  break; // same
+                //case 'a':  base = 'a'; break; // same
                 case 's':  base = 'u';  break;
                 case 'd':  base = 'i';  break;
                 case 'f':  base = 'e';  break;

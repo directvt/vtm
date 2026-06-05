@@ -546,6 +546,7 @@ struct impl : consrv
         hist  inputs; // evnt: Input history per process name storage.
         mbtn  dclick; // evnt: Mouse double-click tracker.
         si32  mstate; // evnt: Mouse button last state.
+        si32  layout; // evnt: Current keyboard layout id.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -554,7 +555,8 @@ struct impl : consrv
                leader{      },
                ctrl_c{ faux },
                fstate{ true },
-               mstate{      }
+               mstate{      },
+               layout{      }
         { }
 
         auto& ref_history(text& exe)
@@ -1088,6 +1090,14 @@ struct impl : consrv
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
+
+            if (gear.xlayout != layout) // Sync kb layout.
+            {
+                layout = gear.xlayout;
+                auto data = nt::console::layout_input{ .klid = layout };
+                stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&data));
+            }
+
             toWIDE.clear();
             utf::to_utf(gear.cluster, toWIDE);
             if (toWIDE.empty()) toWIDE.push_back(0);

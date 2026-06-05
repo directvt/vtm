@@ -556,6 +556,7 @@ namespace netxs::os
                     static constexpr auto paste_begin = 1;
                     static constexpr auto paste_end   = 2;
                     static constexpr auto fp2d_mouse  = 3;
+                    static constexpr auto kb_layout   = 5;
                 }
                 struct fp2d_mouse_input
                 {
@@ -568,6 +569,12 @@ namespace netxs::os
                     ui32 EventType = MENU_EVENT;
                     ui32 id        = event::custom | event::style;
                     si32 format;   // Style format command.
+                };
+                struct layout_input
+                {
+                    ui32 EventType = MENU_EVENT;
+                    ui32 id        = event::custom | event::kb_layout;
+                    si32 klid;     // Keyboard layout id.
                 };
                 namespace op
                 {
@@ -5383,7 +5390,7 @@ namespace netxs::os
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
+                                k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState, k.xlayout);
                                 k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
                                 k.cluster = toutf;
                                 chords.build(k);
@@ -5410,7 +5417,7 @@ namespace netxs::os
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                     k.cluster = toutf;
-                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
+                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState, k.xlayout);
                                     if (r.Event.KeyEvent.wRepeatCount-- > 0)
                                     {
                                         k.keystat = input::key::pressed;
@@ -5444,6 +5451,9 @@ namespace netxs::os
                                         m.enabled = input::hids::stat::halt; // Send a mouse halt event.
                                         mouse(m);
                                     }
+                                    break;
+                                case nt::console::event::kb_layout:
+                                    k.xlayout = reinterpret_cast<nt::console::layout_input*>(&r)->klid;
                                     break;
                                 case nt::console::event::style:
                                     style(deco{ reinterpret_cast<nt::console::style_input*>(&r)->format });
