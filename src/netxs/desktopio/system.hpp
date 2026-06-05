@@ -6096,8 +6096,19 @@ namespace netxs::os
                         case input::key::layout::qwerty:
                             break;
                         case input::key::layout::qwertz:
-                                 if (base_key == 'y') base_key = 'z';
-                            else if (base_key == 'z') base_key = 'y';
+                                 if (unshift_code == 'z' && base_key == 'y') base_key = unshift_code;
+                            else if (unshift_code == 'y' && base_key == 'z') base_key = unshift_code;
+                            else if (unshift_code == '+' && base_key == ']') base_key = unshift_code;
+                            else if (unshift_code == '-' && base_key == '/') base_key = unshift_code;
+                            else if (unshift_code == '^' && base_key == '`') base_key = unshift_code;
+                            else if (unshift_code == '#' && base_key =='\\') base_key = unshift_code; // # <- \   //
+                            else if (unshift_code == 180 && base_key == '=') base_key = unshift_code; // ´ <- =
+                            else if (unshift_code == 228 && base_key =='\'') base_key = unshift_code; // ä <- '
+                            else if (unshift_code == 223 && base_key == '-') base_key = unshift_code; // ß <- -
+                            else if (unshift_code == 252 && base_key == '[') base_key = unshift_code; // ü <- [
+                            else if (unshift_code == 367 && base_key == ';') base_key = unshift_code; // ů <- ;  Czech QWERTZ
+                            else if (unshift_code == 246 && base_key == ';') base_key = unshift_code; // ö <- ;
+                            else if (unshift_code == 337 && base_key == '4') base_key = unshift_code; // ő <- 4  Hungarian
                             break;
                         case input::key::layout::azerty:
                                  if (base_key == 'q') base_key = 'a';
