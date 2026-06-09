@@ -344,7 +344,7 @@ namespace netxs::app::desk
                         });
                         boss.on(tier::mouserelease, input::key::LeftClick, [&, inst_id, group_focus = faux](hids& gear) mutable
                         {
-                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
+                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anySuper | hids::anyHyper)) // Not supported with any modifier but Ctrl.
                             {
                                 if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                                 {

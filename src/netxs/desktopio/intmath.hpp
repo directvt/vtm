@@ -44,21 +44,28 @@
 #include <variant>
 #include <vector>
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_TRUETYPE_TABLES_H
-#include FT_MULTIPLE_MASTERS_H
-#include FT_SFNT_NAMES_H
-#include FT_COLOR_H
-#include FT_OTSVG_H
+#if not defined(VTM_NO_DEPENDENCIES)
+    #include <ft2build.h>
+    #include FT_FREETYPE_H
+    #include FT_TRUETYPE_TABLES_H
+    #include FT_MULTIPLE_MASTERS_H
+    #include FT_SFNT_NAMES_H
+    #include FT_COLOR_H
+    #include FT_OTSVG_H
 
-#include <hb-ft.h>
-#include <lunasvg.h>
+    #include <hb-ft.h>
+    #include <lunasvg.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image.h>
-#include <stb_image_write.h>
+    #define STB_IMAGE_IMPLEMENTATION
+    #define STB_IMAGE_WRITE_IMPLEMENTATION
+    #include <stb_image.h>
+    #include <stb_image_write.h>
+#else
+    namespace lunasvg
+    {
+        struct Document {};
+    }
+#endif
 
 #ifndef faux
     #define faux (false)

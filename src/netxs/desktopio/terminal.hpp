@@ -9758,7 +9758,11 @@ namespace netxs::ui
                 selection_extend(gear);
                 gear.dismiss();
             }
-            else selection_cancel();
+            else
+            {
+                target->selection_create(gear.click, faux); // Update lookup's beginning position.
+                selection_cancel();
+            }
         }
         void selection_dblclk(hids& gear)
         {

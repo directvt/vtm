@@ -215,8 +215,8 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 5      | `RightAlt`         | `Alt`              | `0x0138`  |
 6      | `LeftShift`        | `Shift`            | `0x002A`  |
 7      | `RightShift`       | `Shift`            | `0x0036`  |
-8      | `LeftWin`          | `Win`              | `0x015B`  |
-9      | `RightWin`         | `Win`              | `0x015C`  |
+8      | `LeftSuper`        | `Super`            | `0x015B`  |
+9      | `RightSuper`       | `Super`            | `0x015C`  |
 10     | `Apps`             | `Apps`             | `0x015D`  |
 12     | `NumLock`          | `NumLock`          | `0x0045`  |
 14     | `CapsLock`         | `CapsLock`         | `0x003A`  |

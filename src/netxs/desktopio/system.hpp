@@ -992,13 +992,13 @@ namespace netxs::os
                 }
                 else if (scancode == 0x5b && extflag)
                 {
-                    if (pressed) modstate |= input::hids::LWin;
-                    else         modstate &=~input::hids::LWin;
+                    if (pressed) modstate |= input::hids::LSuper;
+                    else         modstate &=~input::hids::LSuper;
                 }
                 else if (scancode == 0x5c && extflag)
                 {
-                    if (pressed) modstate |= input::hids::RWin;
-                    else         modstate &=~input::hids::RWin;
+                    if (pressed) modstate |= input::hids::RSuper;
+                    else         modstate &=~input::hids::RSuper;
                 }
                 else if (scancode == 0x5b && !extflag)
                 {
@@ -1016,8 +1016,8 @@ namespace netxs::os
                 }
                 auto lshift = modstate & input::hids::LShift;
                 auto rshift = modstate & input::hids::RShift;
-                auto lwin   = modstate & input::hids::LWin;
-                auto rwin   = modstate & input::hids::RWin;
+                auto lsuper = modstate & input::hids::LSuper;
+                auto rsuper = modstate & input::hids::RSuper;
                 auto lhyper = modstate & input::hids::LHyper;
                 auto rhyper = modstate & input::hids::RHyper;
                 bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
@@ -1034,8 +1034,8 @@ namespace netxs::os
                 if (ralt  ) state |= input::hids::RAlt;
                 if (lctrl ) state |= input::hids::LCtrl;
                 if (rctrl ) state |= input::hids::RCtrl;
-                if (lwin  ) state |= input::hids::LWin;
-                if (rwin  ) state |= input::hids::RWin;
+                if (lsuper) state |= input::hids::LSuper;
+                if (rsuper) state |= input::hids::RSuper;
                 if (lhyper) state |= input::hids::LHyper;
                 if (rhyper) state |= input::hids::RHyper;
                 if (nums  ) state |= input::hids::NumLock;
@@ -1060,8 +1060,8 @@ namespace netxs::os
                 stat.repeats = scancode == 0x002a  // input::hids::LShift
                             || scancode == 0x0036  // input::hids::RShift (Windows command prompt)
                             || scancode == 0x0136  // input::hids::RShift (Windows terminal)
-                            || scancode == 0x015b  // input::hids::LWin
-                            || scancode == 0x015c  // input::hids::RWin
+                            || scancode == 0x015b  // input::hids::LSuper
+                            || scancode == 0x015c  // input::hids::RSuper
                             || scancode == 0x005b  // input::hids::LHyper
                             || scancode == 0x005c  // input::hids::RHyper
                             || scancode == 0x001d  // input::hids::LCtrl
@@ -5834,14 +5834,14 @@ namespace netxs::os
 
                         { "\x5b"      , { "[",    key::OpenBracket                                     }},
                         { "\x5c"      , { "\\",   key::BackSlash                                       }},
-                        { "\x5d"      , { "]",    key::ClosedBracket                                   }},
+                        { "\x5d"      , { "]",    key::CloseBracket                                    }},
                         { "\x5e"      , { "^",    key::Key6          | (hids::LShift   << key::idbits) }},
                         { "\x5f"      , { "_",    key::KeyMinus      | (hids::LShift   << key::idbits) }},
                         { "\x60"      , { "`",    key::BackQuote                                       }},
 
                         { "\x7b"      , { "{",    key::OpenBracket   | (hids::LShift   << key::idbits) }},
                         { "\x7c"      , { "|",    key::BackSlash     | (hids::LShift   << key::idbits) }},
-                        { "\x7d"      , { "}",    key::ClosedBracket | (hids::LShift   << key::idbits) }},
+                        { "\x7d"      , { "}",    key::CloseBracket  | (hids::LShift   << key::idbits) }},
                         { "\x7e"      , { "~",    key::BackQuote     | (hids::LShift   << key::idbits) }},
 
                         { "\033[5~"   , { "",     key::KeyPageUp                                       }},
@@ -6037,7 +6037,7 @@ namespace netxs::os
                         if (mods & hids::LCtrl)  k.ctlstat |= hids::LCtrl,  k.keycode = input::key::LeftCtrl,  k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         if (mods & hids::LAlt)   k.ctlstat |= hids::LAlt,   k.keycode = input::key::LeftAlt,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         if (mods & hids::LShift) k.ctlstat |= hids::LShift, k.keycode = input::key::LeftShift, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
-                        if (mods & hids::LWin)   k.ctlstat |= hids::LWin,   k.keycode = input::key::LeftWin,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LSuper) k.ctlstat |= hids::LSuper, k.keycode = input::key::LeftSuper, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         std::swap(k.cluster, cluster);
                         std::swap(k.keycode, keycode);
                         std::swap(k.virtcod, virtcod);
@@ -6054,7 +6054,7 @@ namespace netxs::os
                         auto keycode = std::exchange(k.keycode, 0);
                         auto virtcod = std::exchange(k.virtcod, 0);
                         auto scancod = std::exchange(k.scancod, 0);
-                        if (mods & hids::LWin  ) k.ctlstat &= ~hids::LWin,   k.keycode = input::key::LeftWin,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LSuper) k.ctlstat &= ~hids::LSuper, k.keycode = input::key::LeftSuper, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         if (mods & hids::LShift) k.ctlstat &= ~hids::LShift, k.keycode = input::key::LeftShift, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         if (mods & hids::LAlt  ) k.ctlstat &= ~hids::LAlt,   k.keycode = input::key::LeftAlt,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
                         if (mods & hids::LCtrl ) k.ctlstat &= ~hids::LCtrl,  k.keycode = input::key::LeftCtrl,  k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
@@ -6140,7 +6140,7 @@ namespace netxs::os
                         if (ctlstat & hids::kkp::shift    ) k.ctlstat |= hids::LShift;
                         if (ctlstat & hids::kkp::alt      ) k.ctlstat |= hids::LAlt;
                         if (ctlstat & hids::kkp::ctrl     ) k.ctlstat |= hids::LCtrl;
-                        if (ctlstat & hids::kkp::super    ) k.ctlstat |= hids::LWin;
+                        if (ctlstat & hids::kkp::super    ) k.ctlstat |= hids::LSuper;
                         if (ctlstat & hids::kkp::hyper    ) k.ctlstat |= hids::LHyper;
                         if (ctlstat & hids::kkp::meta     ) k.ctlstat |= hids::LAlt;
                         if (ctlstat & hids::kkp::caps_lock) k.ctlstat |= hids::CapsLock;

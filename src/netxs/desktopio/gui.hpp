@@ -3032,8 +3032,8 @@ namespace netxs::gui
             static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
             static constexpr auto lalt     = 0xA4; // VK_LMENU;
             static constexpr auto ralt     = 0xA5; // VK_RMENU;
-            static constexpr auto lwin     = 0x5B; // VK_LWIN;
-            static constexpr auto rwin     = 0x5C; // VK_RWIN;
+            static constexpr auto lsuper   = 0x5B; // VK_LWIN;
+            static constexpr auto rsuper   = 0x5C; // VK_RWIN;
 
             static constexpr auto enter    = 0x0D; // VK_RETURN;
             static constexpr auto left     = 0x25; // VK_LEFT;
@@ -4288,8 +4288,8 @@ namespace netxs::gui
                 if (keybd_read_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
                 if (keybd_read_pressed(vkey::lalt    )) state |= input::hids::LAlt;
                 if (keybd_read_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (keybd_read_pressed(vkey::lwin    )) state |= input::hids::LWin;
-                if (keybd_read_pressed(vkey::rwin    )) state |= input::hids::RWin;
+                if (keybd_read_pressed(vkey::lsuper  )) state |= input::hids::LSuper;
+                if (keybd_read_pressed(vkey::rsuper  )) state |= input::hids::RSuper;
                 if (keybd_read_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_read_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
                 if (keybd_read_toggled(vkey::numlock )) state |= input::hids::NumLock;
@@ -4595,8 +4595,8 @@ namespace netxs::gui
                 if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
                 if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
                 if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (keybd_test_pressed(vkey::lwin    )) state |= input::hids::LWin;
-                if (keybd_test_pressed(vkey::rwin    )) state |= input::hids::RWin;
+                if (keybd_test_pressed(vkey::lsuper  )) state |= input::hids::LSuper;
+                if (keybd_test_pressed(vkey::rsuper  )) state |= input::hids::RSuper;
                 if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
                 else                                    mouse_release(by::keybd);
                 auto old_ls = keymod & input::hids::LShift;
@@ -4706,7 +4706,7 @@ namespace netxs::gui
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                                                || virtcod == vkey::lwin     || virtcod == vkey::rwin);
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper);
             //print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
@@ -5736,7 +5736,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (keybd_test_pressed(vkey::rwin) || keybd_test_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    if (keybd_test_pressed(vkey::rsuper) || keybd_test_pressed(vkey::lsuper)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                     ::DispatchMessageW(&winmsg);
                 }
             }
