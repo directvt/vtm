@@ -2181,7 +2181,7 @@ namespace netxs::input
                         if (!vk_valid) k.vkchord.clear();
                         if (!sc_valid) k.scchord.clear();
                     }
-                    if (k.keystat == input::key::pressed && (vk_valid || sc_valid)) // Filter pasted and IME clusters (sc=0 vk=0).
+                    if (k.keystat == input::key::pressed && (vk_valid || sc_valid)) // Filter IME/pasted clusters in chords (sc=0 vk=0).
                     {
                         auto& key = pushed[k.keycode];
                         key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
