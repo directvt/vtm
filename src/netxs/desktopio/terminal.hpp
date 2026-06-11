@@ -9648,8 +9648,13 @@ namespace netxs::ui
         auto _paste(auto& data)
         {
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
-            follow[axis::X] = true;
-            follow[axis::Y] = true;
+            if (defcfg.resetonkey)
+            {
+                base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                unsync = true;
+                follow[axis::X] = true;
+                follow[axis::Y] = true;
+            }
             ipccon.paste(data, bpmode, kbmode);
         }
         auto paste(hids& gear)

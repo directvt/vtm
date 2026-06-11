@@ -2152,8 +2152,8 @@ namespace netxs::input
                             {
                                 if (keyid <= input::key::config) vk_valid = faux;
                                 if (val.scode == 0) sc_valid = faux;
-                                push_keyid(true, k.vkchord, keyid);
-                                push_scode(true, k.scchord, val.scode);
+                                if (vk_valid) push_keyid(true, k.vkchord, keyid);
+                                if (sc_valid) push_scode(true, k.scchord, val.scode);
                             }
                             //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
                             return is_released;
@@ -2181,7 +2181,7 @@ namespace netxs::input
                         if (!vk_valid) k.vkchord.clear();
                         if (!sc_valid) k.scchord.clear();
                     }
-                    if (k.keystat == input::key::pressed)
+                    if (k.keystat == input::key::pressed && (vk_valid || sc_valid)) // Filter pasted and IME clusters (sc=0 vk=0).
                     {
                         auto& key = pushed[k.keycode];
                         key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
