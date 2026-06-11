@@ -2066,7 +2066,7 @@ namespace netxs::input
         {
             struct chord_item_t
             {
-                si32 index;
+                si32 vcode;
                 si32 scode;
                 time stamp;
             };
@@ -2141,23 +2141,39 @@ namespace netxs::input
                     auto sc_valid = k.scancod > 0;
                     if (!keyout || k.keystat != input::key::released)
                     {
+                        auto broken_state = faux;
                         keyout = k.keystat == input::key::released;
                         //log(" erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
                         std::erase_if(pushed, [&](auto& rec)
                         {
                             auto& [keyid, val] = rec;
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
-                            auto is_released = test_key_released(val.index); // Check if it is still pressed.
-                            if (!is_released && keyid != k.keycode/*exclude repeated key*/)
+                            auto is_released = test_key_released(val.vcode); // Check if it is still pressed.
+                            auto same = k.keycode == keyid
+                                     && k.scancod == val.scode
+                                     && k.virtcod == val.vcode;
+                            if (!is_released)
                             {
-                                if (keyid <= input::key::config) vk_valid = faux;
-                                if (val.scode == 0) sc_valid = faux;
-                                if (vk_valid) push_keyid(true, k.vkchord, keyid);
-                                if (sc_valid) push_scode(true, k.scchord, val.scode);
+                                if (same && k.keystat == input::key::pressed) // The same key was pressed twice without releasing.
+                                {
+                                    broken_state = true;
+                                }
+                                else if (!same) // Exclude repeated key.
+                                {
+                                    if (keyid <= input::key::config) vk_valid = faux;
+                                    if (val.scode == 0) sc_valid = faux;
+                                    if (vk_valid) push_keyid(true, k.vkchord, keyid);
+                                    if (sc_valid) push_scode(true, k.scchord, val.scode);
+                                }
                             }
                             //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
                             return is_released;
                         });
+                        if (broken_state)
+                        {
+                            reset(k);
+                            return;
+                        }
                         auto valid_codepoint = [](view utf8)
                         {
                             auto codepoint = utf::to_code(utf8);
@@ -2185,7 +2201,7 @@ namespace netxs::input
                     {
                         auto& key = pushed[k.keycode];
                         key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
-                        key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                        key.vcode = k.virtcod; // Store the virtual code to check later that it is still pressed.
                         key.stamp = datetime::now();
                     }
                 }
