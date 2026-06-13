@@ -29,12 +29,12 @@ find_package(lunasvg QUIET)
 if(lunasvg_FOUND)
     set(LUNASVG_TARGET lunasvg::lunasvg)
 else()
-    message(STATUS "LunaSVG not found via find_package. Building from submodule...")
+    message(STATUS "LunaSVG not found. Downloading via FetchContent...")
     set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(LUNASVG_BUILD_TOOLS    OFF CACHE BOOL "" FORCE)
-    add_subdirectory(deps/lunasvg)
-    add_library(lunasvg::lunasvg ALIAS lunasvg)
-    set(LUNASVG_TARGET lunasvg::lunasvg)
+    FetchContent_Declare(lunasvg
+                         GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
+                         GIT_TAG        v3.5.0)
 endif()
 
 add_library(Lua::Lua INTERFACE IMPORTED)
