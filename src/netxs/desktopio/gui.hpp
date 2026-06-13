@@ -3570,6 +3570,7 @@ namespace netxs::gui
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod) = 0;
+        virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
         virtual void mouse_release(si32 released_by) = 0;
@@ -5674,7 +5675,7 @@ namespace netxs::gui
                 while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
                 if (toWIDE.size()) keytype = 2;
             }
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
             //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
             if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
@@ -5785,6 +5786,75 @@ namespace netxs::gui
                                             klid_buf[i] >= 'A' ? klid_buf[i] - 'A' + 10 : klid_buf[i] - '0');
             }
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_hex_0x(xlayout));
+        }
+        si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
+        {
+            if constexpr (debugmode) log("%%Media key pressed: cmd=%% uDevice=%%, dwKeys=%%", prompt::gui, utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys));
+            //todo use lut
+            switch (uDevice)
+            {
+                case FAPPCOMMAND_KEY:   // 0 User pressed a key.
+                case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
+                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
+                    break;
+            }
+            switch (cmd)
+            {
+                case APPCOMMAND_BASS_BOOST:                        // 20 Toggle the bass boost on and off.
+                case APPCOMMAND_BASS_DOWN:                         // 19 Decrease the bass.
+                case APPCOMMAND_BASS_UP:                           // 21 Increase the bass.
+                case APPCOMMAND_BROWSER_BACKWARD:                  // 1 Navigate backward.
+                case APPCOMMAND_BROWSER_FAVORITES:                 // 6 Open favorites.
+                case APPCOMMAND_BROWSER_FORWARD:                   // 2 Navigate forward.
+                case APPCOMMAND_BROWSER_HOME:                      // 7 Navigate home.
+                case APPCOMMAND_BROWSER_REFRESH:                   // 3 Refresh page.
+                case APPCOMMAND_BROWSER_SEARCH:                    // 5 Open search.
+                case APPCOMMAND_BROWSER_STOP:                      // 4 Stop download.
+                case APPCOMMAND_CLOSE:                             // 31 Close the window (not the application).
+                case APPCOMMAND_COPY:                              // 36 Copy the selection.
+                case APPCOMMAND_CORRECTION_LIST:                   // 45 Brings up the correction list when a word is incorrectly identified during speech input.
+                case APPCOMMAND_CUT:                               // 37 Cut the selection.
+                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
+                case APPCOMMAND_FIND:                              // 28 Open the Find dialog.
+                case APPCOMMAND_FORWARD_MAIL:                      // 40 Forward a mail message.
+                case APPCOMMAND_HELP:                              // 27 Open the Help dialog.
+                case APPCOMMAND_LAUNCH_APP1:                       // 17 Start App1.
+                case APPCOMMAND_LAUNCH_APP2:                       // 18 Start App2.
+                case APPCOMMAND_LAUNCH_MAIL:                       // 15 Open mail.
+                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               // 16 Go to Media Select mode.
+                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                // 52 Decrement the channel value, for example, for a TV or radio tuner.
+                case APPCOMMAND_MEDIA_CHANNEL_UP:                  // 51 Increment the channel value, for example, for a TV or radio tuner.
+                case APPCOMMAND_MEDIA_FAST_FORWARD:                // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_NEXTTRACK:                   // 11 Go to next track.
+                case APPCOMMAND_MEDIA_PAUSE:                       // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_PLAY:                        // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
+                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               // 12 Go to previous track.
+                case APPCOMMAND_MEDIA_RECORD:                      // 48 Begin recording the current stream.
+                case APPCOMMAND_MEDIA_REWIND:                      // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_STOP:                        // 13 Stop playback.
+                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 // 44 Toggle the microphone.
+                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            // 25 Decrease microphone volume.
+                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            // 24 Mute the microphone.
+                case APPCOMMAND_MICROPHONE_VOLUME_UP:              // 26 Increase microphone volume.
+                case APPCOMMAND_NEW:                               // 29 Create a new window.
+                case APPCOMMAND_OPEN:                              // 30 Open a window.
+                case APPCOMMAND_PASTE:                             // 38 Paste
+                case APPCOMMAND_PRINT:                             // 33 Print current document.
+                case APPCOMMAND_REDO:                              // 35 Redo last action.
+                case APPCOMMAND_REPLY_TO_MAIL:                     // 39 Reply to a mail message.
+                case APPCOMMAND_SAVE:                              // 32 Save current document.
+                case APPCOMMAND_SEND_MAIL:                         // 41 Send a mail message.
+                case APPCOMMAND_SPELL_CHECK:                       // 42 Initiate a spell check.
+                case APPCOMMAND_TREBLE_DOWN:                       // 22 Decrease the treble.
+                case APPCOMMAND_TREBLE_UP:                         // 23 Increase the treble.
+                case APPCOMMAND_UNDO:                              // 34 Undo last action.
+                case APPCOMMAND_VOLUME_DOWN:                       // 9 Lower the volume.
+                case APPCOMMAND_VOLUME_MUTE:                       // 8 Mute the volume.
+                case APPCOMMAND_VOLUME_UP:                         // 10
+                    break;
+            }
+            return FALSE; // The event is not processed.
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
@@ -6001,6 +6071,13 @@ namespace netxs::gui
                     case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
                     case WM_CLIPBOARDUPDATE:  w->book_clipboard();                               break; // Schedule clipboard update.
                     case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
+                    case WM_APPCOMMAND: // It doesn't work via RDP.
+                    {
+                        auto cmd     = GET_APPCOMMAND_LPARAM(lParam);
+                        auto uDevice = GET_DEVICE_LPARAM(lParam);
+                        auto dwKeys  = GET_KEYSTATE_LPARAM(lParam);
+                        stat = w->keybd_read_media(cmd, uDevice, dwKeys);                         break; // Media key pressed.
+                    }
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
@@ -6103,6 +6180,7 @@ namespace netxs::gui
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
+        si32 keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
