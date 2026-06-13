@@ -24,11 +24,25 @@ add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
 find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
 find_package(Lua 5.4  REQUIRED)
-find_package(lunasvg  REQUIRED)
 find_path(STB_INCLUDE_DIR "stb_image.h")
+find_package(lunasvg QUIET)
+if(lunasvg_FOUND)
+    set(LUNASVG_TARGET lunasvg::lunasvg)
+else()
+    message(STATUS "LunaSVG not found via find_package. Building from submodule...")
+    set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LUNASVG_BUILD_TOOLS    OFF CACHE BOOL "" FORCE)
+    add_subdirectory(deps/lunasvg)
+    add_library(lunasvg::lunasvg ALIAS lunasvg)
+    set(LUNASVG_TARGET lunasvg::lunasvg)
+endif()
 
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
+
+if(NOT lunasvg_FOUND)
+    target_include_directories(vtm PRIVATE deps/lunasvg/include)
+endif()
 
 target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}
