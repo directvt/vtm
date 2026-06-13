@@ -11,12 +11,14 @@ Build-time dependencies
  - `FreeType`
  - `HarfBuzz`
  - `Lua` (minimum version v5.4)
+ - `LunaSVG` (Will be built automatically from source via CMake if not found in the system)
+ - `stb`
 
 Examples of installing dependencies:
 
 OS      | Dependency installation command | Notes
 --------|---------------------------------|------
-Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake`
+Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev libstb-dev git cmake`  | `LunaSVG` is built automatically during CMake configuration.
 FreeBSD | `pkg install freetype2 harfbuzz lua54 cmake` | Best results with GCC compiler and 6GB of RAM.
 MacOS   | `brew install freetype harfbuzz lua cmake`
 
@@ -51,5 +53,7 @@ Build-time dependencies
    - `FreeType`
    - `HarfBuzz`
    - `Lua`
+   - `LunaSVG`
+   - `stb`
 
 To manually compile vtm, launch Visual Studio and clone the repository https://github.com/directvt/vtm.git, after cloning is complete, double-click on the Folder View in Solution Explorer, wait for the dependencies to initialize (may take several minutes), select the required configuration on the top menu toolbar, and click the `Build All` menu button.
