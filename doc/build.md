@@ -12,13 +12,13 @@ Build-time dependencies
  - `HarfBuzz`
  - `Lua` (minimum version v5.4)
  - `LunaSVG` (Will be built automatically from source via CMake if not found in the system)
- - `stb`
+ - `stb` (Will be fetched automatically via CMake if not found)
 
 Examples of installing dependencies:
 
 OS      | Dependency installation command | Notes
 --------|---------------------------------|------
-Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev libstb-dev git cmake`  | `LunaSVG` is built automatically during CMake configuration.
+Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake` | `stb` and `LunaSVG` are managed automatically during CMake configuration.
 FreeBSD | `pkg install freetype2 harfbuzz lua54 cmake` | Best results with GCC compiler and 6GB of RAM.
 MacOS   | `brew install freetype harfbuzz lua cmake`
 

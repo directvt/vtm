@@ -24,10 +24,11 @@ add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
 find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
 find_package(Lua 5.4  REQUIRED)
-find_path(STB_INCLUDE_DIR "stb_image.h")
 find_package(lunasvg QUIET)
+find_package(Stb     QUIET)
+
 if(lunasvg_FOUND)
-    set(LUNASVG_TARGET lunasvg::lunasvg)
+    message(STATUS "LunaSVG found via find_package.")
 else()
     message(STATUS "LunaSVG not found. Downloading via FetchContent...")
     set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -35,23 +36,38 @@ else()
     FetchContent_Declare(lunasvg
                          GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
                          GIT_TAG        v3.5.0)
+    FetchContent_MakeAvailable(lunasvg)
+    add_library(lunasvg::lunasvg ALIAS lunasvg)
+endif()
+
+if(Stb_FOUND)
+    message(STATUS "stb found via find_package.")
+    if(NOT TARGET stb::stb)
+        add_library(stb_interface INTERFACE)
+        target_include_directories(stb_interface INTERFACE ${Stb_INCLUDE_DIR})
+        add_library(stb::stb ALIAS stb_interface)
+    endif()
+else()
+    message(STATUS "stb not found. Downloading via FetchContent...")
+    FetchContent_Declare(stb
+                         GIT_REPOSITORY https://github.com/nothings/stb
+                         GIT_TAG        master)
+    FetchContent_MakeAvailable(stb)
+    add_library(stb_interface INTERFACE)
+    target_include_directories(stb_interface INTERFACE ${stb_SOURCE_DIR})
+    add_library(stb::stb ALIAS stb_interface)
 endif()
 
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
 
-if(NOT lunasvg_FOUND)
-    target_include_directories(vtm PRIVATE deps/lunasvg/include)
-endif()
-
 target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}
-                                       ${LUA_INCLUDE_DIR}
-                                       ${STB_INCLUDE_DIR})
+                                       ${LUA_INCLUDE_DIR})
 
-target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
-# target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
-# target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
+target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg stb::stb)
+# target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg stb::stb)
+# target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg stb::stb)
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)

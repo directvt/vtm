@@ -6076,7 +6076,7 @@ namespace netxs::gui
                         auto cmd     = GET_APPCOMMAND_LPARAM(lParam);
                         auto uDevice = GET_DEVICE_LPARAM(lParam);
                         auto dwKeys  = GET_KEYSTATE_LPARAM(lParam);
-                        stat = w->keybd_read_media(cmd, uDevice, dwKeys)                         break; // Media key pressed.
+                        stat = w->keybd_read_media(cmd, uDevice, dwKeys);                        break; // Media key pressed.
                     }
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
