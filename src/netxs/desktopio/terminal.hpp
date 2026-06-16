@@ -8211,6 +8211,7 @@ namespace netxs::ui
         std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
         ui16                                                  image_sixel_count{}; // term: Registered sixel image count;
         std::vector<ui16>                                     image_removed_indexes; // term: Image indexes to be deleted.
+        text       deadkey_preview; // term: Deadkey preview.
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -10223,6 +10224,9 @@ namespace netxs::ui
             if (!forced_event && gear.touched && !rawkbd) return;
             switch (gear.payload)
             {
+                case keybd::type::deadkey:
+                    deadkey_preview = gear.keystat == input::key::pressed ? gear.cluster : "";
+                    if (io_log) log("%%Deadkey preview: ", prompt::key, ansi::hi(deadkey_preview.size() ? deadkey_preview : " "));
                 case keybd::type::keypress:
                     if (defcfg.resetonkey && gear.doinput())
                     {
@@ -10231,7 +10235,7 @@ namespace netxs::ui
                         follow[axis::X] = true;
                         follow[axis::Y] = true;
                     }
-                    ipccon.keybd(gear, decckm, kbmode);
+                    if (gear.payload == keybd::type::keypress) ipccon.keybd(gear, decckm, kbmode);
                     if (forced_event || !gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
@@ -11006,6 +11010,10 @@ namespace netxs::ui
                     caret.coor(original_cursor);
                     if (defclr.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
+                    if (deadkey_preview.size())
+                    {
+                        parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.txt(deadkey_preview); });
+                    }
                 }
                 if (invbit) // DECSCNM.
                 {

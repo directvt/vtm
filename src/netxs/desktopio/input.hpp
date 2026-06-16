@@ -930,6 +930,7 @@ namespace netxs::input
             static constexpr byte imeinput = 2;
             static constexpr byte imeanons = 3;
             static constexpr byte kblayout = 4;
+            static constexpr byte deadkey  = 5;
         };
 
         si32 nullkey = key::Key2;

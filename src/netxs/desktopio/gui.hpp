@@ -4563,7 +4563,13 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
+        void keybd_send_state(si32 virtcod = {},
+                              si32 keystat = {},
+                              si32 scancod = {},
+                              bool extflag = {},
+                              view cluster = {},
+                              bool synth = faux,
+                              byte payload = input::keybd::type::keypress)
         {
             auto state = 0;
             auto cs = 0;
@@ -4693,7 +4699,7 @@ namespace netxs::gui
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
             }
-            gear.payload = input::keybd::type::keypress;
+            gear.payload = payload;
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
@@ -5456,7 +5462,6 @@ namespace netxs::gui
 
         tsfl tslink; // window: TSF link.
         MSG  winmsg; // window: Last OS window message.
-        text toUTF8; // window: UTF-8 conversion buffer.
         wide toWIDE; // window: UTF-16 conversion buffer.
 
         window(auto&& ...Args)
@@ -5692,25 +5697,29 @@ namespace netxs::gui
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
-            if (is_deadkey_released) // Do not notify dead keys.
+            auto toUTF8 = utf::to_utf(toWIDE);
+            toWIDE.clear();
+            if (is_deadkey_released)
             {
-                last_deadkey_vkey = {};
                 //if constexpr (debugmode) log("deadkey released");
+                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8, faux, input::keybd::type::deadkey);
+                last_deadkey_vkey = {};
             }
             else if (keytype != 2)
             {
-                toUTF8.clear();
                 if (keytype == 1)
                 {
-                    utf::to_utf(toWIDE, toUTF8);
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
                         keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        toWIDE.clear();
                         //print_vkstat("Alt+Numpad");
                         return true;
                     }
+                }
+                else
+                {
+                    toUTF8.clear();
                 }
                 keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8);
             }
@@ -5718,8 +5727,8 @@ namespace netxs::gui
             {
                 last_deadkey_vkey = virtcod;
                 //if constexpr (debugmode) log("deadkey pressed");
+                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8, faux, input::keybd::type::deadkey);
             }
-            toWIDE.clear();
             //print_vkstat("keybd_read_input");
             return true;
         }
