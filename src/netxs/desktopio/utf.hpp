@@ -1187,6 +1187,17 @@ namespace netxs::utf
     template<class Key = text, class Val = text>
     using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
 
+    template<class A = ui32>
+    auto to_int_from_hex_str(auto&& text_or_wide)
+    {
+        auto num = A{};
+        for(auto c : text_or_wide)
+        {
+            auto val = (c & 0x0F) + 9 * (c >> 6 & 0x01);
+            num = (num << 4) | val;
+        }
+        return num;
+    }
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& utf8)
     {

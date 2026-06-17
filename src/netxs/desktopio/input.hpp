@@ -130,6 +130,131 @@ namespace netxs::input
             return layout::qwerty;
         }
 
+        static constexpr auto latin_klids = std::to_array<ui32>(
+        {
+            0x00000409, // US
+            0x00000412, // Korean
+            0x00000468, // Hausa
+            0x00000411, // Japanese
+            0x00000432, // Setswana
+            0x00050408, // Greek Latin
+            0x00000415, // Polish (Programmers)
+            0x00000404, // Chinese (Traditional) - US
+            0x00004009, // English (India)
+            0x00020418, // Romanian (Programmers)
+            0x00020409, // United States-International
+            0x00020405, // Czech Programmers
+            0x00000c04, // Chinese (Traditional, Hong Kong S.A.R.) - US
+            0x00000804, // Chinese (Simplified) - US
+            0x00020426, // Latvian (Standard)
+            0x00000481, // Maori
+            0x00001404, // Chinese (Traditional, Macao S.A.R.) - US
+            0x00010402, // Bulgarian (Latin)
+            0x00000470, // Igbo
+            0x0000046c, // Sesotho sa Leboa
+            0x0000046a, // Yoruba
+            0x00001004, // Chinese (Simplified, Singapore) - US
+            0x00010426, // Latvian (QWERTY)
+            0x00000475, // Hawaiian
+            0x00050409, // US English Table for IBM Arabic 238_L
+            0x0001045d, // Inuktitut - Naqittaut
+            0x0000085d, // Inuktitut - Latin
+            0x00001809, // Irish
+            0x00011809, // Scottish Gaelic
+            0x00000452, // United Kingdom Extended
+            0x00000809, // United Kingdom
+            0x0000043a, // Maltese 47-Key
+            0x0001043a, // Maltese 48-Key
+            0x00001009, // Canadian French
+            0x00011009, // Canadian Multilingual Standard
+            0x00000c0c, // Canadian French (Legacy)
+            0x00040408, // Greek (319) Latin
+            0x00000416, // Portuguese (Brazil ABNT)
+            0x00010418, // Romanian (Standard)
+            0x00010416, // Portuguese (Brazil ABNT2)
+            0x0001040a, // Spanish Variation
+            0x00000816, // Portuguese
+            0x0000041c, // Albanian
+            0x00000410, // Italian
+            0x00010410, // Italian (142)
+            0x0000041d, // Swedish
+            0x0000083b, // Swedish with Sami
+            0x00000413, // Dutch
+            0x00000414, // Norwegian
+            0x00000474, // Guarani
+            0x00000406, // Danish
+            0x0000046f, // Greenlandic
+            0x0000043b, // Norwegian with Sami
+            0x0000080a, // Latin American
+            0x0001083b, // Finnish with Sami
+            0x0000040a, // Spanish
+            0x0000040b, // Finnish
+            0x00030408, // Greek (220) Latin
+            0x00000438, // Faeroese
+            0x00000425, // Estonian
+            0x0000040f, // Icelandic
+            0x00010427, // Lithuanian
+            0x0001040e, // Hungarian 101-key
+            0x0000100c, // Swiss French
+            0x00000424, // Slovenian
+            0x0001042e, // Sorbian Extended
+            0x00000407, // German
+            0x0000081a, // Serbian (Latin)
+            0x00010407, // German (IBM)
+            0x00010415, // Polish (214)
+            0x0000042e, // Sorbian Standard (Legacy)
+            0x0002042e, // Sorbian Standard
+            0x00000807, // Swiss German
+            0x0000041a, // Standard
+            0x0000046e, // Luxembourgish
+            0x00000418, // Romanian (Legacy)
+            0x0000040e, // Hungarian
+            0x0000041f, // Turkish Q
+            0x0000042a, // Vietnamese
+            0x0001041b, // Slovak (QWERTY)
+            0x00010405, // Czech (QWERTY)
+            0x00000405, // Czech
+            0x0000041b, // Slovak
+            0x0000040c, // French
+            0x0000085f, // Central Atlas Tamazight
+            0x00000488, // Wolof
+            0x0001080c, // Belgian (Comma)
+            0x0000080c, // Belgian French
+            0x00000813, // Belgian (Period)
+            0x00010409, // United States-Dvorak
+            0x00020427, // Lithuanian Standard
+            0x0001041f, // Turkish F
+            0x00040409, // United States-Dvorak for right hand
+            0x00030409, // United States-Dvorak for left hand
+        });
+        // modul=161(0x000000a1) | prime=221868(0x000362ac) | shift=374331(0x0005b63b) | MIN=2 | MAX=159 | DELTA=157
+        static constexpr auto klid_prime = 221868u;
+        static constexpr auto klid_shift = 374331u;
+        static constexpr auto klid_modul = 161u;
+        static constexpr auto klid_hash(si32 klid)
+        {
+            auto uniq = (((ui32)klid ^ (ui32)klid_prime) * (ui32)klid_shift) % (ui32)klid_modul;
+            return uniq;
+        }
+        static constexpr auto supported_klids = [] // This won't compile if there are collisions.
+        {
+            auto klids = std::array<si32, input::key::klid_modul>{};
+            for (auto klid : input::key::latin_klids) // Check hash collisions.
+            {
+                auto uniq = input::key::klid_hash(klid);
+                if (klids[uniq] != 0)
+                {
+                    log("Hash collision detected. Try to update prime/shift/modul.");
+                }
+                klids[uniq] = klid;
+            }
+            return klids;
+        }();
+        static constexpr auto is_layout_supported(si32 klid)
+        {
+            return input::key::supported_klids[input::key::klid_hash(klid)] == klid;
+        }
+
         // Notes:
         //  IsoLevel5Shift: 5th-level of kb layout (mathematical signs, Greek letters). Physical keyboards don't have this key; in Linux, it's usually remapped to Caps Lock or the right Ctrl key.
         //  Hyper:          Users specifically create Hyper (for example, by remapping Caps Lock) to bind hotkeys, which are guaranteed to not interact with anything.

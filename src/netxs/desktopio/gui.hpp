@@ -5463,11 +5463,15 @@ namespace netxs::gui
         tsfl tslink; // window: TSF link.
         MSG  winmsg; // window: Last OS window message.
         wide toWIDE; // window: UTF-16 conversion buffer.
+        ui32 klid_fallback; // window: User's latin-based keyboard layout.
+        bool klid_suppress_tracking; // window: Suppress keyboard layout tracking.
 
         window(auto&& ...Args)
             : winbase{ Args... },
               tslink{ *this },
-              winmsg{}
+              winmsg{},
+              klid_fallback{},
+              klid_suppress_tracking{}
         {
             auto proc = (LONG(_stdcall*)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
@@ -5783,18 +5787,59 @@ namespace netxs::gui
             ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
             //print_vkstat("deactivate");
         }
+        auto keybd_find_layout() // Find any installed latin-based keyboard layout.
+        {
+            klid_suppress_tracking = true;
+            auto latin_klid = 0;
+            auto layout_count = ::GetKeyboardLayoutList(0, nullptr);
+            auto layouts = std::vector<HKL>(layout_count);
+            ::GetKeyboardLayoutList(layout_count, layouts.data());
+            auto old_hkl = ::GetKeyboardLayout(0); // Save current layout.
+            for (auto hkl : layouts) // Iterate over existing layouts.
+            {
+                ::ActivateKeyboardLayout(hkl, 0);
+                auto klid_wide = wide(KL_NAMELENGTH - 1/*exclude trailing null*/, '\0');
+                if (::GetKeyboardLayoutNameW(klid_wide.data()))
+                {
+                    auto klid = utf::to_int_from_hex_str(klid_wide);
+                    if (input::key::is_layout_supported(klid))
+                    {
+                        if constexpr (debugmode) log("Latin-based keyboard layout found: ", utf::adjust(utf::to_hex(klid), 8, "0", true));
+                        latin_klid = klid;
+                        break;
+                    }
+                }
+            }
+            ::ActivateKeyboardLayout(old_hkl, 0); // Restore user's layout.
+            if constexpr (debugmode)
+            if (!latin_klid)
+            {
+                log("Latin-based keyboard layout not found");
+            }
+            klid_suppress_tracking = faux;
+            return latin_klid;
+        }
         void keybd_sync_layout()
         {
+            if (klid_suppress_tracking) return;
             keybd_sync_state();
-            auto klid_buf = wide(KL_NAMELENGTH, '\0');
+            auto klid_buf = wide(KL_NAMELENGTH - 1/*exclude trailing null*/, '\0');
             ::GetKeyboardLayoutNameW(klid_buf.data());
-            xlayout = 0;
-            for(auto i = 0; i < 8; ++i)
+            auto klid = utf::to_int_from_hex_str(klid_buf);
+            log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(klid), 8, "0", true));
+            if (!klid_fallback)
             {
-                xlayout = (xlayout << 4) | (klid_buf[i] >= 'a' ? klid_buf[i] - 'a' + 10 :
-                                            klid_buf[i] >= 'A' ? klid_buf[i] - 'A' + 10 : klid_buf[i] - '0');
+                if (input::key::is_layout_supported(klid))
+                {
+                    klid_fallback = klid;
+                }
+                else
+                {
+                    if constexpr (debugmode) log("Layout %% is unsupported or not latin-based. Looking for klid fallback.", utf::adjust(utf::to_hex(klid), 8, "0", true));
+                    klid_fallback = keybd_find_layout(); // Looking for klid fallback.
+                }
             }
-            log("%%Keyboard layout changed to ", prompt::gui, utf::to_hex_0x(xlayout));
+            xlayout = klid;
         }
         si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
         {
