@@ -10227,6 +10227,7 @@ namespace netxs::ui
                 case keybd::type::deadkey:
                     deadkey_preview = gear.keystat == input::key::pressed ? gear.cluster : "";
                     if (io_log) log("%%Deadkey preview: ", prompt::key, ansi::hi(deadkey_preview.size() ? deadkey_preview : " "));
+                    [[fallthroght]]
                 case keybd::type::keypress:
                     if (defcfg.resetonkey && gear.doinput())
                     {
