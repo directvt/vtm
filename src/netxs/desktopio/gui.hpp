@@ -3515,6 +3515,7 @@ namespace netxs::gui
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
         si32  xlayout; // winbase: Current keyboard layout (KLID).
+        si32  klid_fallback; // winbase: User's latin-based keyboard layout.
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -3548,7 +3549,8 @@ namespace netxs::gui
               stream{ *this, *os::dtvt::client },
               fake_ctrl{ faux },
               wait_ralt{ faux },
-              xlayout{ input::key::klid::k00000409 }
+              xlayout{},
+              klid_fallback{}
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -4703,13 +4705,13 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            auto keycode = input::key::xlat(virtcod, scancod, cs, xlayout);
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
+            auto keycode = input::key::xlat(scancod, extflag, keymod, xlayout, klid_fallback);
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.xlayout = xlayout;
             gear.cluster = cluster;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
@@ -5463,14 +5465,12 @@ namespace netxs::gui
         tsfl tslink; // window: TSF link.
         MSG  winmsg; // window: Last OS window message.
         wide toWIDE; // window: UTF-16 conversion buffer.
-        ui32 klid_fallback; // window: User's latin-based keyboard layout.
         bool klid_suppress_tracking; // window: Suppress keyboard layout tracking.
 
         window(auto&& ...Args)
             : winbase{ Args... },
               tslink{ *this },
               winmsg{},
-              klid_fallback{},
               klid_suppress_tracking{}
         {
             auto proc = (LONG(_stdcall*)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
