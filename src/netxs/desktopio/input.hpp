@@ -2890,9 +2890,9 @@ namespace netxs::input
                                                  : klid_fallback ? klid_fallback
                                                                  : input::key::latin_klids[0];
             if (!(keymod & input::hids::NumLock) && !extflag
-                && ((sc >= 0x47 && sc <= 0x49)   // 7 8 9
-                 || (sc >= 0x4B && sc <= 0x4D)   // 4 5 6
-                 || (sc >= 0x4F && sc <= 0x53))) // 1 2 3 // 0->ins .->del
+                && ((sc >= 0x47 && sc <= 0x49)   // 7 8 9 -> Home Up    PgUp
+                 || (sc >= 0x4B && sc <= 0x4D)   // 4 5 6 -> Left Clear Right
+                 || (sc >= 0x4F && sc <= 0x53))) // 1 2 3 -> End  Down  PgDn   // 0->Ins .->Del
             {
                 sc = 0x80 | (sc & 0xF); // ala 0x4* -> 0x8* if no numlock
             }
