@@ -270,6 +270,7 @@ namespace netxs::input
         //                 Extended Bit (0 or 1)
         auto key_hash(si32 klid, si32 scan, bool extflag)
         {
+            assert(input::key::supported_klids[input::key::klid_hash(klid)].klid == klid);
             auto hash = (ui16)((scan & 0xFF) | ((si32)extflag << 8) | (input::key::supported_klids[input::key::klid_hash(klid)].index << 9));
             return hash;
         }
@@ -2885,7 +2886,9 @@ namespace netxs::input
         }
         auto xlat(si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 klid_fallback)
         {
-            auto klid = input::key::is_layout_supported(xlayout) ? xlayout : klid_fallback;
+            auto klid = input::key::is_layout_supported(xlayout) ? xlayout
+                                                 : klid_fallback ? klid_fallback
+                                                                 : input::key::latin_klids[0];
             if (!(keymod & input::hids::NumLock) && !extflag
                 && ((sc >= 0x47 && sc <= 0x49)   // 7 8 9
                  || (sc >= 0x4B && sc <= 0x4D)   // 4 5 6

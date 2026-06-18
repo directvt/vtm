@@ -5571,14 +5571,16 @@ namespace netxs::gui
                 auto flags = extflag ? 1u : 0u;
                 flags |= 2; // 2 PDT_SHAREABLE (don't touch our thread state).
                 auto vk_un = std::array<byte, 256>{};
+                vk_un[vkey::capslock] = vkstat[vkey::capslock];
                 auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, current_layout);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, unshift);
                 }
                 auto vk_sh = std::array<byte, 256>{};
-                vk_sh[vkey::shift ] = 0x80;
-                vk_sh[vkey::lshift] = 0x80;
+                vk_sh[vkey::capslock] = vkstat[vkey::capslock];
+                vk_sh[vkey::shift   ] = 0x80;
+                vk_sh[vkey::lshift  ] = 0x80;
                 rc = ::ToUnicodeEx(virtcod, scancod, vk_sh.data(), buf.data(), 8, flags, current_layout);
                 if (rc > 0)
                 {
