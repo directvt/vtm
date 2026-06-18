@@ -61,6 +61,71 @@ namespace netxs::input
 
     namespace events = netxs::events::userland::hids;
 
+    namespace vkey
+    {
+        static constexpr auto lbutton  = 0x01; // VK_LBUTTON
+        static constexpr auto rbutton  = 0x02; // VK_RBUTTON
+        static constexpr auto mbutton  = 0x04; // VK_MBUTTON
+        static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1
+        static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2
+
+        static constexpr auto shift    = 0x10; // VK_SHIFT
+        static constexpr auto control  = 0x11; // VK_CONTROL
+        static constexpr auto alt      = 0x12; // VK_MENU
+        static constexpr auto lshift   = 0xA0; // VK_LSHIFT
+        static constexpr auto rshift   = 0xA1; // VK_RSHIFT
+        static constexpr auto lcontrol = 0xA2; // VK_LCONTROL
+        static constexpr auto rcontrol = 0xA3; // VK_RCONTROL
+        static constexpr auto lalt     = 0xA4; // VK_LMENU
+        static constexpr auto ralt     = 0xA5; // VK_RMENU
+        static constexpr auto lsuper   = 0x5B; // VK_LWIN
+        static constexpr auto rsuper   = 0x5C; // VK_RWIN
+
+        static constexpr auto clear    = 0x0C; // VK_CLEAR
+        static constexpr auto enter    = 0x0D; // VK_RETURN
+        static constexpr auto pgup     = 0x21; // VK_PRIOR
+        static constexpr auto pgdn     = 0x22; // VK_NEXT
+        static constexpr auto end      = 0x23; // VK_END
+        static constexpr auto home     = 0x24; // VK_HOME
+        static constexpr auto left     = 0x25; // VK_LEFT
+        static constexpr auto up       = 0x26; // VK_UP
+        static constexpr auto right    = 0x27; // VK_RIGHT
+        static constexpr auto down     = 0x28; // VK_DOWN
+        static constexpr auto insert   = 0x2D; // VK_INSERT
+        static constexpr auto del      = 0x2E; // VK_DELETE
+        static constexpr auto divide   = 0x6F; // VK_DIVIDE
+
+        static constexpr auto f11      = 0x7A; // VK_F11
+        static constexpr auto f12      = 0x7B; // VK_F12
+
+        static constexpr auto key_0    = '0'; // VK_0
+
+        static constexpr auto numlock  = 0x90; // VK_NUMLOCK
+        static constexpr auto capslock = 0x14; // VK_CAPITAL
+        static constexpr auto scrllock = 0x91; // VK_SCROLL
+        static constexpr auto kana     = 0x15; // VK_KANA
+        static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA
+        static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA
+        static constexpr auto intl_yen = 0xDC; // VK_OEM_5
+
+        static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY
+        static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO
+        static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW
+
+        static constexpr auto numpad0  = 0x60; // VK_NUMPAD0
+        static constexpr auto numpad1  = 0x61; // VK_NUMPAD1
+        static constexpr auto numpad2  = 0x62; // VK_NUMPAD2
+        static constexpr auto numpad3  = 0x63; // VK_NUMPAD3
+        static constexpr auto numpad4  = 0x64; // VK_NUMPAD4
+        static constexpr auto numpad5  = 0x65; // VK_NUMPAD5
+        static constexpr auto numpad6  = 0x66; // VK_NUMPAD6
+        static constexpr auto numpad7  = 0x67; // VK_NUMPAD7
+        static constexpr auto numpad8  = 0x68; // VK_NUMPAD8
+        static constexpr auto numpad9  = 0x69; // VK_NUMPAD9
+        static constexpr auto numpadD  = 0x6E; // VK_DECIMAL
+
+        static constexpr auto packet   = 0xE7; // VK_PACKET
+    }
     namespace key
     {
         static constexpr auto ExtendedKey = 0x0100; // ENHANCED_KEY
@@ -2884,28 +2949,61 @@ namespace netxs::input
                 default: break;
             }
         }
-        auto xlat(si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 klid_fallback)
+        void fix_numpad(auto& sc, bool numlock, bool extflag)
         {
-            auto klid = input::key::is_layout_supported(xlayout) ? xlayout
-                                                 : klid_fallback ? klid_fallback
-                                                                 : input::key::latin_klids[0];
-            if (!(keymod & input::hids::NumLock) && !extflag
+            if (!numlock && !extflag
                 && ((sc >= 0x47 && sc <= 0x49)   // 7 8 9 -> Home Up    PgUp
                  || (sc >= 0x4B && sc <= 0x4D)   // 4 5 6 -> Left Clear Right
                  || (sc >= 0x4F && sc <= 0x53))) // 1 2 3 -> End  Down  PgDn   // 0->Ins .->Del
             {
                 sc = 0x80 | (sc & 0xF); // ala 0x4* -> 0x8* if no numlock
             }
+        }
+        void fix_Numpad_Yen_Slash(auto& vk, auto& sc, bool numlock, bool extflag)
+        {
+                 if (sc == 0x53/*NumpadDecimal*/ && numlock         ) vk = vkey::numpadD;
+            else if (sc == 0x7D/*IntlYen*/                          ) vk = vkey::intl_yen;
+            else if (numlock && !extflag && sc >= 0x47 && sc <= 0x53)
+            {
+                switch (vk)
+                {
+                    case vkey::home:   vk = vkey::numpad7; break; // sc 0x47
+                    case vkey::up:     vk = vkey::numpad8; break; // sc 0x48
+                    case vkey::pgup:   vk = vkey::numpad9; break; // sc 0x49 (Page Up)
+                    case vkey::left:   vk = vkey::numpad4; break; // sc 0x4B
+                    case vkey::clear:  vk = vkey::numpad5; break; // sc 0x4C (Num 5)
+                    case vkey::right:  vk = vkey::numpad6; break; // sc 0x4D
+                    case vkey::end:    vk = vkey::numpad1; break; // sc 0x4F
+                    case vkey::down:   vk = vkey::numpad2; break; // sc 0x50
+                    case vkey::pgdn:   vk = vkey::numpad3; break; // sc 0x51 (Page Down)
+                    case vkey::insert: vk = vkey::numpad0; break; // sc 0x52
+                    case vkey::del:    vk = vkey::numpadD; break; // sc 0x53 (Dot/Comma)
+                }
+            }
+            else if (extflag && sc == 0x35 && vk != vkey::divide) // Extended Numpad Slash (scan=0xE035)
+            {
+                vk = vkey::divide;
+            }
+            else fix_numpad(sc, numlock, extflag);
+        }
+        auto xlat(si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 klid_fallback)
+        {
+            auto klid = input::key::is_layout_supported(xlayout) ? xlayout
+                                                 : klid_fallback ? klid_fallback
+                                                                 : input::key::latin_klids[0];
+            auto numlock = keymod & input::hids::NumLock;
+            fix_numpad(sc, numlock, extflag);
             auto hash = input::key::key_hash(klid, sc, extflag);
             auto keyid = input::key::key_map[hash];
             return keyid;
         }
         auto xlat(si32 virtcod, si32 scancod, si32 dwControlKeyState, si32 klid)
         {
-            if (dwControlKeyState & input::key::NumLockMode)
-            {
-                //
-            }
+            auto extflag = dwControlKeyState & input::key::ExtendedKey;
+            auto numlock = dwControlKeyState & input::key::NumLockMode;
+            auto vk = virtcod;
+            auto sc = scancod;
+            fix_Numpad_Yen_Slash(vk, sc, numlock, extflag);
 
             auto iter = keymap.find(map{ 0,0,0,0 });
             return iter != keymap.end() ? iter->second : key::undef;

@@ -18,6 +18,7 @@
 namespace netxs::gui
 {
     namespace e2 = netxs::events::userland::e2;
+    namespace vkey = netxs::input::vkey;
 
     using namespace ui;
     using bits = netxs::raster<std::span<argb>>;
@@ -3014,52 +3015,6 @@ namespace netxs::gui
             static constexpr auto footer   = 1 << (__COUNTER__ - _counter);
             static constexpr auto tooltip  = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
-        };
-        struct vkey
-        {
-            static constexpr auto lbutton  = 0x01; // VK_LBUTTON;
-            static constexpr auto rbutton  = 0x02; // VK_RBUTTON;
-            static constexpr auto mbutton  = 0x04; // VK_MBUTTON;
-            static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1;
-            static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2;
-
-            static constexpr auto shift    = 0x10; // VK_SHIFT;
-            static constexpr auto control  = 0x11; // VK_CONTROL;
-            static constexpr auto alt      = 0x12; // VK_MENU;
-            static constexpr auto lshift   = 0xA0; // VK_LSHIFT;
-            static constexpr auto rshift   = 0xA1; // VK_RSHIFT;
-            static constexpr auto lcontrol = 0xA2; // VK_LCONTROL;
-            static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
-            static constexpr auto lalt     = 0xA4; // VK_LMENU;
-            static constexpr auto ralt     = 0xA5; // VK_RMENU;
-            static constexpr auto lsuper   = 0x5B; // VK_LWIN;
-            static constexpr auto rsuper   = 0x5C; // VK_RWIN;
-
-            static constexpr auto enter    = 0x0D; // VK_RETURN;
-            static constexpr auto left     = 0x25; // VK_LEFT;
-            static constexpr auto up       = 0x26; // VK_UP;
-            static constexpr auto right    = 0x27; // VK_RIGHT;
-            static constexpr auto down     = 0x28; // VK_DOWN;
-            static constexpr auto end      = 0x23; // VK_END;
-            static constexpr auto home     = 0x24; // VK_HOME;
-
-            static constexpr auto f11      = 0x7A; // VK_F11;
-            static constexpr auto f12      = 0x7B; // VK_F12;
-
-            static constexpr auto key_0    = '0'; // VK_0;
-
-            static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
-            static constexpr auto capslock = 0x14; // VK_CAPITAL;
-            static constexpr auto scrllock = 0x91; // VK_SCROLL;
-            static constexpr auto kana     = 0x15; // VK_KANA;
-            static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA;
-            static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA;
-
-            static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY;
-            static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO;
-            static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW;
-
-            static constexpr auto packet   = 0xE7; // VK_PACKET;
         };
         struct cont
         {
