@@ -5283,26 +5283,6 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
-                if (os::stdin_fd != os::invalid_fd) // Check and update keyboard layout.
-                {
-                    auto true_null = nt::takevkey<'\0'>().base;
-                    auto slash_key = nt::takevkey< '/'>().base;
-                    auto quest_key = nt::takevkey< '?'>().base;
-                    if ((true_null & 0xff) != '2'       // Send update for non-US keyboard layouts.
-                     || (slash_key & 0xff) != VK_OEM_2
-                     || (quest_key & 0xff) != VK_OEM_2)
-                    {
-                        true_null = input::key::find(true_null & 0xff, input::key::Key2);
-                        slash_key = input::key::find(slash_key & 0xff, input::key::KeySlash) | (slash_key & 0xff00);
-                        quest_key = input::key::find(quest_key & 0xff, input::key::KeySlash) | (quest_key & 0xff00);
-                        k.keycode = input::key::config;
-                        k.cluster.clear();
-                        utf::to_utf_from_code(true_null, k.cluster);
-                        utf::to_utf_from_code(slash_key, k.cluster);
-                        utf::to_utf_from_code(quest_key, k.cluster);
-                        keybd(k);
-                    }
-                }
                 auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
                                                             : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
                 while (alive)

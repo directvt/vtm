@@ -1106,8 +1106,8 @@ namespace netxs::utf
         constexpr qiew(char const* ptr, auto&&... len) noexcept : view(ptr, std::forward<decltype(len)>(len)...) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
-                 operator text () const { return text{ data(), size() }; }
-        explicit operator bool () const { return view::length(); }
+                           operator text () const { return text{ data(), size() }; }
+        constexpr explicit operator bool () const { return view::length(); }
 
         // qiew: Clear.
         constexpr auto clear()
@@ -1122,16 +1122,23 @@ namespace netxs::utf
         // qiew: Convert to text.
         auto str() const { return operator text(); }
         // qiew: Peek front char.
-        si32 front() const { return (byte)view::front(); }
+        constexpr si32 front() const { return (byte)view::front(); }
         // qiew: Pop front.
-        auto pop_front()
+        constexpr auto pop_front()
         {
             auto c = view::front();
             view::remove_prefix(1);
             return c;
         }
+        // qiew: Pop front.
+        constexpr auto pop_front(si32 n)
+        {
+            auto crop = substr(0, n);
+            view::remove_prefix(n);
+            return crop;
+        }
         // qiew: Pop back.
-        auto pop_back()
+        constexpr auto pop_back()
         {
             auto c = view::back();
             view::remove_suffix(1);
@@ -1151,7 +1158,7 @@ namespace netxs::utf
             return n;
         }
         // qiew: Pop the front sequence of the same chars and return their count + 1.
-        auto pop_all(char c)
+        constexpr auto pop_all(char c)
         {
             auto n = 1;
             while (length() && view::front() == c)
@@ -1173,7 +1180,7 @@ namespace netxs::utf
             return faux;
         }
         // qiew: Return true and pop the front char when it is equal to c.
-        auto pop_if(char c)
+        constexpr auto pop_if(char c)
         {
             if (length() && view::front() == c)
             {
@@ -1188,7 +1195,7 @@ namespace netxs::utf
     using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
 
     template<class A = ui32>
-    auto to_int_from_hex_str(auto&& text_or_wide)
+    constexpr auto to_int_from_hex_str(auto const& text_or_wide)
     {
         auto num = A{};
         for(auto c : text_or_wide)

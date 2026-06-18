@@ -13,7 +13,7 @@
       // /Od               Disable all compiler optimizations.
       // /RTC1             Enable stack frame run-time checking (local variables uninitialized) and detects when smaller variables are assigned larger values and data is lost.
       // /W4               Set the compiler warning level to 4 (maximum standard level).
-      "WIN32_CXX_FLAGS_DEBUG": "/MTd /DDEBUG /Zi /Ob0 /Od /RTC1 /W4",
+      "WIN32_CXX_FLAGS_DEBUG": "/MTd /DDEBUG /Zi /Ob0 /Od /RTC1 /W4  /constexpr:steps 10000000",
       // /MT               Static release build (don't rely on the shared dlls).
       // /DNDEBUG          Define the preprocessor symbol NDEBUG to disable assertions.
       // /O2               Optimize speed (and code size).
