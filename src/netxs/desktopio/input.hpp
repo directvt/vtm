@@ -654,11 +654,6 @@ namespace netxs::input
             X(542 , 0, BrowserHome        , "BrowserHome"       , ""    , 0     , 0    , 'u', -1    , -1    , "0132ac2932ac0932ac2732ac1332ac0d32ac1f32ac1d32ac0732ac2532ac0532ac0b32ac1132ac1732ac2132ac1932ac0f32ac2b32ac1b32ac2332ac1532ac7b32ac2d32ac2f32ac0332ac3132ac3332ac3532ac3b32ac3d32ac3932ac3732ac9d32ac4132ac3f32ac4d32ac4332ac4f32ac4b32ac4732ac5532ac4532ac5d32ac5b32ac6932ac6332ac6732ac4932ac7332ac6d32ac5132ac9f32ac7732aca132ac5332ac5932ac5732ac6f32ac6132ac6b32ac7132ac7532ac5f32ac6532aca332ac7932ac8d32ac8f32ac8332aca532ac8732ac8b32ac9932ac9b32ac9132ac7f32ac9532ac8932ac8532ac7d32ac9332ac8132ac9732acab32aca932aca732acaf32acb132acad32acb532acb332acb732acb932acbb32ac")\
             X(544 , 0, lastKey            , "lastKey"           , ""    , 0     , 0    , 0  , -1    , -1    , "")
 
-        #define key_list2 \
-            /*Id   Index Vkey  Scan  KLID     CS          Mask  CS KLID VK SC  I  Name                   GenericName      KKP base,suffix,ascii,w\ctrl*/\
-            X(0,      0,    0,    0, 0x00000,           0, 0x0000'00000'00'FF, 1, undef                , "undef"           , 0    , 'u', -1    , -1    )\
-            X(1,      0, 0xFF, 0xFF, 0x00409,           0, 0x0100'00000'FF'FF, 0, config               , "config"          , 0    , 'u', -1    , -1    )\
-            X(402, 0xFF, 0xFF, 0xFF, 0x00000, ExtendedKey, 0x0100'FFFFF'FF'FF, 0, lastKey              , "lastKey"         , 0    , 0  , -1    , -1    )
             // Max 12 bits for KeyId.
             static constexpr auto idbits = 12;
 
@@ -685,7 +680,6 @@ namespace netxs::input
             #undef X
             return m;
         }();
-
         static constexpr auto vk_map = []
         {
             struct keyrec
@@ -693,7 +687,7 @@ namespace netxs::input
                 si16 code;
                 si16 scan;
                 utfx unic;
-                si16 klid;
+                si16 klid; // Sorted klid index.
                 si16 vkey;
                 struct cmp
                 {
@@ -727,7 +721,11 @@ namespace netxs::input
                 fill(KeyId, Uc, qiew{ PhysicalCode });
                 key_list
             #undef X
-            std::sort(m.begin(), m.end(), [](auto& a, auto& b){ return a.vkey < b.vkey; });
+            std::sort(m.begin(), m.end(), [](auto& a, auto& b)
+            {
+                if (a.vkey != b.vkey) return a.vkey < b.vkey;
+                else                  return a.klid < b.klid;
+            });
             return m;
         }();
 
@@ -939,7 +937,6 @@ namespace netxs::input
 
         #undef mouse_list
         #undef key_list
-        #undef key_list2
     }
 
     struct foci
