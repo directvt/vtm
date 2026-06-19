@@ -685,30 +685,49 @@ namespace netxs::input
             #undef X
             return m;
         }();
-        static const auto vk_map = []
+
+        static constexpr auto vk_map = []
         {
             struct keyrec
             {
                 si16 code;
                 si16 scan;
-                si32 klid;
+                utfx unic;
+                si16 klid;
+                si16 vkey;
+                struct cmp
+                {
+                    auto operator()(keyrec const& r, si32 vkey) const { return r.vkey < vkey; }
+                    auto operator()(si32 vkey, keyrec const& r) const { return vkey < r.vkey; }
+                };
             };
-            auto m = std::array<std::vector<keyrec>, 256>{};
-            auto fill = [&](si16 KeyId, qiew codes)
+            constexpr auto total_hash_count = []
+            {
+                auto total_hash_count = 0;
+                #define X(KeyId, Input, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
+                    total_hash_count += (si32)qiew{ PhysicalCode }.size() / 6;
+                    key_list
+                #undef X
+                return total_hash_count;
+            }();
+            auto m = std::array<keyrec, total_hash_count>{};
+            auto i = 0;
+            auto fill = [&](si16 KeyId, utfx unic, qiew codes)
             {
                 while (codes)
                 {
                     auto key_hash = utf::to_int_from_hex_str(codes.pop_front(6));
-                    auto vkey = key_hash & 0xFF;
+                    auto vkey = (si16)(key_hash & 0xFF);
                     auto scan = (si16)((key_hash >> 8) & 0x1FF);
-                    auto klid = (si32)(key_hash >> 17);
-                    m[vkey].push_back({ .code = KeyId, .scan = scan, .klid = klid });
+                    auto klid = (si16)(key_hash >> 17);
+                    m[i++] = { .code = KeyId, .scan = scan, .unic = unic, .klid = klid, .vkey = vkey };
                 }
             };
             #define X(KeyId, Input, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
-                fill(KeyId, qiew{ PhysicalCode });
+                fill(KeyId, Uc, qiew{ PhysicalCode });
                 key_list
             #undef X
+            std::sort(m.begin(), m.end(), [](auto& a, auto& b){ return a.vkey < b.vkey; });
             return m;
         }();
 
@@ -3029,27 +3048,29 @@ namespace netxs::input
             {
                 fix_Numpad_Yen_Slash(vk, sc, numlock, extflag);
                 sc |= extflag << 8;
-                auto& code_scan_klid_list = input::key::vk_map[vk];
                 auto new_layout_hint = layout_hint;
-                for (auto [code, scan, klid] : code_scan_klid_list)
+                using keyrec = std::decay_t<decltype(input::key::vk_map[0])>;
+                auto [head, tail] = std::equal_range(input::key::vk_map.begin(), input::key::vk_map.end(), vk, keyrec::cmp{});
+                while (head != tail)
                 {
-                    if (scan == sc)
+                    auto& r = *head++;
+                    if (r.scan == sc)
                     {
-                        if (new_layout_hint == layout_hint && klid != layout_hint) // Best effort.
+                        if (new_layout_hint == layout_hint && r.klid != layout_hint) // Best effort.
                         {
-                            keyid = code;
-                            new_layout_hint = klid;
-                            if (layout_hint == 0) break;
+                            keyid = r.code;
+                            new_layout_hint = r.klid;
+                            if (layout_hint == -1) break; // If there are no hints, then a match with the scancode is enough.
                         }
-                        else if (klid == layout_hint) // Exact match.
+                        else if (r.klid == layout_hint) // Exact match.
                         {
-                            keyid = code;
-                            new_layout_hint = klid;
+                            keyid = r.code;
+                            new_layout_hint = r.klid;
                             break;
                         }
                     }
                 }
-                std::swap(new_layout_hint, layout_hint);
+                layout_hint = new_layout_hint;
             }
             return keyid;
         }

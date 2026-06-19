@@ -5247,7 +5247,7 @@ namespace netxs::os
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
-            auto layout_hint = 0;
+            auto layout_hint = -1;
             auto layout_fallback = 0;
             auto gear_id = id_t{ 1 }; // Non-zero id.
             auto p_txtdata = text{};
