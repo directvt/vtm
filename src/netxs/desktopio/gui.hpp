@@ -5524,7 +5524,6 @@ namespace netxs::gui
                                          || (virtcod >= 0xB8 && virtcod <= 0xE6));
             if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
-                log("Call ::ToUnicodeEx with vk=%% sc=%%", virtcod, scancod);
                 auto buf = wide(8, 0);
                 auto current_layout = ::GetKeyboardLayout(0);
                 auto flags = extflag ? 1u : 0u;
