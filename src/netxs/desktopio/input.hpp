@@ -700,7 +700,7 @@ namespace netxs::input
                 {
                     auto key_hash = utf::to_int_from_hex_str(codes.pop_front(6));
                     auto vkey = key_hash & 0xFF;
-                    auto scan = (si16)(key_hash >> 8) & 0x1FF;
+                    auto scan = (si16)((key_hash >> 8) & 0x1FF);
                     auto klid = (si32)(key_hash >> 17);
                     m[vkey].push_back({ .code = KeyId, .scan = scan, .klid = klid });
                 }

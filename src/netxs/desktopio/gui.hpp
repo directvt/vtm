@@ -5519,8 +5519,12 @@ namespace netxs::gui
         {
             shifted.clear();
             unshift.clear();
-            if (scancod && virtcod >= 0x30 && virtcod <= 0xE6 && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
+            auto is_printable = scancod && ((virtcod >= 0x30 && virtcod <= 0x5A)
+                                         || (virtcod >= 0x60 && virtcod <= 0x6F)
+                                         || (virtcod >= 0xB8 && virtcod <= 0xE6));
+            if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
+                log("Call ::ToUnicodeEx with vk=%% sc=%%", virtcod, scancod);
                 auto buf = wide(8, 0);
                 auto current_layout = ::GetKeyboardLayout(0);
                 auto flags = extflag ? 1u : 0u;
