@@ -563,6 +563,7 @@ namespace netxs::ui
                     auto focused = !!count;
                     if (std::exchange(state, focused) != state)
                     {
+                        owner.set_deadkey_preview();
                         owner.ipccon.focus(focused, encod);
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
@@ -10219,14 +10220,21 @@ namespace netxs::ui
             imefmt.flow::compose<faux>(imebox, test);
             return composit_cursor;
         }
+        void set_deadkey_preview(qiew cluster = {})
+        {
+            auto changed = std::exchange(deadkey_preview, cluster) != cluster;
+            if (io_log && changed) log("%%Deadkey preview: ", prompt::key, ansi::hi(deadkey_preview.size() ? deadkey_preview : " "));
+        }
         void key_event(hids& gear, bool forced_event = faux)
         {
             if (!forced_event && gear.touched && !rawkbd) return;
             switch (gear.payload)
             {
                 case keybd::type::deadkey:
-                    deadkey_preview = gear.keystat == input::key::pressed ? gear.cluster : "";
-                    if (io_log) log("%%Deadkey preview: ", prompt::key, ansi::hi(deadkey_preview.size() ? deadkey_preview : " "));
+                    if (gear.keystat == input::key::pressed)
+                    {
+                        set_deadkey_preview(gear.cluster);
+                    }
                     [[fallthrough]];
                 case keybd::type::keypress:
                     if (defcfg.resetonkey && gear.doinput())
@@ -10236,7 +10244,14 @@ namespace netxs::ui
                         follow[axis::X] = true;
                         follow[axis::Y] = true;
                     }
-                    if (gear.payload == keybd::type::keypress) ipccon.keybd(gear, decckm, kbmode);
+                    if (gear.payload == keybd::type::keypress)
+                    {
+                        if (deadkey_preview.size() && gear.cluster.size()) // Reset deadkey preview on input.
+                        {
+                            set_deadkey_preview();
+                        }
+                        ipccon.keybd(gear, decckm, kbmode);
+                    }
                     if (forced_event || !gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
@@ -10269,7 +10284,7 @@ namespace netxs::ui
                     else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
                     break;
                 case keybd::type::kblayout:
-                    //todo
+                    if (deadkey_preview.size()) set_deadkey_preview();
                     break;
             }
         }

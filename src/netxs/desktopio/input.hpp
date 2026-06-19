@@ -2430,15 +2430,18 @@ namespace netxs::input
             cmap pushed{}; // kmap: Pushed key map.
             bool keyout{}; // kmap: Some key has left the key chord.
 
-            void reset(auto& k)
+            void reset(auto& k, bool full = true)
             {
                 k.vkchord.clear();
                 k.scchord.clear();
                 k.chchord.clear();
                 k.shifted.clear();
                 k.unshift.clear();
-                pushed.clear();
-                keyout = {};
+                if (full)
+                {
+                    pushed.clear();
+                    keyout = {};
+                }
             }
             auto exist(si32 keyid)
             {

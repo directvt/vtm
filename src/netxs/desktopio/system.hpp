@@ -5435,9 +5435,18 @@ namespace netxs::os
                                     }
                                     break;
                                 case nt::console::event::kb_layout:
-                                    k.xlayout = reinterpret_cast<nt::console::layout_input*>(&r)->klid;
-                                    if (input::key::is_layout_supported(k.xlayout)) layout_fallback = k.xlayout;
+                                {
+                                    auto new_layout = reinterpret_cast<nt::console::layout_input*>(&r)->klid;
+                                    if (std::exchange(k.xlayout, new_layout) != new_layout)
+                                    {
+                                        if (input::key::is_layout_supported(k.xlayout)) layout_fallback = k.xlayout;
+                                        k.payload = input::keybd::type::kblayout;
+                                        chords.reset(k, faux); // faux: Keep pressed key state.
+                                        keybd(k);
+                                        k.payload = input::keybd::type::keypress;
+                                    }
                                     break;
+                                }
                                 case nt::console::event::style:
                                     style(deco{ reinterpret_cast<nt::console::style_input*>(&r)->format });
                                     break;

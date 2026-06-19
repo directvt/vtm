@@ -3517,7 +3517,15 @@ namespace netxs::gui
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
-        virtual void keybd_sync_layout() = 0;
+        virtual void keybd_sync_layout()
+        {
+            auto& gear = *stream.gears;
+            gear.payload = input::keybd::type::kblayout;
+            gear.xlayout = xlayout;
+            chords.reset(gear, faux); // faux: Keep pressed key state.
+            stream_keybd(gear);
+            gear.payload = input::keybd::type::keypress;
+        }
         virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
@@ -3528,6 +3536,7 @@ namespace netxs::gui
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod) = 0;
         virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
+        virtual void keybd_reset_deadkey() = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
         virtual void mouse_release(si32 released_by) = 0;
@@ -4891,9 +4900,13 @@ namespace netxs::gui
                     keybd_read_vkstat(); // It must be called in current thread.
                     for (auto target : target_list.value()) window_send_command(target, ipc::main_focus, local_target);
                 }
-                else if (target_list) // Send to all that the focus is going to lost.
+                else
                 {
-                    for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
+                    keybd_reset_deadkey(); // Force reset deadkey state if it is. Windows doesn't reset deadkey state when refocusing but all other platforms do.
+                    if (target_list) // Send to all that the focus is going to lost.
+                    {
+                        for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
+                    }
                 }
             }
         }
@@ -5515,6 +5528,14 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
+        void keybd_reset_deadkey()
+        {
+            auto uc = L' ';
+            auto ks = std::array<byte, 256>{};
+            auto vk = input::key::map::data(input::key::Space).vkey;
+            auto sc = input::key::map::data(input::key::Space).scan;
+            ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, 0);
+        }
         void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
         {
             shifted.clear();
@@ -5527,7 +5548,7 @@ namespace netxs::gui
                 auto buf = wide(8, 0);
                 auto current_layout = ::GetKeyboardLayout(0);
                 auto flags = extflag ? 1u : 0u;
-                flags |= 2; // 2 PDT_SHAREABLE (don't touch our thread state).
+                flags |= 2; // ToUnicodeEx will translate scancodes marked as key break events in addition to its usual treatment of key make events.
                 auto vk_un = std::array<byte, 256>{};
                 vk_un[vkey::capslock] = vkstat[vkey::capslock];
                 auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, current_layout);
@@ -5785,8 +5806,7 @@ namespace netxs::gui
             keybd_sync_state();
             auto klid_buf = wide(KL_NAMELENGTH - 1/*exclude trailing null*/, '\0');
             ::GetKeyboardLayoutNameW(klid_buf.data());
-            auto klid = utf::to_int_from_hex_str(klid_buf);
-            log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(klid), 8, "0", true));
+            auto klid = utf::to_int_from_hex_str<si32>(klid_buf);
             if (!klid_fallback)
             {
                 if (input::key::is_layout_supported(klid))
@@ -5799,7 +5819,11 @@ namespace netxs::gui
                     klid_fallback = keybd_find_layout(); // Looking for klid fallback.
                 }
             }
-            xlayout = klid;
+            if (std::exchange(xlayout, klid) != klid)
+            {
+                log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(klid), 8, "0", true));
+                winbase::keybd_sync_layout();
+            }
         }
         si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
         {
@@ -5920,7 +5944,7 @@ namespace netxs::gui
             auto target_list = mfocus.copy();
             auto local_hwnd = (ui32)master.hWnd;
             auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)vkstat.size(), .lpData = (void*)vkstat.data() };
-            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
+            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),  .lpData = (void*)block.data()  };
             for (auto target : target_list) // Send to group focused targets.
             {
                 if (target != local_hwnd)
@@ -6201,6 +6225,7 @@ namespace netxs::gui
         void keybd_sync_layout() {}
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
+        void keybd_reset_deadkey() {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
