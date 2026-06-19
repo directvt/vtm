@@ -5247,6 +5247,8 @@ namespace netxs::os
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
+            auto layout_hint = 0;
+            auto layout_fallback = 0;
             auto gear_id = id_t{ 1 }; // Non-zero id.
             auto p_txtdata = text{};
             auto chords = input::key::kmap{};
@@ -5370,7 +5372,7 @@ namespace netxs::os
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState, k.xlayout);
+                                k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.ctlstat, k.xlayout, layout_fallback, layout_hint);
                                 k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
                                 k.cluster = toutf;
                                 chords.build(k);
@@ -5397,7 +5399,7 @@ namespace netxs::os
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                     k.cluster = toutf;
-                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState, k.xlayout);
+                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.ctlstat, k.xlayout, layout_fallback, layout_hint);
                                     if (r.Event.KeyEvent.wRepeatCount-- > 0)
                                     {
                                         k.keystat = input::key::pressed;
@@ -5434,6 +5436,7 @@ namespace netxs::os
                                     break;
                                 case nt::console::event::kb_layout:
                                     k.xlayout = reinterpret_cast<nt::console::layout_input*>(&r)->klid;
+                                    if (input::key::is_layout_supported(k.xlayout)) layout_fallback = k.xlayout;
                                     break;
                                 case nt::console::event::style:
                                     style(deco{ reinterpret_cast<nt::console::style_input*>(&r)->format });

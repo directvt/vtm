@@ -4661,7 +4661,7 @@ namespace netxs::gui
             gear.virtcod = virtcod;
             gear.scancod = scancod;
             keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
-            auto keycode = input::key::xlat(scancod, extflag, keymod, xlayout, klid_fallback);
+            auto keycode = input::key::xlat(virtcod, scancod, extflag, keymod, xlayout, klid_fallback);
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;

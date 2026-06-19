@@ -685,6 +685,32 @@ namespace netxs::input
             #undef X
             return m;
         }();
+        static const auto vk_map = []
+        {
+            struct keyrec
+            {
+                si16 code;
+                si16 scan;
+                si32 klid;
+            };
+            auto m = std::array<std::vector<keyrec>, 256>{};
+            auto fill = [&](si16 KeyId, qiew codes)
+            {
+                while (codes)
+                {
+                    auto key_hash = utf::to_int_from_hex_str(codes.pop_front(6));
+                    auto vkey = key_hash & 0xFF;
+                    auto scan = (si16)(key_hash >> 8) & 0x1FF;
+                    auto klid = (si32)(key_hash >> 17);
+                    m[vkey].push_back({ .code = KeyId, .scan = scan, .klid = klid });
+                }
+            };
+            #define X(KeyId, Input, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
+                fill(KeyId, qiew{ PhysicalCode });
+                key_list
+            #undef X
+            return m;
+        }();
 
         struct map
         {
@@ -2986,34 +3012,52 @@ namespace netxs::input
             }
             else fix_numpad(sc, numlock, extflag);
         }
-        auto xlat(si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 klid_fallback)
+        auto xlat(si32 vk, si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 layout_fallback, si32& layout_hint)
         {
-            auto klid = input::key::is_layout_supported(xlayout) ? xlayout
-                                                 : klid_fallback ? klid_fallback
-                                                                 : input::key::latin_klids[0];
+            auto keyid = key::undef;
             auto numlock = keymod & input::hids::NumLock;
-            fix_numpad(sc, numlock, extflag);
-            auto hash = input::key::key_hash(klid, sc, extflag);
-            auto keyid = input::key::key_map[hash];
+            if (xlayout)
+            {
+                auto klid = input::key::is_layout_supported(xlayout) ? xlayout
+                                                   : layout_fallback ? layout_fallback
+                                                                     : input::key::latin_klids[0];
+                fix_numpad(sc, numlock, extflag);
+                auto hash = input::key::key_hash(klid, sc, extflag);
+                keyid = (si32)input::key::key_map[hash];
+            }
+            else
+            {
+                fix_Numpad_Yen_Slash(vk, sc, numlock, extflag);
+                sc |= extflag << 8;
+                auto& code_scan_klid_list = input::key::vk_map[vk];
+                auto new_layout_hint = layout_hint;
+                for (auto [code, scan, klid] : code_scan_klid_list)
+                {
+                    if (scan == sc)
+                    {
+                        if (new_layout_hint == layout_hint && klid != layout_hint) // Best effort.
+                        {
+                            keyid = code;
+                            new_layout_hint = klid;
+                            if (layout_hint == 0) break;
+                        }
+                        else if (klid == layout_hint) // Exact match.
+                        {
+                            keyid = code;
+                            new_layout_hint = klid;
+                            break;
+                        }
+                    }
+                }
+                std::swap(new_layout_hint, layout_hint);
+            }
             return keyid;
         }
-        auto xlat(si32 virtcod, si32 scancod, si32 dwControlKeyState, si32 klid)
+        auto xlat(si32 vk, si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 layout_fallback)
         {
-            auto extflag = dwControlKeyState & input::key::ExtendedKey;
-            auto numlock = dwControlKeyState & input::key::NumLockMode;
-            auto vk = virtcod;
-            auto sc = scancod;
-            fix_Numpad_Yen_Slash(vk, sc, numlock, extflag);
-
-            auto iter = keymap.find(map{ 0,0,0,0 });
-            return iter != keymap.end() ? iter->second : key::undef;
+            auto unused_hint = 0;
+            return xlat(vk, sc, extflag, keymod, xlayout, layout_fallback, unused_hint);
         }
-        //template<class ...Args>
-        //auto xlat(Args&&... args)
-        //{
-        //    auto iter = keymap.find(map{ args... });
-        //    return iter != keymap.end() ? iter->second : key::undef;
-        //}
     }
 
     namespace bindings
