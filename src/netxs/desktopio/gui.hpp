@@ -5775,6 +5775,11 @@ namespace netxs::gui
             auto layout_count = ::GetKeyboardLayoutList(0, nullptr);
             auto layouts = std::vector<HKL>(layout_count);
             ::GetKeyboardLayoutList(layout_count, layouts.data());
+            if constexpr (debugmode)
+            {
+                log("Installed layouts:");
+                for (auto hkl : layouts) log("  %%", hkl);
+            }
             auto old_hkl = ::GetKeyboardLayout(0); // Save current layout.
             for (auto hkl : layouts) // Iterate over existing layouts.
             {
