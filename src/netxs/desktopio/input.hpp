@@ -3070,10 +3070,20 @@ namespace netxs::input
             }
             return keyid;
         }
-        auto xlat(si32 vk, si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 layout_fallback)
+        auto xlat_direct(si32 vk, si32 sc, bool extflag, si32 keymod, si32 xlayout, si32 layout_fallback)
         {
-            auto unused_hint = 0;
-            return xlat(vk, sc, extflag, keymod, xlayout, layout_fallback, unused_hint);
+            auto keyid = key::undef;
+            auto numlock = keymod & input::hids::NumLock;
+            if (xlayout)
+            {
+                auto klid = input::key::is_layout_supported(xlayout) ? xlayout
+                                                   : layout_fallback ? layout_fallback
+                                                                     : input::key::latin_klids[0];
+                fix_numpad(sc, numlock, extflag);
+                auto hash = input::key::key_hash(klid, sc, extflag);
+                keyid = (si32)input::key::key_map[hash];
+            }
+            return keyid;
         }
     }
 
