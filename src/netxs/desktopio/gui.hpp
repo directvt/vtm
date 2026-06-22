@@ -3526,7 +3526,7 @@ namespace netxs::gui
             stream_keybd(gear);
             gear.payload = input::keybd::type::keypress;
         }
-        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
+        virtual si32 keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -3570,8 +3570,8 @@ namespace netxs::gui
         }
         auto ctrl_pressed()
         {
-            return mfocus.focused() ? keybd_test_pressed(vkey::control)
-                                    : keybd_read_pressed(vkey::control);
+            return mfocus.focused() ? keybd_test_pressed(vkey::ctrl)
+                                    : keybd_read_pressed(vkey::ctrl);
         }
         auto lbutton_pressed()
         {
@@ -4553,7 +4553,7 @@ namespace netxs::gui
                     if (!is_ralt) // If something else comes instead of RAlt, it means that the LCtrl key was actually pressed.
                     {
                         fake_ctrl = faux;
-                        keybd_send_state(vkey::control, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
+                        keybd_send_state(vkey::ctrl, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
                     }
                 }
                 if (fake_ctrl) state |= input::hids::AltGr; // Keep AltGr flag even if RightAlt released.
@@ -4570,7 +4570,7 @@ namespace netxs::gui
                 if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
                 if (keybd_test_pressed(vkey::lsuper  )) state |= input::hids::LSuper;
                 if (keybd_test_pressed(vkey::rsuper  )) state |= input::hids::RSuper;
-                if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+                if (keybd_test_pressed(vkey::ctrl    )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
                 else                                    mouse_release(by::keybd);
                 auto old_ls = keymod & input::hids::LShift;
                 auto old_rs = keymod & input::hids::RShift;
@@ -4669,15 +4669,16 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
-            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, keymod, xlayout, klid_fallback);
+            auto virt_ex = keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
+            //log("vk=%% vk_ex=%%", utf::to_hex((byte)virtcod), utf::to_hex((byte)virt_ex));
+            auto keycode = input::key::xlat_direct(virt_ex, scancod, extflag, keymod, xlayout, klid_fallback);
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.xlayout = xlayout;
             gear.cluster = cluster;
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
-            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lsuper   || virtcod == vkey::rsuper);
             //print_vkstat("keybd_send_state");
@@ -5536,22 +5537,23 @@ namespace netxs::gui
             auto sc = input::key::map::data(input::key::Space).scan;
             ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, 0);
         }
-        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
+        si32 keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
         {
+            auto virtcod_ex = virtcod;
             shifted.clear();
             unshift.clear();
             auto is_printable = scancod && ((virtcod >= 0x30 && virtcod <= 0x5A)
                                          || (virtcod >= 0x60 && virtcod <= 0x6F)
                                          || (virtcod >= 0xB8 && virtcod <= 0xE6));
+            auto hkl = ::GetKeyboardLayout(0);
             if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
                 auto buf = wide(8, 0);
-                auto current_layout = ::GetKeyboardLayout(0);
                 auto flags = extflag ? 1u : 0u;
                 flags |= 2; // ToUnicodeEx will translate scancodes marked as key break events in addition to its usual treatment of key make events.
                 auto vk_un = std::array<byte, 256>{};
                 vk_un[vkey::capslock] = vkstat[vkey::capslock];
-                auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, current_layout);
+                auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, hkl);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, unshift);
@@ -5560,12 +5562,18 @@ namespace netxs::gui
                 vk_sh[vkey::capslock] = vkstat[vkey::capslock];
                 vk_sh[vkey::shift   ] = 0x80;
                 vk_sh[vkey::lshift  ] = 0x80;
-                rc = ::ToUnicodeEx(virtcod, scancod, vk_sh.data(), buf.data(), 8, flags, current_layout);
+                rc = ::ToUnicodeEx(virtcod, scancod, vk_sh.data(), buf.data(), 8, flags, hkl);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, shifted);
                 }
             }
+            else if (!is_printable && virtcod == vkey::ctrl || virtcod == vkey::alt || virtcod == vkey::shift)
+            {
+                if (extflag) scancod |= 0xE000;
+                virtcod_ex = ::MapVirtualKeyExW(scancod, MAPVK_VSC_TO_VK_EX, hkl);
+            }
+            return virtcod_ex;
         }
         void layer_present(layer& s)
         {
@@ -6228,7 +6236,7 @@ namespace netxs::gui
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
+        si32 keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey() {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
