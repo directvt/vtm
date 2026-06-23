@@ -1413,12 +1413,18 @@ namespace netxs::utf
                 push((char)(0x80 | ((code >> 0x06) & 0x3f)));
                 push((char)(0x80 | ( code          & 0x3f)));
             }
-            else
+            else if (code <= 0x1fffff) // Max UTF-8 value for 4 bytes.
             {
                 push((char)(0xf0 | ((code >> 0x12) & 0x07)));
                 push((char)(0x80 | ((code >> 0x0c) & 0x3f)));
                 push((char)(0x80 | ((code >> 0x06) & 0x3f)));
                 push((char)(0x80 | ( code          & 0x3f)));
+            }
+            else
+            {
+                push(utf::replacement[0]);
+                push(utf::replacement[1]);
+                push(utf::replacement[2]);
             }
         }
         void _to_utf(text& utf8, utfx code)
