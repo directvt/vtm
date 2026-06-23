@@ -255,10 +255,6 @@ namespace netxs::directvt
             {
                 return valid;
             }
-            auto empty() const
-            {
-                return start == block.size();
-            }
 
         protected:
             escx block;
