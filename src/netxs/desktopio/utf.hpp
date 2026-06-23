@@ -895,7 +895,15 @@ namespace netxs::utf
 
             do
             {
-                if (next.is_cmd())
+                if (!next.correct)
+                {
+                    last_cluster = {};
+                    auto crop = frag{ replacement, next };
+                    yield(crop);
+                    code.step();
+                    next = code.take();
+                }
+                else if (next.is_cmd())
                 {
                     auto custom_cluster_initiator = Clusterize && next.cdpoint == matrix::stx;
                     if (custom_cluster_initiator)

@@ -255,6 +255,10 @@ namespace netxs::directvt
             {
                 return valid;
             }
+            auto empty() const
+            {
+                return start == block.size();
+            }
 
         protected:
             escx block;
@@ -264,7 +268,7 @@ namespace netxs::directvt
 
             // stream: .
             template<class T>
-            void fuse(T&& data) { fuse_ext(block, std::forward<T>(data)); }
+            void fuse(T&& data) { binary::fuse_ext(block, std::forward<T>(data)); }
             // stream: Replace bytes at specified position.
             template<class T>
             inline auto& add_at(sz_t at, T&& data)

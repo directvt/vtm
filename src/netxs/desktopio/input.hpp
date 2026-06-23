@@ -679,8 +679,9 @@ namespace netxs::input
             {
                 while (codes)
                 {
-                    auto key_hash = utf::to_int_from_hex_str(codes.pop_front(6)) >> 8;
-                    if (m[key_hash]) log("key duplicates"); // It won't compile if collide.
+                    auto hash = codes.pop_front(6);
+                    auto key_hash = utf::to_int_from_hex_str(hash) >> 8;
+                    if (m[key_hash]) log("Key %KeyId% is duplicated (hash=%hash%)", KeyId, hash); // It won't compile if collide.
                     m[key_hash] = (si16)KeyId;
                 }
             };

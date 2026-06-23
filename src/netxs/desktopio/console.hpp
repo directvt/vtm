@@ -225,7 +225,10 @@ namespace netxs::ui
                         }
                     }
                 }
-                list.thing.sendby(canal);
+                if (!list.thing.empty()) // Don't send empty list.
+                {
+                    list.thing.sendby(canal);
+                }
             }
             void handle(s11n::xs::request_img lock)
             {
