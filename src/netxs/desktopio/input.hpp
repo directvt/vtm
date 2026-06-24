@@ -350,16 +350,16 @@ namespace netxs::input
             X( 9  , 0, 0x15C, RightSuper         , "Super"             , ""    , 0     , 57450, 'u', -1    , -1    , "015c5c075c5c115c5c0f5c5c155c5c175c5c035c5c0b5c5c0d5c5c195c5c055c5c095c5c1b5c5c135c5c215c5c1f5c5c1d5c5c235c5c255c5c295c5c275c5c2b5c5c315c5c2f5c5c2d5c5c355c5c375c5c335c5c395c5c3b5c5c3f5c5c3d5c5c415c5c435c5c455c5c475c5c495c5c4f5c5c515c5c4b5c5c4d5c5c535c5c575c5c595c5c555c5c5b5c5c5d5c5c5f5c5c615c5c655c5c6d5c5c635c5c6b5c5c675c5c695c5c6f5c5c715c5c735c5c7d5c5c755c5c775c5c795c5c7b5c5c7f5c5c815c5c875c5c835c5c855c5c895c5c8b5c5c8d5c5c8f5c5c935c5c915c5c955c5c975c5c995c5c9b5c5c9d5c5ca15c5c9f5c5ca35c5ca55c5ca75c5ca95c5cab5c5cad5c5c")\
             X(10  , 0, 0    , LeftHyper          , "Hyper"             , ""    , 0     , 57445, 'u', -1    , -1    , "")\
             X( 11 , 0, 0    , RightHyper         , "Hyper"             , ""    , 0     , 57451, 'u', -1    , -1    , "")\
-            X(12  , 0, 0    , AltGR              , "AltGr"             , ""    , 0     , 57453, 'u', -1    , -1    , "")\
-            X(14  , 0, 0x190, NumLock            , "NumLock"           , ""    , 0     , 57360, 'u', -1    , -1    , "0145900745901145900f45901545901745900345900b45900d45901945900545900945901b45901345902145901f45901d45902345902545902945902745902b45903145902f45902d45903545903745903345903945903b45903f45903d45904145904345904545904745904945904f45905145904b45904d45905345905745905945905545905b45905d45905f45906145906545906d45906345906b45906745906945906f45907145907345907d45907545907745907945907b45907f45908145908745908345908545908945908b45908d45908f45909345909145909545909745909945909b45909d4590a145909f4590a34590a54590a74590a94590ab4590ad4590")\
-            X(16  , 0, 0x014, CapsLock           , "CapsLock"          , ""    , 0     , 57358, 'u', -1    , -1    , "003a14063a14103a140e3a14143a14163a14023a140a3a140c3a14183a14043a14083a141a3a14123a14203a141e3a141c3a14223a14243a14283a14263a142a3a14303a142e3a142c3a14343a14363a14323a14383a143a3a143e3a143c3a14403a14423a14443a14463a14483a144e3a14503a144a3a144c3a14523a14563a14583a14543a145a3a145c3a145e3a14603a14643a146c3a14623a146a3a14663a14683a146e3a14703a14723a147c3a14743a14763a14783a147a3a147e3a14803a14863a14823a14843a14883a148a3a148c3a148e3a14923a14903a14943a14963a14983a149a3a149c3a14a03a149e3a14a23a14a43a14a63a14a83a14aa3a14ac3a14")\
-            X(18  , 0, 0x091, ScrollLock         , "ScrollLock"        , ""    , 0     , 57359, 'u', -1    , -1    , "0046910646911046910e46911446911646910246910a46910c46911846910446910846911a46911246912046911e46911c46912246912446912846912646912a46913046912e46912c46913446913646913246913846913a46913e46913c46914046914246914446914646914846914e46915046914a46914c46915246915646915846915446915a46915c46915e46916046916446916c46916246916a46916646916846916e46917046917246917c46917446917646917846917a46917e46918046918646918246918446918846918a46918c46918e46919246919046919446919646919846919a46919c4691a046919e4691a24691a44691a64691a84691aa4691ac4691")\
-            X(20  , 0, 0    , Kana               , "Kana"              , ""    , 0     , 0    , 'u', -1    , -1    , "0270f2")\
-            X(22  , 0, 0    , Henkan             , "Henkan"            , ""    , 0     , 0    , 'u', -1    , -1    , "02791c")\
-            X(24  , 0, 0    , Muhenkan           , "Muhenkan"          , ""    , 0     , 0    , 'u', -1    , -1    , "027b1d")\
-            X(26  , 0, 0x019, Hanja              , "Hanja"             , ""    , 0     , 0    , 'u', -1    , -1    , "22f119231d19")\
-            X(28  , 0, 0    , Hanguel            , "Hanguel"           , ""    , 0     , 0    , 'u', -1    , -1    , "22f215233815")\
-            X(30  , 0, 0    , IsoLevel5Shift     , "IsoLevel5Shift"    , ""    , 0     , 57454, 'u', -1    , -1    , "431ddf")\
+            X(12  , 0, 0x190, NumLock            , "NumLock"           , ""    , 0     , 57360, 'u', -1    , -1    , "0145900745901145900f45901545901745900345900b45900d45901945900545900945901b45901345902145901f45901d45902345902545902945902745902b45903145902f45902d45903545903745903345903945903b45903f45903d45904145904345904545904745904945904f45905145904b45904d45905345905745905945905545905b45905d45905f45906145906545906d45906345906b45906745906945906f45907145907345907d45907545907745907945907b45907f45908145908745908345908545908945908b45908d45908f45909345909145909545909745909945909b45909d4590a145909f4590a34590a54590a74590a94590ab4590ad4590")\
+            X(14  , 0, 0x014, CapsLock           , "CapsLock"          , ""    , 0     , 57358, 'u', -1    , -1    , "003a14063a14103a140e3a14143a14163a14023a140a3a140c3a14183a14043a14083a141a3a14123a14203a141e3a141c3a14223a14243a14283a14263a142a3a14303a142e3a142c3a14343a14363a14323a14383a143a3a143e3a143c3a14403a14423a14443a14463a14483a144e3a14503a144a3a144c3a14523a14563a14583a14543a145a3a145c3a145e3a14603a14643a146c3a14623a146a3a14663a14683a146e3a14703a14723a147c3a14743a14763a14783a147a3a147e3a14803a14863a14823a14843a14883a148a3a148c3a148e3a14923a14903a14943a14963a14983a149a3a149c3a14a03a149e3a14a23a14a43a14a63a14a83a14aa3a14ac3a14")\
+            X(16  , 0, 0x091, ScrollLock         , "ScrollLock"        , ""    , 0     , 57359, 'u', -1    , -1    , "0046910646911046910e46911446911646910246910a46910c46911846910446910846911a46911246912046911e46911c46912246912446912846912646912a46913046912e46912c46913446913646913246913846913a46913e46913c46914046914246914446914646914846914e46915046914a46914c46915246915646915846915446915a46915c46915e46916046916446916c46916246916a46916646916846916e46917046917246917c46917446917646917846917a46917e46918046918646918246918446918846918a46918c46918e46919246919046919446919646919846919a46919c4691a046919e4691a24691a44691a64691a84691aa4691ac4691")\
+            X(18  , 0, 0x05E, AltGr              , "AltGr"             , ""    , 0     , 57453, 'u', -1    , -1    , "")\
+            X(20  , 0, 0    , IsoLevel5Shift     , "IsoLevel5Shift"    , ""    , 0     , 57454, 'u', -1    , -1    , "431ddf")\
+            X(22  , 0, 0    , Kana               , "Kana"              , ""    , 0     , 0    , 'u', -1    , -1    , "0270f2")\
+            X(24  , 0, 0    , Henkan             , "Henkan"            , ""    , 0     , 0    , 'u', -1    , -1    , "02791c")\
+            X(26  , 0, 0    , Muhenkan           , "Muhenkan"          , ""    , 0     , 0    , 'u', -1    , -1    , "027b1d")\
+            X(28  , 0, 0x019, Hanja              , "Hanja"             , ""    , 0     , 0    , 'u', -1    , -1    , "22f119231d19")\
+            X(30  , 0, 0    , Hanguel            , "Hanguel"           , ""    , 0     , 0    , 'u', -1    , -1    , "22f215233815")\
             X(32  , 0, 0x15D, Apps               , "Apps"              , ""    , 0     , 57363, 'u', -1    , -1    , "015d5d075d5d115d5d0f5d5d155d5d175d5d035d5d0b5d5d0d5d5d195d5d055d5d095d5d1b5d5d135d5d215d5d1f5d5d1d5d5d235d5d255d5d295d5d275d5d2b5d5d315d5d2f5d5d2d5d5d355d5d375d5d335d5d395d5d3b5d5d3f5d5d3d5d5d415d5d435d5d455d5d475d5d4f5d5d515d5d4b5d5d4d5d5d535d5d575d5d595d5d555d5d5b5d5d5d5d5d5f5d5d615d5d655d5d6d5d5d635d5d6b5d5d675d5d695d5d6f5d5d715d5d735d5d7d5d5d755d5d775d5d795d5d7b5d5d7f5d5d815d5d875d5d835d5d855d5d895d5d8b5d5d8d5d5d935d5d975d5d995d5d9b5d5d9d5d5da15d5d9f5d5da35d5da55d5da75d5da95d5dab5d5dad5d5d")\
             X(34  , 0, 0x029, Select             , "Select"            , ""    , 0     , 0    , 'u', -1    , -1    , "")\
             X(36  , 0, 0    , Fn                 , "Fn"                , ""    , 0     , 0    , 'u', -1    , -1    , "")\
@@ -1552,7 +1552,7 @@ namespace netxs::input
             LCtrl        = 1 <<  0, // Left  ⌃ Ctrl
             RCtrl        = 1 <<  1, // Right ⌃ Ctrl
             LAlt         = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt         = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
+            RAlt         = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option
             LShift       = 1 <<  4, // Left  ⇧ Shift
             RShift       = 1 <<  5, // Right ⇧ Shift
             LSuper       = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
@@ -1564,7 +1564,7 @@ namespace netxs::input
             NumLock      = 1 << 12, // ⇭ Num Lock
             CapsLock     = 1 << 13, // ⇪ Caps Lock
             ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
-            AltGr        = 1 << 15, // AltGr on non-US keyboards
+            //           = 1 << 15,
             LCtrlAlt     = LAlt   | LCtrl,
             anyCtrl      = LCtrl  | RCtrl,
             anyAlt       = LAlt   | RAlt,
@@ -2330,7 +2330,7 @@ namespace netxs::input
                 auto c = keybd::cluster.empty() ? 0 : (byte)keybd::cluster.front();
 
                 if (v < 0 || v >= input::key::lastKey) v = 0;
-                if (s & hids::AltGr || (s & hids::LCtrl && s & hids::RAlt)) // This combination is already translated.
+                if (s & hids::LCtrl && s & hids::RAlt) // Reset AltGr emulation on win32.
                 {
                     s &= ~(hids::LCtrl | hids::RAlt);
                 }
@@ -2342,11 +2342,11 @@ namespace netxs::input
                 {
                     if (auto it_shift = shift_key.find(v); it_shift != shift_key.end())
                     {
-                        auto& mods = *++(it_shift->second.rbegin());
-                        mods = '1';
-                        if (shift) mods += 1;
-                        if (alt  ) mods += 2;
-                        if (ctrl ) mods += 4;
+                        auto& ctls = *++(it_shift->second.rbegin());
+                        ctls = '1';
+                        if (shift) ctls += 1;
+                        if (alt  ) ctls += 2;
+                        if (ctrl ) ctls += 4;
                         return it_shift->second;
                     }
                     if (auto crop = input::key::interpret_ctrl(*this, ctrl, shift); crop.size())
@@ -2466,13 +2466,22 @@ namespace netxs::input
                 g_chord += (byte)sign;
                 g_chord += view{ (char*)&event_id, sizeof(event_id) };
             }
-            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
+            static auto _vkey_str(si32 keyid, bool ispressed)
             {
                 keyid &= 0x0FFF; // 12 bit max.
-                auto hi_12bit_keyid = (byte)(keyid >> 8);
-                auto lo_12bit_keyid = (byte)(keyid & 0xFF);
-                vkchord.push_back(hi_12bit_keyid | (byte)(ispressed ? 0x00 : input::key::unpressed_sign));
-                vkchord.push_back(lo_12bit_keyid);
+                auto keyid_str = text(2, '\0');
+                keyid_str[0] = (byte)((keyid >> 8) | (ispressed ? 0x00 : input::key::unpressed_sign));
+                keyid_str[1] = (byte)(keyid & 0xFF);
+                return keyid_str;
+            }
+            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
+            {
+                vkchord += input::key::kmap::_vkey_str(keyid, ispressed);
+            }
+            static auto pressed(auto& k, si32 keyid)
+            {
+                auto pressed_keyid = input::key::kmap::_vkey_str(keyid, true);
+                return k.vkchord.find(pressed_keyid) != text::npos;
             }
             static void push_scode(bool ispressed, text& scchord, si32 scode)
             {
@@ -2495,7 +2504,7 @@ namespace netxs::input
                 m_chord += (byte)button_id;
             }
             template<class P = noop>
-            void build(auto& k, P test_key_released = {})
+            void build(auto& k, P test_if_key_released = {})
             {
                 if (k.keystat != input::key::repeated)
                 {
@@ -2518,7 +2527,7 @@ namespace netxs::input
                         {
                             auto& [keyid, val] = rec;
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
-                            auto is_released = test_key_released(val.vcode); // Check if it is still pressed.
+                            auto is_released = test_if_key_released(val.vcode); // Check if it is still pressed.
                             auto same = k.keycode == keyid
                                      && k.scancod == val.scode
                                      && k.virtcod == val.vcode;
@@ -2551,16 +2560,15 @@ namespace netxs::input
                         };
                         auto sign = !!k.keystat;
                         auto shift_state = k.ctlstat & hids::anyShift;
-                        auto altgr_state = k.ctlstat & hids::AltGr;
                         auto has_cluster = k.cluster.size() && k.cluster.front();
-                        auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !altgr_state && !shift_state;
-                        auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && !altgr_state && shift_state;
+                        auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !shift_state;
+                        auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && shift_state;
                         if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
                         {
                             k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
-                                 if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
-                            else if (has_shifted) push_cluster(sign, k.chchord, k.shifted);
-                            else                  push_cluster(sign, k.chchord, k.cluster);
+                                 if (has_cluster) push_cluster(sign, k.chchord, k.cluster);
+                            else if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
+                            else                  push_cluster(sign, k.chchord, k.shifted);
                         }
                         push_keyid(sign, k.vkchord, k.keycode);
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
@@ -3008,9 +3016,14 @@ namespace netxs::input
             }
         }
 
-        void fix_right_shift(si32 vk, si32 sc, bool& extflag) // Set extflag for right shift.
+        void fix_altgr_and_right_shift(si32& vk, si32 sc, bool& extflag, bool fake_ralt) // Set extflag for right shift.
         {
-            if (vk == input::vkey::shift && sc == input::key::map::data(input::key::RightShift).scan)
+            if (fake_ralt && sc == input::key::map::data(input::key::RightAlt).scan)
+            {
+                vk = 0x5E; // Use unassigned VK_ for AltGr.
+                extflag = faux;
+            }
+            else if (vk == input::vkey::shift && sc == input::key::map::data(input::key::RightShift).scan)
             {
                 extflag = true;
             }
@@ -3018,7 +3031,7 @@ namespace netxs::input
         auto xlat(si32 vk, si32 sc, bool extflag, si32 xlayout, si32 layout_fallback, si32& layout_hint)
         {
             auto keyid = key::undef;
-            fix_right_shift(vk, sc, extflag);
+            fix_altgr_and_right_shift(vk, sc, extflag, faux);
             auto vk_ex = (vk & 0xFF) | (extflag << 8);
             if (auto keycode = input::key::fx_map[vk_ex]) // Fast detection of function keys.
             {
@@ -3062,10 +3075,10 @@ namespace netxs::input
             }
             return keyid;
         }
-        auto xlat_direct(si32 vk, si32 sc, bool extflag, si32 xlayout, si32 layout_fallback)
+        auto xlat_direct(si32 vk, si32 sc, bool extflag, bool fake_ralt, si32 xlayout, si32 layout_fallback)
         {
             auto keyid = key::undef;
-            fix_right_shift(vk, sc, extflag);
+            fix_altgr_and_right_shift(vk, sc, extflag, fake_ralt);
             auto vk_ex = (vk & 0xFF) | (extflag << 8);
             if (auto keycode = input::key::fx_map[vk_ex]) // Function keys fast detection.
             {
