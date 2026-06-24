@@ -74,12 +74,13 @@ namespace netxs::input
         static constexpr auto alt      = 0x12; // VK_MENU
         static constexpr auto lshift   = 0xA0; // VK_LSHIFT
         static constexpr auto rshift   = 0xA1; // VK_RSHIFT
-        static constexpr auto lcontrol = 0xA2; // VK_LCONTROL
-        static constexpr auto rcontrol = 0xA3; // VK_RCONTROL
+        static constexpr auto lctrl    = 0xA2; // VK_LCONTROL
+        static constexpr auto rctrl    = 0xA3; // VK_RCONTROL
         static constexpr auto lalt     = 0xA4; // VK_LMENU
         static constexpr auto ralt     = 0xA5; // VK_RMENU
         static constexpr auto lsuper   = 0x5B; // VK_LWIN
         static constexpr auto rsuper   = 0x5C; // VK_RWIN
+        static constexpr auto grselect = 0xDF; // VK_OEM_8 GroupSelect (IsoLevel5Shift) on Canadian layout
 
         static constexpr auto clear    = 0x0C; // VK_CLEAR
         static constexpr auto enter    = 0x0D; // VK_RETURN
@@ -2428,6 +2429,26 @@ namespace netxs::input
         auto is_pressed( byte sign) { return !(sign & input::key::unpressed_sign); }
         auto is_cluster( byte sign) { return   sign & input::key::cluster_sign; }
         auto is_mouse(   byte sign) { return  (sign & input::key::generic_sign) == input::key::mouse_sign; }
+        auto get_cluster(auto& k)
+        {
+            auto cluster = text{};
+            auto valid_codepoint = [](view utf8)
+            {
+                auto codepoint = utf::to_code(utf8);
+                return codepoint > 0 && (codepoint < 57358 || codepoint > 57454);
+            };
+            auto shift_state = k.ctlstat & hids::anyShift;
+            auto has_cluster = k.cluster.size() && k.cluster.front();
+            auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !shift_state;
+            auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && shift_state;
+            if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
+            {
+                     if (has_cluster) cluster = k.cluster;
+                else if (has_unshift) cluster = k.unshift;
+                else                  cluster = k.shifted;
+            }
+            return cluster;
+        }
 
         struct kmap
         {
@@ -2553,22 +2574,12 @@ namespace netxs::input
                             reset(k);
                             return;
                         }
-                        auto valid_codepoint = [](view utf8)
-                        {
-                            auto codepoint = utf::to_code(utf8);
-                            return codepoint > 0 && (codepoint < 57358 || codepoint > 57454);
-                        };
+                        auto cluster = input::key::get_cluster(k);
                         auto sign = !!k.keystat;
-                        auto shift_state = k.ctlstat & hids::anyShift;
-                        auto has_cluster = k.cluster.size() && k.cluster.front();
-                        auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !shift_state;
-                        auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && shift_state;
-                        if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
+                        if (cluster.size())
                         {
                             k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
-                                 if (has_cluster) push_cluster(sign, k.chchord, k.cluster);
-                            else if (has_unshift) push_cluster(sign, k.chchord, k.unshift);
-                            else                  push_cluster(sign, k.chchord, k.shifted);
+                            push_cluster(sign, k.chchord, cluster);
                         }
                         push_keyid(sign, k.vkchord, k.keycode);
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));

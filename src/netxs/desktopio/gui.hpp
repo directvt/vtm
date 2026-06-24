@@ -4251,8 +4251,8 @@ namespace netxs::gui
                 auto state = 0;
                 if (keybd_read_pressed(vkey::lshift  )) state |= input::hids::LShift;
                 if (keybd_read_pressed(vkey::rshift  )) state |= input::hids::RShift;
-                if (keybd_read_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
-                if (keybd_read_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+                if (keybd_read_pressed(vkey::lctrl   )) state |= input::hids::LCtrl;
+                if (keybd_read_pressed(vkey::rctrl   )) state |= input::hids::RCtrl;
                 if (keybd_read_pressed(vkey::lalt    )) state |= input::hids::LAlt;
                 if (keybd_read_pressed(vkey::ralt    )) state |= input::hids::RAlt;
                 if (keybd_read_pressed(vkey::lsuper  )) state |= input::hids::LSuper;
@@ -4557,8 +4557,8 @@ namespace netxs::gui
                 if (keybd_test_toggled(vkey::numlock )              ) state |= input::hids::NumLock;
                 if (keybd_test_toggled(vkey::capslock)              ) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)              ) state |= input::hids::ScrlLock;
-                if (keybd_test_pressed(vkey::lcontrol) && !fake_ralt) state |= input::hids::LCtrl;
-                if (keybd_test_pressed(vkey::rcontrol)              ) state |= input::hids::RCtrl;
+                if (keybd_test_pressed(vkey::lctrl   ) && !fake_ralt) state |= input::hids::LCtrl;
+                if (keybd_test_pressed(vkey::rctrl   )              ) state |= input::hids::RCtrl;
                 if (keybd_test_pressed(vkey::lalt    )              ) state |= input::hids::LAlt;
                 if (keybd_test_pressed(vkey::ralt    ) && !fake_ralt) state |= input::hids::RAlt; // We never equate AltGr with RAlt.
                 if (keybd_test_pressed(vkey::lsuper  )              ) state |= input::hids::LSuper;
@@ -5546,18 +5546,24 @@ namespace netxs::gui
                 auto buf = wide(8, 0);
                 auto flags = extflag ? 1u : 0u;
                 flags |= 2; // ToUnicodeEx will translate scancodes marked as key break events in addition to its usual treatment of key make events.
-                auto vk_un = std::array<byte, 256>{};
-                vk_un[vkey::capslock] = vkstat[vkey::capslock];
-                auto rc = ::ToUnicodeEx(virtcod, scancod, vk_un.data(), buf.data(), 8, flags, hkl);
+                auto key_matrix = std::array<byte, 256>{};
+                if (fake_ralt) // Emulate AltGr pressed.
+                {
+                    key_matrix[vkey::ctrl ] = 0x80;
+                    key_matrix[vkey::lctrl] = 0x80;
+                    key_matrix[vkey::alt  ] = 0x80;
+                    key_matrix[vkey::ralt ] = 0x80;
+                }
+                key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
+                key_matrix[vkey::capslock] = vkstat[vkey::capslock];
+                auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, unshift);
                 }
-                auto vk_sh = std::array<byte, 256>{};
-                vk_sh[vkey::capslock] = vkstat[vkey::capslock];
-                vk_sh[vkey::shift   ] = 0x80;
-                vk_sh[vkey::lshift  ] = 0x80;
-                rc = ::ToUnicodeEx(virtcod, scancod, vk_sh.data(), buf.data(), 8, flags, hkl);
+                key_matrix[vkey::shift ] = 0x80;
+                key_matrix[vkey::lshift] = 0x80;
+                rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, shifted);
@@ -5679,12 +5685,12 @@ namespace netxs::gui
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
-            auto toUTF8 = utf::to_utf(toWIDE);
+            auto cluster = utf::to_utf(toWIDE);
             toWIDE.clear();
             if (is_deadkey_released)
             {
                 //if constexpr (debugmode) log("deadkey released");
-                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8, faux, input::keybd::type::deadkey);
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
                 last_deadkey_vkey = {};
             }
             else if (keytype != 2)
@@ -5694,22 +5700,22 @@ namespace netxs::gui
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
                         keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
+                        keybd_send_input(cluster, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         //print_vkstat("Alt+Numpad");
                         return true;
                     }
                 }
                 else
                 {
-                    toUTF8.clear();
+                    cluster.clear();
                 }
-                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8);
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
             }
             else
             {
                 last_deadkey_vkey = virtcod;
                 //if constexpr (debugmode) log("deadkey pressed");
-                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8, faux, input::keybd::type::deadkey);
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
             //print_vkstat("keybd_read_input");
             return true;
