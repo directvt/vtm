@@ -3526,7 +3526,7 @@ namespace netxs::gui
             stream_keybd(gear);
             gear.payload = input::keybd::type::keypress;
         }
-        virtual si32 keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
+        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -4669,9 +4669,8 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            auto virt_ex = keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
-            //log("vk=%% vk_ex=%%", utf::to_hex((byte)virtcod), utf::to_hex((byte)virt_ex));
-            auto keycode = input::key::xlat_direct(virt_ex, scancod, extflag, keymod, xlayout, klid_fallback);
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, xlayout, klid_fallback);
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
@@ -5537,9 +5536,8 @@ namespace netxs::gui
             auto sc = input::key::map::data(input::key::Space).scan;
             ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, 0);
         }
-        si32 keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
+        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
         {
-            auto virtcod_ex = virtcod;
             shifted.clear();
             unshift.clear();
             auto is_printable = scancod && ((virtcod >= 0x30 && virtcod <= 0x5A)
@@ -5568,12 +5566,6 @@ namespace netxs::gui
                     utf::to_utf(buf.data(), rc, shifted);
                 }
             }
-            else if (!is_printable && virtcod == vkey::ctrl || virtcod == vkey::alt || virtcod == vkey::shift)
-            {
-                if (extflag) scancod |= 0xE000;
-                virtcod_ex = ::MapVirtualKeyExW(scancod, MAPVK_VSC_TO_VK_EX, hkl);
-            }
-            return virtcod_ex;
         }
         void layer_present(layer& s)
         {
@@ -6236,7 +6228,7 @@ namespace netxs::gui
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
-        si32 keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey() {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }

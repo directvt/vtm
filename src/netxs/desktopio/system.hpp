@@ -5247,10 +5247,7 @@ namespace netxs::os
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
-            auto layout_hint = -1;
-            auto layout_fallback = 0;
             auto gear_id = id_t{ 1 }; // Non-zero id.
-            auto p_txtdata = text{};
             auto chords = input::key::kmap{};
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
@@ -5267,12 +5264,13 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
+                auto layout_hint = -1;
+                auto layout_fallback = 0;
                 auto accumfp = fp32{};
                 auto coordfp = fp2d{ fp32nan, fp32nan };
                 auto items = std::vector<INPUT_RECORD>{};
                 auto count = DWORD{};
                 auto point = utfx{};
-                auto toutf = text{};
                 auto wcopy = wide{};
                 auto kbmod = si32{};
                 auto ctrlv = bool{};
@@ -5350,6 +5348,7 @@ namespace netxs::os
                         }
                         if (r.EventType == KEY_EVENT)
                         {
+
                             auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
                                  if (modstat.repeats) continue; // We don't repeat modifiers.
                             else if (modstat.changed)
@@ -5368,13 +5367,13 @@ namespace netxs::os
                             }
                             if (utf::to_code(r.Event.KeyEvent.uChar.UnicodeChar, point))
                             {
-                                if (point) utf::to_utf_from_code(point, toutf);
+                                k.cluster.clear();
+                                if (point) utf::to_utf_from_code(point, k.cluster);
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.ctlstat, k.xlayout, layout_fallback, layout_hint);
+                                k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.xlayout, layout_fallback, layout_hint);
                                 k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
-                                k.cluster = toutf;
                                 chords.build(k);
                                 if (r.Event.KeyEvent.wRepeatCount-- > 0) keybd(k);
                                 if (k.keystat != input::key::released) while (r.Event.KeyEvent.wRepeatCount-- > 0)
@@ -5394,12 +5393,12 @@ namespace netxs::os
                                  && utf::to_code(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
                                 {
                                     head += 3;
-                                    utf::to_utf_from_code(point, toutf);
+                                    k.cluster.clear();
+                                    utf::to_utf_from_code(point, k.cluster);
                                     k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                    k.cluster = toutf;
-                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.ctlstat, k.xlayout, layout_fallback, layout_hint);
+                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.xlayout, layout_fallback, layout_hint);
                                     if (r.Event.KeyEvent.wRepeatCount-- > 0)
                                     {
                                         k.keystat = input::key::pressed;
@@ -5417,7 +5416,6 @@ namespace netxs::os
                                 }
                             }
                             point = {};
-                            toutf.clear();
                         }
                         else if (r.EventType == MENU_EVENT) // Forward console control events.
                         {
@@ -5455,14 +5453,13 @@ namespace netxs::os
                                     break;
                                 case nt::console::event::paste_end:
                                     ctrlv = faux;
-                                    utf::to_utf(wcopy, p_txtdata);
+                                    k.cluster.clear();
+                                    utf::to_utf(wcopy, k.cluster);
                                     k.payload = input::keybd::type::keypaste;
-                                    k.cluster = p_txtdata;
                                     chords.reset(k);
                                     keybd(k);
                                     k.payload = input::keybd::type::keypress;
                                     wcopy.clear();
-                                    p_txtdata.clear();
                                     break;
                             }
                         }
@@ -5537,6 +5534,7 @@ namespace netxs::os
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
+                auto p_txtdata = text{};
                 auto input_buffer = text{};
                 auto paste_not_complete = faux;
                 auto get_kb_state = []
