@@ -574,7 +574,7 @@ namespace netxs::os
                 {
                     ui32 EventType = MENU_EVENT;
                     ui32 id        = event::custom | event::kb_layout;
-                    si32 klid;     // Keyboard layout id.
+                    ui32 layout_id = 0u; // Keyboard layout id (HKL).
                 };
                 namespace op
                 {
@@ -5265,7 +5265,6 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto layout_hint = -1;
-                auto layout_fallback = 0;
                 auto accumfp = fp32{};
                 auto coordfp = fp2d{ fp32nan, fp32nan };
                 auto items = std::vector<INPUT_RECORD>{};
@@ -5372,7 +5371,7 @@ namespace netxs::os
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.xlayout, layout_fallback, layout_hint);
+                                k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, layout_hint);
                                 k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
                                 chords.build(k);
                                 if (r.Event.KeyEvent.wRepeatCount-- > 0) keybd(k);
@@ -5398,7 +5397,7 @@ namespace netxs::os
                                     k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, k.xlayout, layout_fallback, layout_hint);
+                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, layout_hint);
                                     if (r.Event.KeyEvent.wRepeatCount-- > 0)
                                     {
                                         k.keystat = input::key::pressed;
@@ -5434,10 +5433,9 @@ namespace netxs::os
                                     break;
                                 case nt::console::event::kb_layout:
                                 {
-                                    auto new_layout = reinterpret_cast<nt::console::layout_input*>(&r)->klid;
-                                    if (std::exchange(k.xlayout, new_layout) != new_layout)
+                                    auto new_layout_id = reinterpret_cast<nt::console::layout_input*>(&r)->layout_id;
+                                    if (std::exchange(k.xlayout, new_layout_id) != new_layout_id)
                                     {
-                                        if (input::key::is_layout_supported(k.xlayout)) layout_fallback = k.xlayout;
                                         k.payload = input::keybd::type::kblayout;
                                         chords.reset(k, faux); // faux: Keep pressed key state.
                                         keybd(k);

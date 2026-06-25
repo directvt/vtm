@@ -3469,8 +3469,9 @@ namespace netxs::gui
         bool  fake_ralt; // winbase: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
-        si32  xlayout; // winbase: Current keyboard layout (KLID).
-        si32  klid_fallback; // winbase: User's latin-based keyboard layout.
+        ui32  xlayout; // winbase: Current keyboard layout (KLID).
+        arch  hkl_latin; // winbase: User's latin-based keyboard layout.
+        si32  layout_hint; // winbase: Layout hint for key lookup.
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -3505,7 +3506,8 @@ namespace netxs::gui
               fake_ralt{ faux },
               wait_ralt{ faux },
               xlayout{},
-              klid_fallback{}
+              hkl_latin{},
+              layout_hint{ -1 }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -3526,7 +3528,7 @@ namespace netxs::gui
             stream_keybd(gear);
             gear.payload = input::keybd::type::keypress;
         }
-        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift) = 0;
+        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -3536,7 +3538,7 @@ namespace netxs::gui
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod) = 0;
         virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
-        virtual void keybd_reset_deadkey() = 0;
+        virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
         virtual void mouse_release(si32 released_by) = 0;
@@ -4662,8 +4664,14 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift);
-            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, fake_ralt, xlayout, klid_fallback);
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, fake_ralt, layout_hint, [&]
+            {
+                auto latin_shifted = text{};
+                auto latin_unshift = text{};
+                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
+                return std::pair{ latin_shifted, latin_unshift };
+            });
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
@@ -4899,6 +4907,7 @@ namespace netxs::gui
                 }
                 else
                 {
+                    //todo check issues with focus
                     keybd_reset_deadkey(); // Force reset deadkey state if it is. Windows doesn't reset deadkey state when refocusing but all other platforms do.
                     if (target_list) // Send to all that the focus is going to lost.
                     {
@@ -5430,13 +5439,11 @@ namespace netxs::gui
         tsfl tslink; // window: TSF link.
         MSG  winmsg; // window: Last OS window message.
         wide toWIDE; // window: UTF-16 conversion buffer.
-        bool klid_suppress_tracking; // window: Suppress keyboard layout tracking.
 
         window(auto&& ...Args)
             : winbase{ Args... },
               tslink{ *this },
-              winmsg{},
-              klid_suppress_tracking{}
+              winmsg{}
         {
             auto proc = (LONG(_stdcall*)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
@@ -5525,48 +5532,55 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
-        void keybd_reset_deadkey()
+        void keybd_reset_deadkey(arch hkl = {})
         {
             auto uc = L' ';
             auto ks = std::array<byte, 256>{};
             auto vk = input::key::map::data(input::key::Space).vkey;
             auto sc = input::key::map::data(input::key::Space).scan;
-            ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, 0);
+            ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, (HKL)hkl);
         }
-        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift)
+        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
         {
             shifted.clear();
             unshift.clear();
             auto is_printable = scancod && ((virtcod >= 0x30 && virtcod <= 0x5A)
                                          || (virtcod >= 0x60 && virtcod <= 0x6F)
                                          || (virtcod >= 0xB8 && virtcod <= 0xE6));
-            auto hkl = ::GetKeyboardLayout(0);
+            auto hkl = layout_id ? (HKL)layout_id : ::GetKeyboardLayout(0);
             if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
                 auto buf = wide(8, 0);
                 auto flags = extflag ? 1u : 0u;
                 flags |= 2; // ToUnicodeEx will translate scancodes marked as key break events in addition to its usual treatment of key make events.
                 auto key_matrix = std::array<byte, 256>{};
-                if (fake_ralt) // Emulate AltGr pressed.
+                if (apply_modifiers)
                 {
-                    key_matrix[vkey::ctrl ] = 0x80;
-                    key_matrix[vkey::lctrl] = 0x80;
-                    key_matrix[vkey::alt  ] = 0x80;
-                    key_matrix[vkey::ralt ] = 0x80;
+                    if (fake_ralt) // Emulate AltGr pressed.
+                    {
+                        key_matrix[vkey::ctrl ] = 0x80;
+                        key_matrix[vkey::lctrl] = 0x80;
+                        key_matrix[vkey::alt  ] = 0x80;
+                        key_matrix[vkey::ralt ] = 0x80;
+                    }
+                    key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
+                    key_matrix[vkey::capslock] = vkstat[vkey::capslock];
                 }
-                key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
-                key_matrix[vkey::capslock] = vkstat[vkey::capslock];
                 auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
                 if (rc > 0)
                 {
                     utf::to_utf(buf.data(), rc, unshift);
+                    key_matrix[vkey::shift ] = 0x80;
+                    key_matrix[vkey::lshift] = 0x80;
+                    rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
+                    if (rc > 0)
+                    {
+                        utf::to_utf(buf.data(), rc, shifted);
+                    }
                 }
-                key_matrix[vkey::shift ] = 0x80;
-                key_matrix[vkey::lshift] = 0x80;
-                rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
-                if (rc > 0)
+                if (rc < 0)
                 {
-                    utf::to_utf(buf.data(), rc, shifted);
+                    keybd_reset_deadkey((arch)hkl);
                 }
             }
         }
@@ -5771,10 +5785,37 @@ namespace netxs::gui
             ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
             //print_vkstat("deactivate");
         }
+        auto is_layout_latin_based(HKL hkl)
+        {
+            static constexpr auto all_26_letters = (1 << ('z' - 'a' + 1)) - 1;
+            auto c = wchr{};
+            auto latin_mask = 0; // A-Z (26 bits).
+            auto key_states = std::array<byte, 256>{};
+            for (auto ex_bit : { 0x0000, 0xE000 })
+            for (auto i = 1u; i < 0x100u; i++)
+            {
+                auto sc = i | ex_bit;
+                if (auto vk = ::MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK, hkl))
+                {
+                    auto l = ::ToUnicodeEx(vk, sc, key_states.data(), &c, 1, 0, hkl);
+                    if (l == 1 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'))
+                    {
+                        latin_mask |= (1 << ((c & 0x1F) - 1));
+                        if (latin_mask == all_26_letters) return true;
+                    }
+                    else if (l < 0) // Reset deadkey.
+                    {
+                        key_states[vk] = 0x80; // Double press resets deadkey key.
+                        ::ToUnicodeEx(vk, sc, key_states.data(), &c, 1, 0, hkl);
+                        key_states[vk] = 0x00;
+                    }
+                }
+            }
+            return faux;
+        }
         auto keybd_find_layout() // Find any installed latin-based keyboard layout.
         {
-            klid_suppress_tracking = true;
-            auto latin_klid = 0;
+            auto latin_hkl = HKL{};
             auto layout_count = ::GetKeyboardLayoutList(0, nullptr);
             auto layouts = std::vector<HKL>(layout_count);
             ::GetKeyboardLayoutList(layout_count, layouts.data());
@@ -5783,53 +5824,38 @@ namespace netxs::gui
                 log("Installed layouts:");
                 for (auto hkl : layouts) log("  %%", hkl);
             }
-            auto old_hkl = ::GetKeyboardLayout(0); // Save current layout.
-            for (auto hkl : layouts) // Iterate over existing layouts.
+            for (auto hkl : layouts) // Iterate over user's layouts.
             {
-                ::ActivateKeyboardLayout(hkl, 0);
-                auto klid_wide = wide(KL_NAMELENGTH - 1/*exclude trailing null*/, '\0');
-                if (::GetKeyboardLayoutNameW(klid_wide.data()))
+                if (is_layout_latin_based(hkl))
                 {
-                    auto klid = utf::to_int_from_hex_str(klid_wide);
-                    if (input::key::is_layout_supported(klid))
-                    {
-                        if constexpr (debugmode) log("Latin-based keyboard layout found: ", utf::adjust(utf::to_hex(klid), 8, "0", true));
-                        latin_klid = klid;
-                        break;
-                    }
+                    latin_hkl = hkl;
+                    break;
                 }
             }
-            ::ActivateKeyboardLayout(old_hkl, 0); // Restore user's layout.
             if constexpr (debugmode)
-            if (!latin_klid)
+            if (!latin_hkl)
             {
                 log("Latin-based keyboard layout not found");
             }
-            klid_suppress_tracking = faux;
-            return latin_klid;
+            return (arch)latin_hkl;
         }
         void keybd_sync_layout()
         {
-            if (klid_suppress_tracking) return;
             keybd_sync_state();
-            auto klid_buf = wide(KL_NAMELENGTH - 1/*exclude trailing null*/, '\0');
-            ::GetKeyboardLayoutNameW(klid_buf.data());
-            auto klid = utf::to_int_from_hex_str<si32>(klid_buf);
-            if (!klid_fallback)
+            auto hkl = ::GetKeyboardLayout(0); // Get current layout's hkl.
+            auto layout_id = (ui32)(arch)hkl;
+            if (is_layout_latin_based(hkl))
             {
-                if (input::key::is_layout_supported(klid))
-                {
-                    klid_fallback = klid;
-                }
-                else
-                {
-                    if constexpr (debugmode) log("Layout %% is unsupported or not latin-based. Looking for klid fallback.", utf::adjust(utf::to_hex(klid), 8, "0", true));
-                    klid_fallback = keybd_find_layout(); // Looking for klid fallback.
-                }
+                hkl_latin = (arch)hkl;
             }
-            if (std::exchange(xlayout, klid) != klid)
+            else
             {
-                log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(klid), 8, "0", true));
+                if constexpr (debugmode) log("Layout %% is not latin-based. Looking for klid fallback.", utf::adjust(utf::to_hex(layout_id), 8, "0", true));
+                hkl_latin = keybd_find_layout(); // Find hkl fallback.
+            }
+            if (std::exchange(xlayout, layout_id) != layout_id)
+            {
+                log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(layout_id), 8, "0", true));
                 winbase::keybd_sync_layout();
             }
         }
@@ -6231,9 +6257,9 @@ namespace netxs::gui
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/) {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
-        void keybd_reset_deadkey() {}
+        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}

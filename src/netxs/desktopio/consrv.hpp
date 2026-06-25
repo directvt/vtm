@@ -546,7 +546,7 @@ struct impl : consrv
         hist  inputs; // evnt: Input history per process name storage.
         mbtn  dclick; // evnt: Mouse double-click tracker.
         si32  mstate; // evnt: Mouse button last state.
-        si32  layout; // evnt: Current keyboard layout id.
+        ui32  layout; // evnt: Current keyboard layout id.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -1094,7 +1094,7 @@ struct impl : consrv
             if (gear.xlayout != layout) // Sync kb layout.
             {
                 layout = gear.xlayout;
-                auto data = nt::console::layout_input{ .klid = layout };
+                auto data = nt::console::layout_input{ .layout_id = layout };
                 stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&data));
             }
 
