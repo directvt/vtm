@@ -1099,7 +1099,7 @@ struct impl : consrv
             }
 
             toWIDE.clear();
-            auto cluster = input::key::get_cluster(gear);
+            auto cluster = input::key::get_cluster(gear, faux);
             utf::to_utf(cluster, toWIDE);
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();

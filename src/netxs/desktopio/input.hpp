@@ -2313,7 +2313,7 @@ namespace netxs::input
         auto is_pressed( byte sign) { return !(sign & input::key::unpressed_sign); }
         auto is_cluster( byte sign) { return   sign & input::key::cluster_sign; }
         auto is_mouse(   byte sign) { return  (sign & input::key::generic_sign) == input::key::mouse_sign; }
-        auto get_cluster(auto& k)
+        auto get_cluster(auto& k, bool literal)
         {
             auto cluster = text{};
             auto valid_codepoint = [](view utf8)
@@ -2327,9 +2327,19 @@ namespace netxs::input
             auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && shift_state;
             if (has_cluster || has_unshift || has_shifted) // Try to keep national key names.
             {
-                     if (has_cluster) cluster = k.cluster;
-                else if (has_unshift) cluster = k.unshift;
-                else                  cluster = k.shifted;
+                if (literal)
+                {
+                         if (has_cluster && k.cluster.front() > 0x1f) cluster = k.cluster; // Filter control characters when alternatives are available.
+                    else if (has_unshift) cluster = k.unshift;
+                    else if (has_shifted) cluster = k.shifted;
+                    else                  cluster = k.cluster;
+                }
+                else
+                {
+                         if (has_cluster) cluster = k.cluster;
+                    else if (has_unshift) cluster = k.unshift;
+                    else                  cluster = k.shifted;
+                }
             }
             return cluster;
         }
@@ -2379,9 +2389,11 @@ namespace netxs::input
                 keyid_str[1] = (byte)(keyid & 0xFF);
                 return keyid_str;
             }
-            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
+            static auto push_keyid(bool ispressed, text& vkchord, si32 keyid)
             {
-                vkchord += input::key::kmap::_vkey_str(keyid, ispressed);
+                auto vkey_str = input::key::kmap::_vkey_str(keyid, ispressed);
+                vkchord += vkey_str;
+                return vkey_str;
             }
             static auto pressed(auto& k, si32 keyid)
             {
@@ -2446,7 +2458,15 @@ namespace netxs::input
                                 {
                                     if (keyid <= input::key::invalid) vk_valid = faux;
                                     if (val.scode == 0) sc_valid = faux;
-                                    if (vk_valid) push_keyid(true, k.vkchord, keyid);
+                                    if (vk_valid)
+                                    {
+                                        auto vkey_str = push_keyid(true, k.vkchord, keyid);
+                                        auto generic_keyid = keyid & -2;
+                                        if (generic_keyid > input::key::IsoLevel5Shift || (generic_keyid != input::key::LeftShift && generic_keyid != input::key::AltGr && generic_keyid != input::key::IsoLevel5Shift)) // The main part of the chchord is the same as in vkchord excluding (Shift/AltGr/Level5Shift).
+                                        {
+                                            k.chchord += vkey_str;
+                                        }
+                                    }
                                     if (sc_valid) push_scode(true, k.scchord, val.scode);
                                 }
                             }
@@ -2458,13 +2478,12 @@ namespace netxs::input
                             reset(k);
                             return;
                         }
-                        auto cluster = input::key::get_cluster(k);
                         auto sign = !!k.keystat;
-                        if (cluster.size())
+                        if (auto cluster = input::key::get_cluster(k, true); cluster.size())
                         {
-                            k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
                             push_cluster(sign, k.chchord, cluster);
                         }
+                        else k.chchord.clear(); // No cluster - no chord.
                         push_keyid(sign, k.vkchord, k.keycode);
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
                         if (!vk_valid) k.vkchord.clear();
