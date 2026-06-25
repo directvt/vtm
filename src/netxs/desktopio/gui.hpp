@@ -2987,6 +2987,7 @@ namespace netxs::gui
             X(expose_win) /* Order to expose window.               */ \
             X(make_ontop) /* Order to make window topmost.         */ \
             X(set_normal) /* Order to make window notopmost.       */ \
+            X(get_layout) /* Order to get user keybd layout.       */ \
             X(no_command) /* Noop. Just to update.                 */ \
             X(cmd_w_data) /* Command with payload.                 */
             static constexpr auto _base = 99900;
@@ -3469,7 +3470,7 @@ namespace netxs::gui
         bool  fake_ralt; // winbase: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
-        ui32  xlayout; // winbase: Current keyboard layout (KLID).
+        ui32  xlayout; // winbase: Current keyboard layout (HKL).
         arch  hkl_latin; // winbase: User's latin-based keyboard layout.
         si32  layout_hint; // winbase: Layout hint for key lookup.
 
@@ -3522,11 +3523,12 @@ namespace netxs::gui
         virtual void keybd_sync_layout()
         {
             auto& gear = *stream.gears;
-            gear.payload = input::keybd::type::kblayout;
+            auto temp = std::exchange(gear.payload, input::keybd::type::kblayout);
             gear.xlayout = xlayout;
             chords.reset(gear, faux); // faux: Keep pressed key state.
             stream_keybd(gear);
-            gear.payload = input::keybd::type::keypress;
+            gear.payload = temp;
+            if constexpr (debugmode) log("Sync kb layout: xlayout=%%", utf::to_hex(xlayout));
         }
         virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
         virtual void keybd_read_vkstat() = 0;
@@ -4892,6 +4894,10 @@ namespace netxs::gui
             {
                 window_make_topmost(faux);
             }
+            else if (command == ipc::get_layout)
+            {
+                keybd_sync_layout();
+            }
             else command = 0;
             return command;
         }
@@ -4907,7 +4913,6 @@ namespace netxs::gui
                 }
                 else
                 {
-                    //todo check issues with focus
                     keybd_reset_deadkey(); // Force reset deadkey state if it is. Windows doesn't reset deadkey state when refocusing but all other platforms do.
                     if (target_list) // Send to all that the focus is going to lost.
                     {
@@ -6040,7 +6045,7 @@ namespace netxs::gui
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
             window_make_foreground();
-            keybd_sync_layout(); // Sync keyboad layout id.
+            window_post_command(master.hWnd, ipc::get_layout); // Schedule keyboard layout synchronization (direct keybd_sync_layout call breaks initial focus).
         }
 
         //todo static
