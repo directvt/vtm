@@ -344,7 +344,7 @@ namespace netxs::app::tile
                     mouse_subs(boss);
                     boss.on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
                     {
-                        if (gear.meta(hids::anyCtrl))
+                        if (gear.meta(mods::anyCtrl))
                         {
                             boss.move_slider(gear.whlsi);
                             gear.dismiss();
@@ -643,7 +643,7 @@ namespace netxs::app::tile
                             if (ratio == min_ratio)
                             {
                                 node->set_ratio(saved_ratio);
-                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
+                                pro::focus::set(boss.This(), gear.id, gear.meta(mods::anyCtrl) ? solo::off : solo::on, true);
                             }
                             else
                             {

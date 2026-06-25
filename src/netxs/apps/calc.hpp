@@ -136,7 +136,7 @@ namespace netxs::ui
                     auto& g = take(gear);
                     if (g.region.size)
                     {
-                        if (gear.meta(hids::anyCtrl)) g.region.size = gear.coord - g.region.coor;
+                        if (gear.meta(mods::anyCtrl)) g.region.size = gear.coord - g.region.coor;
                         else                          g.region.size = dot_00;
                     }
                     recalc();
@@ -175,7 +175,7 @@ namespace netxs::ui
                 {
                     auto& g = take(gear);
                     g.calc(boss, gear.click);
-                    if (g.grab(gear.click, gear.meta(hids::anyCtrl)))
+                    if (g.grab(gear.click, gear.meta(mods::anyCtrl)))
                     {
                         gear.dismiss();
                     }

@@ -728,9 +728,9 @@ namespace netxs::ansi
             static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
-            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & mods::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & mods::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & mods::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
@@ -803,9 +803,9 @@ namespace netxs::ansi
             static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
-            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & mods::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & mods::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & mods::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };

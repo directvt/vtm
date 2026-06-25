@@ -127,6 +127,17 @@ namespace netxs::input
 
         static constexpr auto packet   = 0xE7; // VK_PACKET
     }
+    namespace kkp
+    {
+        static constexpr auto shift     = 0b1;        // 1
+        static constexpr auto alt       = 0b10;       // 2
+        static constexpr auto ctrl      = 0b100;      // 4
+        static constexpr auto super     = 0b1000;     // 8
+        static constexpr auto hyper     = 0b10000;    // 16
+        static constexpr auto meta      = 0b100000;   // 32
+        static constexpr auto caps_lock = 0b1000000;  // 64
+        static constexpr auto num_lock  = 0b10000000; // 128
+    }
     namespace key
     {
         static constexpr auto ExtendedKey = 0x0100; // ENHANCED_KEY
@@ -1432,45 +1443,6 @@ namespace netxs::input
 
         static constexpr auto classname = basename::gear;
 
-        enum modifiers
-        {
-            LCtrl        = 1 <<  0, // Left  ⌃ Ctrl
-            RCtrl        = 1 <<  1, // Right ⌃ Ctrl
-            LAlt         = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt         = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option
-            LShift       = 1 <<  4, // Left  ⇧ Shift
-            RShift       = 1 <<  5, // Right ⇧ Shift
-            LSuper       = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            RSuper       = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            LHyper       = 1 <<  8, // Left  Hyper
-            RHyper       = 1 <<  9, // Right Hyper
-            //           = 1 << 10,
-            //           = 1 << 11,
-            NumLock      = 1 << 12, // ⇭ Num Lock
-            CapsLock     = 1 << 13, // ⇪ Caps Lock
-            ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
-            //           = 1 << 15,
-            LCtrlAlt     = LAlt   | LCtrl,
-            anyCtrl      = LCtrl  | RCtrl,
-            anyAlt       = LAlt   | RAlt,
-            anyShift     = LShift | RShift,
-            anyCtrlAlt   = anyAlt | anyCtrl,
-            anySuper     = LSuper | RSuper,
-            anyHyper     = LHyper | RHyper,
-            anyMod       = anyAlt | anyCtrl | anyShift | anySuper | anyHyper,
-        };
-        struct kkp
-        {
-            static constexpr auto shift     = 0b1;        // 1
-            static constexpr auto alt       = 0b10;       // 2
-            static constexpr auto ctrl      = 0b100;      // 4
-            static constexpr auto super     = 0b1000;     // 8
-            static constexpr auto hyper     = 0b10000;    // 16
-            static constexpr auto meta      = 0b100000;   // 32
-            static constexpr auto caps_lock = 0b1000000;  // 64
-            static constexpr auto num_lock  = 0b10000000; // 128
-        };
-
         static auto build_alone_key()
         {
             return std::unordered_map<si32, text>
@@ -1536,28 +1508,28 @@ namespace netxs::input
         {
             return std::unordered_map<si32, text>
             {
-                { key::KeyEnter  | (hids::anyCtrl    << key::idbits), { "\x0a"      }},
-                { key::Backspace | (hids::anyCtrl    << key::idbits), { "\x08"      }},
-                { key::Backspace | (hids::anyAlt     << key::idbits), { "\033\x7f"  }},
-                { key::Backspace | (hids::anyCtrlAlt << key::idbits), { "\033\x08"  }},
-                { key::Tab       | (hids::anyCtrl    << key::idbits), { "\t"        }},
-                { key::Tab       | (hids::anyShift   << key::idbits), { "\033[Z"    }},
-                { key::Tab       | (hids::anyAlt     << key::idbits), { "\033\t"    }},
-                { key::Esc       | (hids::anyAlt     << key::idbits), { "\033\033"  }},
-                { key::Key1      | (hids::anyCtrl    << key::idbits), { "1"         }},
-                { key::Key2      | (hids::anyCtrl    << key::idbits), { "\x00"      }},
-                { key::Key3      | (hids::anyCtrl    << key::idbits), { "\x1b"      }},
-                { key::Key4      | (hids::anyCtrl    << key::idbits), { "\x1c"      }},
-                { key::Key5      | (hids::anyCtrl    << key::idbits), { "\x1d"      }},
-                { key::Key6      | (hids::anyCtrl    << key::idbits), { "\x1e"      }},
-                { key::Key7      | (hids::anyCtrl    << key::idbits), { "\x1f"      }},
-                { key::Key8      | (hids::anyCtrl    << key::idbits), { "\x7f"      }},
-                { key::Key9      | (hids::anyCtrl    << key::idbits), { "9"         }},
-                { key::KeySlash  | (hids::anyCtrl    << key::idbits), { "\x1f"      }},
-                { slash          | (hids::anyCtrlAlt << key::idbits), { "\033\x1f"  }},
-                { slash          | (hids::anyCtrl    << key::idbits), { "\x1f"      }},
-                { quest          | (hids::anyCtrlAlt << key::idbits), { "\033\x7f"  }},
-                { quest          | (hids::anyCtrl    << key::idbits), { "\x7f"      }},
+                { key::KeyEnter  | (mods::anyCtrl    << key::idbits), { "\x0a"      }},
+                { key::Backspace | (mods::anyCtrl    << key::idbits), { "\x08"      }},
+                { key::Backspace | (mods::anyAlt     << key::idbits), { "\033\x7f"  }},
+                { key::Backspace | (mods::anyCtrlAlt << key::idbits), { "\033\x08"  }},
+                { key::Tab       | (mods::anyCtrl    << key::idbits), { "\t"        }},
+                { key::Tab       | (mods::anyShift   << key::idbits), { "\033[Z"    }},
+                { key::Tab       | (mods::anyAlt     << key::idbits), { "\033\t"    }},
+                { key::Esc       | (mods::anyAlt     << key::idbits), { "\033\033"  }},
+                { key::Key1      | (mods::anyCtrl    << key::idbits), { "1"         }},
+                { key::Key2      | (mods::anyCtrl    << key::idbits), { "\x00"      }},
+                { key::Key3      | (mods::anyCtrl    << key::idbits), { "\x1b"      }},
+                { key::Key4      | (mods::anyCtrl    << key::idbits), { "\x1c"      }},
+                { key::Key5      | (mods::anyCtrl    << key::idbits), { "\x1d"      }},
+                { key::Key6      | (mods::anyCtrl    << key::idbits), { "\x1e"      }},
+                { key::Key7      | (mods::anyCtrl    << key::idbits), { "\x1f"      }},
+                { key::Key8      | (mods::anyCtrl    << key::idbits), { "\x7f"      }},
+                { key::Key9      | (mods::anyCtrl    << key::idbits), { "9"         }},
+                { key::KeySlash  | (mods::anyCtrl    << key::idbits), { "\x1f"      }},
+                { slash          | (mods::anyCtrlAlt << key::idbits), { "\033\x1f"  }},
+                { slash          | (mods::anyCtrl    << key::idbits), { "\x1f"      }},
+                { quest          | (mods::anyCtrlAlt << key::idbits), { "\033\x7f"  }},
+                { quest          | (mods::anyCtrl    << key::idbits), { "\x7f"      }},
             };
         }
 
@@ -1729,7 +1701,7 @@ namespace netxs::input
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
               gear_index{ indexer.take_gear_available_index(use_index) },
-              other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << key::idbits)) }, // Defaults for US layout.
+              other_key{ build_other_key(key::KeySlash, key::KeySlash | (mods::anyShift << key::idbits)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
             mouse::prime = dot_mx;
@@ -1840,9 +1812,9 @@ namespace netxs::input
             if (m.wheelsi)
             {
                 auto s = m.ctlstat;
-                auto alt     = s & hids::anyAlt ? 1 : 0;
-                auto l_ctrl  = s & hids::LCtrl  ? 1 : 0;
-                auto r_ctrl  = s & hids::RCtrl  ? 1 : 0;
+                auto alt     = s & mods::anyAlt ? 1 : 0;
+                auto l_ctrl  = s & mods::LCtrl  ? 1 : 0;
+                auto r_ctrl  = s & mods::RCtrl  ? 1 : 0;
                      if (l_ctrl && alt) { netxs::_k2 += m.wheelsi > 0 ? 1 : -1; log("_k2=", _k2); } // LCtrl+Alt+Wheel.
                 else if (l_ctrl)        { netxs::_k0 += m.wheelsi > 0 ? 1 : -1; log("_k0=", _k0); } // LCtrl+Wheel.
                 else if (alt)           { netxs::_k1 += m.wheelsi > 0 ? 1 : -1; log("_k1=", _k1); } // Alt+Wheel.
@@ -2215,14 +2187,14 @@ namespace netxs::input
                 auto c = keybd::cluster.empty() ? 0 : (byte)keybd::cluster.front();
 
                 if (v < 0 || v >= input::key::lastKey) v = 0;
-                if (s & hids::LCtrl && s & hids::RAlt) // Reset AltGr emulation on win32.
+                if (s & mods::LCtrl && s & mods::RAlt) // Reset AltGr emulation on win32.
                 {
-                    s &= ~(hids::LCtrl | hids::RAlt);
+                    s &= ~(mods::LCtrl | mods::RAlt);
                 }
 
-                auto shift = s & hids::anyShift ? hids::anyShift : 0;
-                auto alt   = s & hids::anyAlt   ? hids::anyAlt   : 0;
-                auto ctrl  = s & hids::anyCtrl  ? hids::anyCtrl  : 0;
+                auto shift = s & mods::anyShift ? mods::anyShift : 0;
+                auto alt   = s & mods::anyAlt   ? mods::anyAlt   : 0;
+                auto ctrl  = s & mods::anyCtrl  ? mods::anyCtrl  : 0;
                 if (shift || alt || ctrl)
                 {
                     if (auto it_shift = shift_key.find(v); it_shift != shift_key.end())
@@ -2321,7 +2293,7 @@ namespace netxs::input
                 auto codepoint = utf::to_code(utf8);
                 return codepoint > 0 && (codepoint < 57358 || codepoint > 57454);
             };
-            auto shift_state = k.ctlstat & hids::anyShift;
+            auto shift_state = k.ctlstat & mods::anyShift;
             auto has_cluster = k.cluster.size() && k.cluster.front();
             auto has_unshift = k.unshift.size() && valid_codepoint(k.unshift) && !shift_state;
             auto has_shifted = k.shifted.size() && valid_codepoint(k.shifted) && shift_state;

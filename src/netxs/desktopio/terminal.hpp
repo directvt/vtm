@@ -474,7 +474,7 @@ namespace netxs::ui
                     if (gear_test.second == 0)
                     {
                         if (pro::focus::test(owner, gear)) pro::focus::off(owner.This(), gear.id);
-                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on);
+                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(mods::anyCtrl) ? solo::off : solo::on);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -9683,7 +9683,7 @@ namespace netxs::ui
             {
                 _copy(gear, data);
             }
-            auto ctrl_pressed = gear.meta(hids::anyCtrl);
+            auto ctrl_pressed = gear.meta(mods::anyCtrl);
             if (onesht != mime::disabled && !ctrl_pressed)
             {
                 selection_oneshot(mime::disabled);
@@ -9758,7 +9758,7 @@ namespace netxs::ui
         void selection_lclick(hids& gear)
         {
             auto& console = *target;
-            auto go_on = gear.meta(hids::anyCtrl);
+            auto go_on = gear.meta(mods::anyCtrl);
             if (go_on && console.selection_active())
             {
                 console.selection_follow(gear.coord, go_on);
@@ -9788,8 +9788,8 @@ namespace netxs::ui
         void selection_create(hids& gear)
         {
             auto& console = *target;
-            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
-            auto go_on = gear.meta(hids::anyCtrl);
+            auto boxed = selalt ^ !!gear.meta(mods::anyAlt);
+            auto go_on = gear.meta(mods::anyCtrl);
             console.selection_follow(gear.click, go_on);
             if (go_on) console.selection_extend(gear.click, boxed);
             else       console.selection_create(gear.click, boxed);
@@ -9816,7 +9816,7 @@ namespace netxs::ui
         {
             // Check bounds and scroll if needed.
             auto& console = *target;
-            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
+            auto boxed = selalt ^ !!gear.meta(mods::anyAlt);
             auto coord = twod{ gear.coord };
             auto vport = rect{ -origin, console.panel };
             auto delta = dot_00;
@@ -9880,7 +9880,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                    if (gear.meta(mods::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     if (altscr && target != &normal)
                     {
                         if (gear.whlsi)

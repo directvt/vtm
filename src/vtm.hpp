@@ -155,7 +155,7 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, e2::form::upon::dragged, gear, memo)
                 {
-                    if (gear.meta(hids::anyCtrl))
+                    if (gear.meta(mods::anyCtrl))
                     {
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto delta)
                         {
@@ -279,7 +279,7 @@ namespace netxs::app::vtm
             void check_modifiers(hids& gear)
             {
                 auto& data = slots[gear.id];
-                auto state = !!gear.meta(hids::anyCtrl);
+                auto state = !!gear.meta(mods::anyCtrl);
                 if (data.ctrl != state)
                 {
                     data.ctrl = state;
@@ -294,7 +294,7 @@ namespace netxs::app::vtm
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
-                    data.ctrl = gear.meta(hids::anyCtrl);
+                    data.ctrl = gear.meta(mods::anyCtrl);
                     slot.coor = init = step = gear.click + gear.owner.coor();
                     slot.size = dot_00;
                     boss.base::deface(slot);
@@ -338,7 +338,7 @@ namespace netxs::app::vtm
                     {
                         gear.slot = data.slot;
                         gear.slot_forced = true;
-                        if (gear.meta(hids::anyCtrl))
+                        if (gear.meta(mods::anyCtrl))
                         {
                             log(prompt::hall, "Area copied to clipboard ", gear.slot);
                             gear.owner.base::signal(tier::release, e2::command::printscreen, gear);
@@ -475,7 +475,7 @@ namespace netxs::app::vtm
             }
             auto action_allowed(hids& gear)
             {
-                auto allowed = !gear.meta(hids::anyMod);
+                auto allowed = !gear.meta(mods::anyMod);
                 return allowed;
             }
 
@@ -740,7 +740,7 @@ namespace netxs::app::vtm
                     if (base::hidden) // Restore if it is hidden.
                     {
                         base::hidden = faux;
-                        pro::focus::set(window_ptr, gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
+                        pro::focus::set(window_ptr, gear.id, gear.meta(mods::anyCtrl) ? solo::off : solo::on, true);
                     }
                     else // Hide if visible and refocus.
                     {

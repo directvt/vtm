@@ -4252,17 +4252,17 @@ namespace netxs::gui
             else
             {
                 auto state = 0;
-                if (keybd_read_pressed(vkey::lshift  )) state |= input::hids::LShift;
-                if (keybd_read_pressed(vkey::rshift  )) state |= input::hids::RShift;
-                if (keybd_read_pressed(vkey::lctrl   )) state |= input::hids::LCtrl;
-                if (keybd_read_pressed(vkey::rctrl   )) state |= input::hids::RCtrl;
-                if (keybd_read_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-                if (keybd_read_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (keybd_read_pressed(vkey::lsuper  )) state |= input::hids::LSuper;
-                if (keybd_read_pressed(vkey::rsuper  )) state |= input::hids::RSuper;
-                if (keybd_read_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-                if (keybd_read_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-                if (keybd_read_toggled(vkey::numlock )) state |= input::hids::NumLock;
+                if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
+                if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
+                if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+                if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+                if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
+                if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
+                if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
+                if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
+                if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
+                if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+                if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
                 return state;
             }
         }
@@ -4337,7 +4337,7 @@ namespace netxs::gui
             stream.m.changed++;
             stream.m.timecod = datetime::now();
             stream.m.enabled = hids::stat::halt;
-            if (!mfocus.focused()) stream.m.ctlstat &= input::hids::NumLock | input::hids::CapsLock | input::hids::ScrlLock;
+            if (!mfocus.focused()) stream.m.ctlstat &= mods::NumLock | mods::CapsLock | mods::ScrollLock;
             if (std::exchange(stream.gears->tooltip.visible, faux)) // Hide all active tooltips on mouse leave.
             {
                 update_tooltip();
@@ -4557,19 +4557,19 @@ namespace netxs::gui
                         keybd_send_state(vkey::ctrl, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
                     }
                 }
-                if (keybd_test_toggled(vkey::numlock )              ) state |= input::hids::NumLock;
-                if (keybd_test_toggled(vkey::capslock)              ) state |= input::hids::CapsLock;
-                if (keybd_test_toggled(vkey::scrllock)              ) state |= input::hids::ScrlLock;
-                if (keybd_test_pressed(vkey::lctrl   ) && !fake_ralt) state |= input::hids::LCtrl;
-                if (keybd_test_pressed(vkey::rctrl   )              ) state |= input::hids::RCtrl;
-                if (keybd_test_pressed(vkey::lalt    )              ) state |= input::hids::LAlt;
-                if (keybd_test_pressed(vkey::ralt    ) && !fake_ralt) state |= input::hids::RAlt; // We never equate AltGr with RAlt.
-                if (keybd_test_pressed(vkey::lsuper  )              ) state |= input::hids::LSuper;
-                if (keybd_test_pressed(vkey::rsuper  )              ) state |= input::hids::RSuper;
+                if (keybd_test_toggled(vkey::numlock )              ) state |= mods::NumLock;
+                if (keybd_test_toggled(vkey::capslock)              ) state |= mods::CapsLock;
+                if (keybd_test_toggled(vkey::scrllock)              ) state |= mods::ScrollLock;
+                if (keybd_test_pressed(vkey::lctrl   ) && !fake_ralt) state |= mods::LCtrl;
+                if (keybd_test_pressed(vkey::rctrl   )              ) state |= mods::RCtrl;
+                if (keybd_test_pressed(vkey::lalt    )              ) state |= mods::LAlt;
+                if (keybd_test_pressed(vkey::ralt    ) && !fake_ralt) state |= mods::RAlt; // We never equate AltGr with RAlt.
+                if (keybd_test_pressed(vkey::lsuper  )              ) state |= mods::LSuper;
+                if (keybd_test_pressed(vkey::rsuper  )              ) state |= mods::RSuper;
                 if (keybd_test_pressed(vkey::ctrl    )              ) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
                 else                                                  mouse_release(by::keybd);
-                auto old_ls = keymod & input::hids::LShift;
-                auto old_rs = keymod & input::hids::RShift;
+                auto old_ls = keymod & mods::LShift;
+                auto old_rs = keymod & mods::RShift;
                 auto new_ls = keybd_test_pressed(vkey::lshift);
                 auto new_rs = keybd_test_pressed(vkey::rshift);
                 //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
@@ -4583,12 +4583,12 @@ namespace netxs::gui
                         //if (old_rs && !new_rs) // RightShift released.
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~input::hids::RShift;
+                            keymod &= ~mods::RShift;
                             keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
                         }
                         //if (old_ls && !new_ls) // LeftShift released.
                         {
-                            keymod &= ~input::hids::LShift;
+                            keymod &= ~mods::LShift;
                             keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
                         }
                     }
@@ -4596,24 +4596,24 @@ namespace netxs::gui
                     {
                         if (old_ls && !new_ls) // LeftShift released.
                         {
-                            keymod &= ~input::hids::LShift;
+                            keymod &= ~mods::LShift;
                             keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
                         }
                         if (old_rs && !new_rs) // RightShift released.
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~input::hids::RShift;
+                            keymod &= ~mods::RShift;
                             keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
                         }
                     }
                     if (!old_ls && new_ls) // LeftShift pressed.
                     {
-                        keymod |= input::hids::LShift;
+                        keymod |= mods::LShift;
                         keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
                     }
                     if (!old_rs && new_rs) // RightShift pressed.
                     {
-                        keymod |= input::hids::RShift;
+                        keymod |= mods::RShift;
                         keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
                     }
                     if (new_ls && new_rs) // Two Shifts pressed.
@@ -4939,9 +4939,9 @@ namespace netxs::gui
                     layer_timer_stop(master, timers::rightshift);
                     keybd_sync_state();
                     //::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-                    //if (keymod & input::hids::RShift)
+                    //if (keymod & mods::RShift)
                     //{
-                    //    keymod &= ~input::hids::RShift;
+                    //    keymod &= ~mods::RShift;
                     //    keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
                     //}
                 }
@@ -5874,9 +5874,12 @@ namespace netxs::gui
             switch (uDevice)
             {
                 case FAPPCOMMAND_KEY:   // 0 User pressed a key.
-                case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
                 case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
+                    //todo we only need to forward these events back into the system when they return untouched
+                    //return TRUE;
                     break;
+                case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
+                    return FALSE;
             }
             switch (cmd)
             {
