@@ -2361,7 +2361,7 @@ namespace netxs::input
                     keyout = {};
                 }
             }
-            auto exist(si32 keyid)
+            auto pressed(si32 keyid)
             {
                 auto iter = pushed.find(keyid);
                 return iter != pushed.end();

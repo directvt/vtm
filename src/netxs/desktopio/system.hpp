@@ -5282,6 +5282,20 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
+                auto fix_right_alt = [&](auto& r) // Fix extflag for RightAlt in unpress report (it is missed for unknown reason).
+                {
+                    if (r.Event.KeyEvent.wVirtualKeyCode == input::vkey::alt)
+                    {
+                        auto ef = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
+                        auto sc = r.Event.KeyEvent.wVirtualScanCode;
+                        auto kd = r.Event.KeyEvent.bKeyDown;
+                        if (sc == input::key::map::data(input::key::RightAlt).scan && !kd && !ef
+                         && chords.pressed(input::key::RightAlt))
+                        {
+                            r.Event.KeyEvent.dwControlKeyState |= ENHANCED_KEY;
+                        }
+                    }
+                };
                 auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
                                                             : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
                 while (alive)
@@ -5347,7 +5361,6 @@ namespace netxs::os
                         }
                         if (r.EventType == KEY_EVENT)
                         {
-
                             auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
                                  if (modstat.repeats) continue; // We don't repeat modifiers.
                             else if (modstat.changed)
@@ -5366,13 +5379,14 @@ namespace netxs::os
                             }
                             if (utf::to_code(r.Event.KeyEvent.uChar.UnicodeChar, point))
                             {
+                                fix_right_alt(r);
                                 k.cluster.clear();
                                 if (point) utf::to_utf_from_code(point, k.cluster);
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                 k.keycode = input::key::xlat(k.virtcod, k.scancod, k.extflag, layout_hint);
-                                k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
+                                k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.pressed(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
                                 chords.build(k);
                                 if (r.Event.KeyEvent.wRepeatCount-- > 0) keybd(k);
                                 if (k.keystat != input::key::released) while (r.Event.KeyEvent.wRepeatCount-- > 0)
