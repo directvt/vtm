@@ -2987,7 +2987,6 @@ namespace netxs::gui
             X(expose_win) /* Order to expose window.               */ \
             X(make_ontop) /* Order to make window topmost.         */ \
             X(set_normal) /* Order to make window notopmost.       */ \
-            X(get_layout) /* Order to get user keybd layout.       */ \
             X(no_command) /* Noop. Just to update.                 */ \
             X(cmd_w_data) /* Command with payload.                 */
             static constexpr auto _base = 99900;
@@ -4851,7 +4850,15 @@ namespace netxs::gui
                     base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
-                        if (mfocus.wheel) window_post_command(ipc::sync_state);
+                        if (!xlayout) // The first focus event - sync keybd layout.
+                        {
+                            keybd_sync_layout();
+                        }
+                        if (mfocus.wheel)
+                        {
+                            //todo share keybd layout between group focused windows
+                            window_post_command(ipc::sync_state);
+                        }
                     });
                 }
             }
@@ -4893,10 +4900,6 @@ namespace netxs::gui
             else if (command == ipc::set_normal)
             {
                 window_make_topmost(faux);
-            }
-            else if (command == ipc::get_layout)
-            {
-                keybd_sync_layout();
             }
             else command = 0;
             return command;
@@ -6045,7 +6048,6 @@ namespace netxs::gui
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
             window_make_foreground();
-            window_post_command(master.hWnd, ipc::get_layout); // Schedule keyboard layout synchronization (direct keybd_sync_layout call breaks initial focus).
         }
 
         //todo static
