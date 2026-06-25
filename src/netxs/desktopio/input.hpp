@@ -198,133 +198,6 @@ namespace netxs::input
             return layout::qwerty;
         }
 
-        //static constexpr auto latin_klids = std::to_array<ui32>(
-        //{
-        //    /*00 500*/ 0x00000409, // US
-        //    /*01 360*/ 0x00000411, // Japanese
-        //    /*02 360*/ 0x00000415, // Polish (Programmers)
-        //    /*03 360*/ 0x00020405, // Czech Programmers
-        //    /*04 360*/ 0x00020418, // Romanian (Programmers)
-        //    /*05 360*/ 0x00010426, // Latvian (QWERTY)
-        //    /*06 360*/ 0x00020426, // Latvian (Standard)
-        //    /*07 360*/ 0x00050408, // Greek Latin
-        //    /*08 360*/ 0x00004009, // English (India)
-        //    /*09 360*/ 0x0000046a, // Yoruba
-        //    /*0A 360*/ 0x00000468, // Hausa
-        //    /*0B 360*/ 0x00000470, // Igbo
-        //    /*0C 360*/ 0x00000481, // Maori
-        //    /*0D 360*/ 0x0000046c, // Sesotho sa Leboa
-        //    /*0E 353*/ 0x00020409, // United States-International
-        //    /*0F 353*/ 0x00010427, // Lithuanian
-        //    /*10 353*/ 0x00000475, // Hawaiian
-        //    /*11 348*/ 0x00000412, // Korean
-        //    /*12 346*/ 0x00050409, // US English Table for IBM Arabic 238_L
-        //    /*13 344*/ 0x0001045d, // Inuktitut - Naqittaut
-        //    /*14 344*/ 0x0000085d, // Inuktitut - Latin
-        //    /*15 343*/ 0x00000452, // United Kingdom Extended
-        //    /*16 336*/ 0x00000809, // United Kingdom
-        //    /*17 336*/ 0x00011809, // Scottish Gaelic
-        //    /*18 336*/ 0x00001809, // Irish
-        //    /*19 332*/ 0x0000042a, // Vietnamese
-        //    /*1A 332*/ 0x0000043a, // Maltese 47-Key
-        //    /*1B 332*/ 0x0001043a, // Maltese 48-Key
-        //    /*1C 318*/ 0x00010418, // Romanian (Standard)
-        //    /*1D 313*/ 0x00001009, // Canadian French
-        //    /*1E 311*/ 0x00000416, // Portuguese (Brazil ABNT)
-        //    /*1F 311*/ 0x00000c0c, // Canadian French (Legacy)
-        //    /*20 308*/ 0x0000041c, // Albanian
-        //    /*21 305*/ 0x00011009, // Canadian Multilingual Standard
-        //    /*22 299*/ 0x0001083b, // Finnish with Sami
-        //    /*23 299*/ 0x00030408, // Greek (220) Latin
-        //    /*24 299*/ 0x00040408, // Greek (319) Latin
-        //    /*25 299*/ 0x0000043b, // Norwegian with Sami
-        //    /*26 299*/ 0x0000041d, // Swedish
-        //    /*27 299*/ 0x0000046f, // Greenlandic
-        //    /*28 299*/ 0x00000474, // Guarani
-        //    /*29 297*/ 0x00010405, // Czech (QWERTY)
-        //    /*2A 297*/ 0x0001040a, // Spanish Variation
-        //    /*2B 297*/ 0x00000425, // Estonian
-        //    /*2C 297*/ 0x0001041b, // Slovak (QWERTY)
-        //    /*2D 294*/ 0x00000410, // Italian
-        //    /*2E 294*/ 0x00010410, // Italian (142)
-        //    /*2F 294*/ 0x00000816, // Portuguese
-        //    /*30 292*/ 0x00000406, // Danish
-        //    /*31 292*/ 0x0000040b, // Finnish
-        //    /*32 292*/ 0x00000413, // Dutch
-        //    /*33 292*/ 0x00000414, // Norwegian
-        //    /*34 292*/ 0x0000040a, // Spanish
-        //    /*35 292*/ 0x0000080a, // Latin American
-        //    /*36 292*/ 0x00000438, // Faeroese
-        //    /*37 291*/ 0x00000405, // Czech
-        //    /*38 290*/ 0x0000040f, // Icelandic
-        //    /*39 289*/ 0x00010415, // Polish (214)
-        //    /*3A 289*/ 0x0000041b, // Slovak
-        //    /*3B 289*/ 0x0001042e, // Sorbian Extended
-        //    /*3C 289*/ 0x0002042e, // Sorbian Standard
-        //    /*3D 289*/ 0x0000042e, // Sorbian Standard (Legacy)
-        //    /*3E 289*/ 0x0000081a, // Serbian (Latin)
-        //    /*3F 285*/ 0x0000040e, // Hungarian
-        //    /*40 282*/ 0x00000407, // German
-        //    /*41 282*/ 0x00020407, // German Extended (E1)
-        //    /*42 282*/ 0x00030407, // German Extended (E2)
-        //    /*43 282*/ 0x00010407, // German (IBM)
-        //    /*44 282*/ 0x0000046e, // Luxembourgish
-        //    /*45 282*/ 0x00000807, // Swiss German
-        //    /*46 282*/ 0x0000041f, // Turkish Q
-        //    /*47 277*/ 0x0001040e, // Hungarian 101-key
-        //    /*48 275*/ 0x00000424, // Slovenian
-        //    /*49 275*/ 0x00060409, // Colemak
-        //    /*4A 273*/ 0x00000418, // Romanian (Legacy)
-        //    /*4B 267*/ 0x0000085f, // Central Atlas Tamazight
-        //    /*4C 267*/ 0x00000488, // Wolof
-        //    /*4D 266*/ 0x0001040c, // French (Standard, AZERTY)
-        //    /*4E 260*/ 0x0000040c, // French (Legacy, AZERTY)
-        //    /*4F 257*/ 0x00000813, // Belgian (Period)
-        //    /*50 257*/ 0x0001080c, // Belgian (Comma)
-        //    /*51 256*/ 0x00020427, // Lithuanian Standard
-        //    /*52 188*/ 0x00010409, // United States-Dvorak
-        //    /*53 172*/ 0x0001041f, // Turkish F
-        //    /*54 165*/ 0x00040409, // United States-Dvorak for right hand
-        //    /*55 160*/ 0x00030409, // United States-Dvorak for left hand
-        //    /*56 155*/ 0x0002040c, // French (Standard, BÉPO)
-        //});
-        //static constexpr auto klid_hash(si32 klid)
-        //{
-        //    auto iter = std::ranges::find(latin_klids, klid);
-        //    if (iter != latin_klids.end())
-        //    {
-        //        return (si32)std::distance(latin_klids.begin(), iter);
-        //    }
-        //    else
-        //    return 0;
-        //}
-        //static constexpr auto supported_klids = [] // This won't compile if there are collisions.
-        //{
-        //    struct layout
-        //    {
-        //        si32 klid;
-        //        si32 index;
-        //    };
-        //    auto index = 0;
-        //    auto klids = std::array<layout, latin_klids.size()>{};
-        //    for (auto klid : input::key::latin_klids) // Check hash collisions.
-        //    {
-        //        klids[index] = { (si32)klid, index };
-        //        index++;
-        //    }
-        //    return klids;
-        //}();
-        //static constexpr auto is_layout_supported(si32 klid)
-        //{
-        //    return input::key::supported_klids[input::key::klid_hash(klid)].klid == klid;
-        //}
-        //auto key_hash(si32 klid, si32 scan, bool extflag)
-        //{
-        //    assert(input::key::supported_klids[input::key::klid_hash(klid)].klid == klid);
-        //    auto hash = (ui16)((scan & 0xFF) | ((si32)extflag << 8) | (input::key::klid_hash(klid) << 9));
-        //    return hash;
-        //}
-
         // Notes:
         //  IsoLevel5Shift: 5th-level of kb layout (mathematical signs, Greek letters). Physical keyboards don't have this key; in Linux, it's usually remapped to Caps Lock or the right Ctrl key.
         //  Hyper:          Users specifically create Hyper (for example, by remapping Caps Lock) to bind hotkeys, which are guaranteed to not interact with anything.
@@ -704,25 +577,6 @@ namespace netxs::input
             #undef X
             return m;
         }();
-        //static constexpr auto key_map = []
-        //{
-        //    auto m = std::array<si16, 65536>{};
-        //    auto fill = [&](si32 KeyId, qiew codes)
-        //    {
-        //        while (codes)
-        //        {
-        //            auto hash = codes.pop_front(6);
-        //            auto key_hash = utf::to_int_from_hex_str(hash) >> 8;
-        //            if (m[key_hash]) log("Key %KeyId% is duplicated (hash=%hash%)", KeyId, hash); // It won't compile if collide.
-        //            m[key_hash] = (si16)KeyId;
-        //        }
-        //    };
-        //    #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
-        //        fill(KeyId, qiew{ PhysicalCode });
-        //        key_list
-        //    #undef X
-        //    return m;
-        //}();
         static constexpr auto vk_map = []
         {
             struct keyrec
@@ -3108,14 +2962,6 @@ namespace netxs::input
                 keyid = keycode;
                 if constexpr (debugmode) log("Fast detection of function keys: ", keyid);
             }
-            //else if (xlayout)
-            //{
-            //    auto klid = input::key::is_layout_supported(xlayout) ? xlayout
-            //                                       : layout_fallback ? layout_fallback
-            //                                                         : input::key::latin_klids[0];
-            //    auto hash = input::key::key_hash(klid, sc, extflag);
-            //    keyid = (si32)input::key::key_map[hash];
-            //}
             else
             {
                 keyid = _find_abstract_key(vk, sc, extflag, layout_hint);
