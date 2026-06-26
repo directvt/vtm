@@ -5910,25 +5910,24 @@ namespace netxs::os
                     }
                     return m;
                 }();
-                static auto kkp2key = []
+                static constexpr auto kkp2key = []
                 {
-                    using namespace input;
-                    auto extra_defs = std::to_array<std::pair<si32, si32>>(
+                    using keyrec_t = std::decay_t<decltype(input::key::kkpmap[0])>;
+                    auto extra_defs = std::to_array<keyrec_t>(
                     {
-                     // base key   CSI-suffix   input::key
-                        { 57446  | ('u' << 16), key::LeftAlt          }, // LEFT_META
-                        { 57452  | ('u' << 16), key::RightAlt         }, // RIGHT_META
-                        { 1      | ('H' << 16), key::KeyHome          },
-                        { 1      | ('F' << 16), key::KeyEnd           },
-                        { 1      | ('P' << 16), key::F1               },
-                        { 1      | ('Q' << 16), key::F2               },
-                        { 1      | ('S' << 16), key::F4               },
+                        //input::key            base key  CSI-suffix
+                        { input::key::LeftAlt , 57446  | ('u' << 16) }, // LEFT_META
+                        { input::key::RightAlt, 57452  | ('u' << 16) }, // RIGHT_META
+                        { input::key::KeyHome , 1      | ('H' << 16) },
+                        { input::key::KeyEnd  , 1      | ('F' << 16) },
+                        { input::key::F1      , 1      | ('P' << 16) },
+                        { input::key::F2      , 1      | ('Q' << 16) },
+                        { input::key::F4      , 1      | ('S' << 16) },
                     });
-                    auto m = input::key::kkpmap;
-                    for (auto [KKPDef, keycode] : extra_defs)
-                    {
-                        m[KKPDef] = keycode;
-                    }
+                    auto m = std::array<keyrec_t, input::key::kkpmap.size() + extra_defs.size()>{};
+                    std::copy(input::key::kkpmap.begin(), input::key::kkpmap.end(), m.begin());
+                    std::copy(extra_defs.begin()        , extra_defs.end()        , m.begin() + input::key::kkpmap.size());
+                    std::ranges::sort(m, {}, &keyrec_t::kkp_trait);
                     return m;
                 }();
 
@@ -6067,10 +6066,20 @@ namespace netxs::os
                         std::swap(k.scancod, scancod);
                     }
                 };
-                auto current_layout = input::key::layout::undef;
+                auto find_kkp_key = [&](si32 trait)
+                {
+                    auto keyid = input::key::undef;
+                    auto iter = std::lower_bound(kkp2key.begin(), kkp2key.end(), trait, [](auto const& r, si32 t){ return r.kkp_trait < t; });
+                    if (iter != kkp2key.end() && iter->kkp_trait == trait)
+                    {
+                        keyid = iter->keyid;
+                    }
+                    return keyid;
+                };
                 auto detect_kkp = [&](qiew sequence)
                 {
-                    // ESC [ unshift_code:shifted_code:base_key ; ctlstat:evtype ; codepoints suffix
+                    // ESC [ unshift_uc:shifted_uc:base_key ; ctlstat:evtype ; codepoints suffix
+                    // Note: xrdp+"Hyper-V Enhanced Session" breaks keyboard input: they erroneously reverse the order of press/release events!
                     if constexpr (debugmode) log("KKP: ", ansi::hi(utf::debase<faux, faux>(sequence)));
                     using namespace input;
                     sequence.remove_prefix(2); // Pop ESC [
@@ -6078,51 +6087,27 @@ namespace netxs::os
                     auto q = ansi::fifo32{ ansi::ccc_nop }; // Reserve for the command type.
                     ansi::read_CSI(sequence, q, noop{});
 
-                    auto suffix       = q(ansi::ccc_nop);
-                    auto unshift_code = q(1); // Unshifted code.
-                    auto shifted_code = q.subarg(unshift_code);
-                    auto base_key     = q.subarg(unshift_code);
-                    auto ctlstat      = q(1);
-                    auto evtype       = q.subarg(1);
-                    auto codepoint    = q(0);
-
-                    // Fix for custom kb layouts (QWERTZ, AZERTY, Dvorak, BEPO).
-                    auto detected = input::key::detect_layout(unshift_code, base_key);
-                    if (detected != input::key::layout::undef)
+                    auto suffix     = q(ansi::ccc_nop);
+                    auto unshift_uc = 0;
+                    auto shifted_uc = 0;
+                    auto base_key   = 0;
+                    auto ctlstat    = 0;
+                    auto evtype     = 0;
+                    auto codepoint  = 0;
+                    if (suffix == 'u')
                     {
-                        current_layout = detected;
+                        unshift_uc = q(1); // Unshifted code.
+                        shifted_uc = q.subarg(unshift_uc);
+                        base_key   = q.subarg(unshift_uc);
+                        ctlstat    = q(1);
+                        evtype     = q.subarg(1);
+                        codepoint  = q(0);
                     }
-                    switch (current_layout)
+                    else
                     {
-                        case input::key::layout::undef:
-                        case input::key::layout::qwerty:
-                            break;
-                        case input::key::layout::qwertz:
-                                 if (unshift_code == 'z' && base_key == 'y') base_key = unshift_code;
-                            else if (unshift_code == 'y' && base_key == 'z') base_key = unshift_code;
-                            else if (unshift_code == '+' && base_key == ']') base_key = unshift_code;
-                            else if (unshift_code == '-' && base_key == '/') base_key = unshift_code;
-                            else if (unshift_code == '^' && base_key == '`') base_key = unshift_code;
-                            else if (unshift_code == '#' && base_key =='\\') base_key = unshift_code; // # <- \   //
-                            else if (unshift_code == 180 && base_key == '=') base_key = unshift_code; // ´ <- =
-                            else if (unshift_code == 228 && base_key =='\'') base_key = unshift_code; // ä <- '
-                            else if (unshift_code == 223 && base_key == '-') base_key = unshift_code; // ß <- -
-                            else if (unshift_code == 252 && base_key == '[') base_key = unshift_code; // ü <- [
-                            else if (unshift_code == 367 && base_key == ';') base_key = unshift_code; // ů <- ;  Czech QWERTZ
-                            else if (unshift_code == 246 && base_key == ';') base_key = unshift_code; // ö <- ;
-                            else if (unshift_code == 337 && base_key == '4') base_key = unshift_code; // ő <- 4  Hungarian
-                            break;
-                        case input::key::layout::azerty:
-                                 if (base_key == 'q') base_key = 'a';
-                            else if (base_key == 'a') base_key = 'q';
-                            else if (base_key == 'z') base_key = 'w';
-                            break;
-                        case input::key::layout::dvorak:
-                            input::key::remap_dvorak(base_key);
-                            break;
-                        case input::key::layout::bepo:
-                            input::key::remap_bepo(base_key);
-                            break;
+                        base_key   = q(1); // Just Fx id.
+                        ctlstat    = q(1);
+                        evtype     = q.subarg(1);
                     }
 
                     k.cluster = {};
@@ -6148,26 +6133,28 @@ namespace netxs::os
                         if (ctlstat & input::kkp::caps_lock) k.ctlstat |= mods::CapsLock;
                         if (ctlstat & input::kkp::num_lock ) k.ctlstat |= mods::NumLock;
                     }
-                    auto traits = (suffix << 16) | base_key;
-                    auto iter = kkp2key.find(traits);
-                    if (iter != kkp2key.end())
+
+                    k.keycode = input::key::find_abstract_uc(shifted_uc, unshift_uc); // Try to lookup using uc.
+                    if (k.keycode == input::key::undef) // Try to lookup using traits.
                     {
-                        auto code = iter->second;
-                        auto& rec = key::map::data(code);
-                        k.keycode = code;
+                        auto traits = (suffix << 16) | base_key;
+                        k.keycode = find_kkp_key(traits);
+                    }
+                    if (k.keycode != input::key::undef) // Map if something detected.
+                    {
+                        auto& rec = key::map::data(k.keycode);
                         k.virtcod = rec.vkey;
                         k.scancod = rec.scan;
                     }
                     else
                     {
-                        k.keycode = input::key::undef;
-                        k.virtcod = base_key;
+                        k.virtcod = suffix == 'u' ? base_key : 0;
                         k.scancod = {};
                     }
                     if (suffix == 'u')
                     {
-                        k.shifted = utf::to_utf_from_code(shifted_code);
-                        k.unshift = utf::to_utf_from_code(unshift_code);
+                        k.shifted = utf::to_utf_from_code(shifted_uc);
+                        k.unshift = utf::to_utf_from_code(unshift_uc);
                     }
                     else
                     {
@@ -6187,17 +6174,18 @@ namespace netxs::os
                             {
                                 k.cluster = text(1, (char)rec.KKPCtl);
                             }
-                            else if (k.ctlstat & mods::anyCtrl && unshift_code > 0 && unshift_code < 128)
+                            else if (k.ctlstat & mods::anyCtrl && unshift_uc > 0 && unshift_uc < 128)
                             {
-                                k.cluster = text(1, (char)(unshift_code & 31));
+                                k.cluster = text(1, (char)(unshift_uc & 31));
                             }
-                            else if (unshift_code > 0 && unshift_code < 57358) // Exclude any function keys.
+                            else if (unshift_uc > 0 && unshift_uc < 57358) // Exclude any function keys.
                             {
-                                utf::to_utf_from_code(k.ctlstat & mods::CapsLock ? unshift_code : shifted_code, k.cluster);
+                                auto shifted = !(k.ctlstat & mods::CapsLock) != !(k.ctlstat & mods::anyShift);
+                                utf::to_utf_from_code(shifted ? shifted_uc : unshift_uc, k.cluster);
                             }
                         }
                     }
-                    if constexpr (debugmode) log(" suffix='%%' unshift_code=%% shifted_code=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unshift_code, shifted_code, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
+                    if constexpr (debugmode) log(" suffix='%%' unshift_uc=%% shifted_uc=%% base_key=%% ctlstat=%% evtype=%% cluster=%%", (char)suffix, unshift_uc, shifted_uc, base_key, ctlstat, evtype, ansi::hi(utf::debase<faux, faux>(k.cluster)));
                     k.handled = {};
                     chords.build(k);
                     keybd(k);

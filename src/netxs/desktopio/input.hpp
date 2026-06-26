@@ -157,60 +157,6 @@ namespace netxs::input
         static constexpr auto cluster_sign   = 0x20;
         static constexpr auto mouse_sign     = 0x10;
 
-        //todo drop
-        struct layout
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto undef    = __COUNTER__ - _counter;
-            static constexpr auto qwerty   = __COUNTER__ - _counter;
-            static constexpr auto qwertz   = __COUNTER__ - _counter;
-            static constexpr auto azerty   = __COUNTER__ - _counter;
-            static constexpr auto dvorak   = __COUNTER__ - _counter;
-            static constexpr auto colemak  = __COUNTER__ - _counter;
-            static constexpr auto bepo     = __COUNTER__ - _counter;
-        };
-        //todo drop
-        struct klid // Latin-based Keyboard Layouts (20 klids).
-        {
-            static constexpr auto k00000409 = 0x00000409; // English (US)        | United States Standard            | `qwerty`
-            static constexpr auto k00000407 = 0x00000407; // German (Germany)    | Germany Standard                  | `qwertz`
-            static constexpr auto k00010407 = 0x00010407; // German (Germany)    | Germany (IBM)                     | `qwertz`
-            static constexpr auto k00000C07 = 0x00000C07; // German (Austria)    | Austrian Standard                 | `qwertz`
-            static constexpr auto k0000040C = 0x0000040C; // French (France)     | France Standard                   | `azerty`
-            static constexpr auto k0000080C = 0x0000080C; // French (Belgium)    | Belgian Standard                  | `azerty`
-            static constexpr auto k0005040C = 0x0005040C; // French (France)     | French BÉPO Layout                | `bepo`
-            static constexpr auto k00010409 = 0x00010409; // English (US)        | United States-Dvorak              | `dvorak`
-            static constexpr auto k00020409 = 0x00020409; // English (US)        | United States-Dvorak (Left hand)  | `dvorak`
-            static constexpr auto k00030409 = 0x00030409; // English (US)        | United States-Dvorak (Right hand) | `dvorak`
-            static constexpr auto k00060409 = 0x00060409; // English (US)        | Colemak NATIVE (Win 11 24H2+)     | `colemak`
-            static constexpr auto k00000405 = 0x00000405; // Czech (Czechia)     | Czech QWERTZ                      | `qwertz`
-            static constexpr auto k00010405 = 0x00010405; // Czech (Czechia)     | Czech QWERTY                      | `qwerty`
-            static constexpr auto k0000041B = 0x0000041B; // Slovak (Slovakia)   | Slovak QWERTZ                     | `qwertz`
-            static constexpr auto k0001041B = 0x0001041B; // Slovak (Slovakia)   | Slovak QWERTY                     | `qwerty`
-            static constexpr auto k0000040E = 0x0000040E; // Hungarian (Hungary) | Hungarian Standard                | `qwertz`
-            static constexpr auto k0000041A = 0x0000041A; // Croatian            | Croatian Standard (South Slavic)  | `qwertz`
-            static constexpr auto k00000424 = 0x00000424; // Slovenian           | Slovenian Standard (South Slavic) | `qwertz`
-            static constexpr auto k00000415 = 0x00000415; // Polish (Poland)     | Polish (Programmers)              | `qwerty`
-            static constexpr auto k00000418 = 0x00000418; // Romanian            | Romanian Standard                 | `qwertz`
-        };
-        //todo drop
-        auto get_layout_type(si32 klid)
-        {
-            if (klid == 0x00000409 || klid == 0) return layout::qwerty;
-            if (klid == 0x00010409) return layout::dvorak; // US Dvorak Standard
-            if (klid == 0x00020409) return layout::dvorak; // US Dvorak Left-Hand
-            if (klid == 0x00030409) return layout::dvorak; // US Dvorak Right-Hand
-            if (klid == 0x00000419) return layout::undef;
-            if (klid == 0x00000405 || klid == 0x00010405) return layout::qwertz; // Czech
-            if (klid == 0x00000407 || klid == 0x00010407) return layout::qwertz; // German (Austria)
-            if (klid == 0x0000040c || klid == 0x0000080c) return layout::azerty; // French (Belgium)
-            if (klid == 0x0005040c)                       return layout::bepo;   // French BEPO
-            if (klid == 0x0000040e)                       return layout::qwertz; // Hungarian
-            if (klid == 0x0000041a)                       return layout::qwertz; // Croatian
-            if (klid == 0x0000041b)                       return layout::qwertz; // Slovak
-            return layout::qwerty;
-        }
-
         // Notes:
         //  IsoLevel5Shift: 5th-level of kb layout (mathematical signs, Greek letters). Physical keyboards don't have this key; in Linux, it's usually remapped to Caps Lock or the right Ctrl key.
         //  Hyper:          Users specifically create Hyper (for example, by remapping Caps Lock) to bind hotkeys, which are guaranteed to not interact with anything.
@@ -729,30 +675,45 @@ namespace netxs::input
             };
         };
 
-        static const auto keymap = std::unordered_map<map, si32, map::hashproc>
-        {
-            #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
-                { map{ 0,0,0,0 }, KeyId },
-                key_list
-            #undef X
-        };
-
         static const auto _init0 = []
         {
-            //todo move it to std::array
+            //todo reimplement, move it to std::array
             #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
                 map::set(KeyId, Input, #Name, Generic, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode);
                 key_list
             #undef X
             return true;
         }();
-        static const auto kkpmap = std::unordered_map<si32, si32>
+        static constexpr auto kkpmap = []
         {
+            struct keyrec_t
+            {
+                si16 keyid;
+                si32 kkp_trait;
+            };
+            constexpr auto total_kkp_key_count = []
+            {
+                auto total_kkp_key_count = 0;
+                #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
+                    if constexpr (KKPdef) total_kkp_key_count++;
+                    key_list
+                #undef X
+                return total_kkp_key_count;
+            }();
+            auto m = std::array<keyrec_t, total_kkp_key_count>{};
+            auto i = 0;
+            auto fill = [&](si16 KeyId, si32 KKPdef, si32 KKPsuffix)
+            {
+                if (KKPdef) m[i++] = { .keyid = KeyId, .kkp_trait = KKPdef | (KKPsuffix << 16) };
+            };
             #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
-                { KKPdef | (KKPsuffix << 16), KeyId },
+                fill(KeyId, KKPdef, KKPsuffix);
                 key_list
             #undef X
-        };
+            std::ranges::sort(m, {}, &keyrec_t::kkp_trait);
+            return m;
+        }();
+        //todo move it to std::array<view>, make utf::to_lower constexpr
         static const auto specific_names = utf::unordered_map<text, si32>
         {
             #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
@@ -760,6 +721,7 @@ namespace netxs::input
                 key_list
             #undef X
         };
+        //todo move it to std::array<view>, make utf::to_lower constexpr
         static const auto generic_names = utf::unordered_map<text, si32>
         {
             #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
@@ -2718,197 +2680,32 @@ namespace netxs::input
                 return crop;
             }
         };
-        //todo use lut
-        auto detect_layout(si32 unshift, si32 base)
+        auto find_abstract_uc(utfx shifted_uc, utfx unshift_uc)
         {
-            // QWERTY:
-            if (unshift == base)
+            auto keyid = input::key::undef;
+            if (unshift_uc >= '0' && unshift_uc <= '9') // Check digits row.
             {
-                if ((unshift >= 'a' && unshift <= 'z') || unshift == ',' || unshift == '.' || unshift == '-'
-                 || (unshift >= '1' && unshift <= '9'))
+                keyid = input::key::Key0 + (unshift_uc - '0') * 2;
+            }
+            else if (shifted_uc >= '0' && shifted_uc <= '9') // Check digits row.
+            {
+                keyid = input::key::Key0 + (shifted_uc - '0') * 2;
+            }
+            else if (unshift_uc >= 'a' && unshift_uc <= 'z') // Fast check latin letters.
+            {
+                keyid = input::key::KeyA + (unshift_uc - 'a') * 2;
+            }
+            else
+            {
+                using keyrec = std::decay_t<decltype(input::key::uc_map[0])>;
+                auto [head, tail] = std::ranges::equal_range(input::key::uc_map, unshift_uc, {}, &keyrec::uc);
+                if (head != tail)
                 {
-                    if (unshift != 'a' && unshift != 'm' && unshift != 'u'
-                     && unshift != 'i' && unshift != 'o' && unshift != 'p'
-                     && unshift != 'h' && unshift != 'j' && unshift != 'k' && unshift != 'l') 
-                    {
-                        return layout::qwerty;
-                    }
+                    keyid = head->keyid;
                 }
             }
-            // QWERTZ:
-            if (unshift == 'z' && base == 'y') return layout::qwertz;
-            if (unshift == 'y' && base == 'z') return layout::qwertz;
-            if (unshift == '+' && base == ']') return layout::qwertz;
-            if (unshift == '-' && base == '/') return layout::qwertz;
-            if (unshift == '^' && base == '`') return layout::qwertz;
-            if (unshift == '#' && base =='\\') return layout::qwertz; // # <- \   //
-            if (unshift == 180 && base == '=') return layout::qwertz; // ´ <- =  Deadkey
-            if (unshift == 228 && base =='\'') return layout::qwertz; // ä <- '
-            if (unshift == 223 && base == '-') return layout::qwertz; // ß <- -
-            if (unshift == 252 && base == '[') return layout::qwertz; // ü <- [
-            if (unshift == 367 && base == ';') return layout::qwertz; // ů <- ;  Czech QWERTZ
-            if (unshift == 246 && base == ';') return layout::qwertz; // ö <- ;
-            if (unshift == 337 && base == '4') return layout::qwertz; // ő <- 4  Hungarian
-            // AZERTY:
-            if (unshift == 'a' && base == 'q') return layout::azerty;
-            if (unshift == 'q' && base == 'a') return layout::azerty;
-            if (unshift == 'w' && base == 'z') return layout::azerty;
-            if (unshift == 'z' && base == 'w') return layout::azerty;
-            if (unshift == 'm' && base == ';') return layout::azerty;
-            if (unshift == '&' && base == '1') return layout::azerty;
-            if (unshift == 233 && base == '2') return layout::azerty; // é
-            if (unshift == '"' && base == '3') return layout::azerty;
-            if (unshift =='\'' && base == '4') return layout::azerty;
-            if (unshift == '(' && base == '5') return layout::azerty;
-            if (unshift == ')' && base == '-') return layout::azerty;
-            if (unshift == '-' && base == '6') return layout::azerty;
-            if (unshift == 232 && base == '7') return layout::azerty; // è
-            if (unshift == '_' && base == '8') return layout::azerty;
-            if (unshift == 231 && base == '9') return layout::azerty; // ç
-            if (unshift == 224 && base == '0') return layout::azerty; // à
-            // DVORAK:
-            if (unshift == ',' && base == 'w') return layout::dvorak;
-            if (unshift == '.' && base == 'e') return layout::dvorak;
-            if (unshift == 'p' && base == 'r') return layout::dvorak;
-            if (unshift == 'o' && base == 's') return layout::dvorak;
-            if (unshift == 'e' && base == 'd') return layout::dvorak;
-            if (unshift == 'u' && base == 'f') return layout::dvorak;
-            if (unshift == 'i' && base == 'g') return layout::dvorak;
-            if (unshift == 'd' && base == 'h') return layout::dvorak;
-            if (unshift =='\'' && base == 'q') return layout::dvorak;
-            // BEPO:
-            if (unshift == '"' && base == '1') return layout::bepo;
-            if (unshift == 171 && base == '2') return layout::bepo; // «
-            if (unshift == 187 && base == '3') return layout::bepo; // »
-            if (unshift == '(' && base == '4') return layout::bepo;
-            if (unshift == ')' && base == '5') return layout::bepo;
-            if (unshift == '@' && base == '6') return layout::bepo;
-            if (unshift == '+' && base == '7') return layout::bepo;
-            if (unshift == '-' && base == '8') return layout::bepo;
-            if (unshift == '/' && base == '9') return layout::bepo;
-            if (unshift == '*' && base == '0') return layout::bepo;
-            if (unshift == '=' && base == '-') return layout::bepo;
-            if (unshift == '%' && base == '=') return layout::bepo;
-            if (unshift == 'w' && base == ']') return layout::bepo; // ']' -> 'w'
-            if (unshift == 'b' && base == 'q') return layout::bepo; // 'Q' -> 'b'
-            if (unshift == 233 && base == 'w') return layout::bepo; // 'W' -> 'é'
-            if (unshift == 'p' && base == 'e') return layout::bepo; // 'E' -> 'p'
-            if (unshift == 'o' && base == 'r') return layout::bepo; // 'R' -> 'o'
-            if (unshift == 232 && base == 't') return layout::bepo; // 'T' -> 'è'
-            if (unshift == 'v' && base == 'u') return layout::bepo; // 'U' -> 'v'
-            if (unshift == 'u' && base == 'i') return layout::bepo; // 'I' -> 'u'
-            if (unshift == 'i' && base == 'd') return layout::bepo; // 'D' -> 'i'
-            if (unshift == 234 && base == 'z') return layout::bepo; // 'Z' -> 'ê'
-            if (unshift == 224 && base == 'x') return layout::bepo; // 'X' -> 'à'
-            if (unshift == 'y' && base == 'c') return layout::bepo; // 'C' -> 'y'
-            if (unshift == 'x' && base == 'v') return layout::bepo; // 'V' -> 'x'
-            if (unshift == 'k' && base == 'b') return layout::bepo; // 'B' -> 'k'
-            return layout::undef;
+            return keyid;
         }
-        void remap_bepo(si32& base)
-        {
-            switch (base)
-            {
-                // Digit row (punctuation.)
-                case '1':  base = '"';  break;
-                case '2':  base = 171;  break; // «
-                case '3':  base = 187;  break; // »
-                case '4':  base = '(';  break;
-                case '5':  base = ')';  break;
-                case '6':  base = '@';  break;
-                case '7':  base = '+';  break;
-                case '8':  base = '-';  break;
-                case '9':  base = '/';  break;
-                case '0':  base = '*';  break;
-                case '-':  base = '=';  break;
-                case '=':  base = '%';  break;
-                // Top row
-                case 'q':  base = 'b';  break;
-                case 'w':  base = 233;  break; // é
-                case 'e':  base = 'p';  break;
-                case 'r':  base = 'o';  break;
-                case 't':  base = 232;  break; // è
-                case 'y':  base = '!';  break;
-                case 'u':  base = 'v';  break;
-                case 'i':  base = 'd';  break;
-                case 'o':  base = 'l';  break;
-                case 'p':  base = 'j';  break;
-                case '[':  base = 'z';  break;
-                case ']':  base = 'w';  break;
-                // Home Row
-                //case 'a':  base = 'a'; break; // same
-                case 's':  base = 'u';  break;
-                case 'd':  base = 'i';  break;
-                case 'f':  base = 'e';  break;
-                case 'g':  base = ',';  break;
-                case 'h':  base = 't';  break;
-                case 'j':  base = 's';  break;
-                case 'k':  base = 'r';  break;
-                case 'l':  base = 'n';  break;
-                case ';':  base = 'm';  break;
-                case '\'': base = 231;  break; // ç (ANSI)
-                case '\\': base = 231;  break; // ç (ISO)
-                // Bottom row
-                case 'z':  base = 234;  break; // ê
-                case 'x':  base = 224;  break; // à
-                case 'c':  base = 'y';  break;
-                case 'v':  base = 'x';  break;
-                case 'b':  base = 'k';  break;
-                case 'n':  base = '\''; break;
-                case 'm':  base = 'q';  break;
-                case ',':  base = 'g';  break;
-                case '.':  base = 'h';  break;
-                case '/':  base = 'f';  break;
-                default: break;
-            }
-        }
-        void remap_dvorak(si32& base)
-        {
-            switch (base)
-            {
-                // Digits
-                case '-':  base = '[';  break;
-                case '=':  base = ']';  break;
-                // Top
-                case 'q':  base = '\''; break;
-                case 'w':  base = ',';  break;
-                case 'e':  base = '.';  break;
-                case 'r':  base = 'p';  break;
-                case 't':  base = 'y';  break;
-                case 'y':  base = 'f';  break;
-                case 'u':  base = 'g';  break;
-                case 'i':  base = 'c';  break;
-                case 'o':  base = 'r';  break;
-                case 'p':  base = 'l';  break;
-                case '[':  base = '/';  break;
-                case ']':  base = '=';  break;
-                // Home Row
-                //case 'a':  base = 'a';  break; // same
-                case 's':  base = 'o';  break;
-                case 'd':  base = 'e';  break;
-                case 'f':  base = 'u';  break;
-                case 'g':  base = 'i';  break;
-                case 'h':  base = 'd';  break;
-                case 'j':  base = 'h';  break;
-                case 'k':  base = 't';  break;
-                case 'l':  base = 'n';  break;
-                case ';':  base = 's';  break;
-                case '\'': base = '-';  break;
-                // Bottom row
-                case 'z':  base = ';';  break;
-                case 'x':  base = 'q';  break;
-                case 'c':  base = 'j';  break;
-                case 'v':  base = 'k';  break;
-                case 'b':  base = 'x';  break;
-                case 'n':  base = 'b';  break;
-                //case 'm':  base = 'm';  break; // same
-                case ',':  base = 'w';  break;
-                case '.':  base = 'v';  break;
-                case '/':  base = 'z';  break;
-                default: break;
-            }
-        }
-
         void fix_altgr_and_right_shift(si32& vk, si32 sc, bool& extflag, bool fake_ralt) // Set extflag for right shift.
         {
             if (fake_ralt && sc == input::key::map::data(input::key::RightAlt).scan)
@@ -2921,7 +2718,7 @@ namespace netxs::input
                 extflag = true;
             }
         }
-        auto _find_abstract_key(si32 vk, si32 sc, bool extflag, si32& layout_hint)
+        auto find_abstract_vkey(si32 vk, si32 sc, bool extflag, si32& layout_hint)
         {
             auto keyid = input::key::undef;
             auto new_layout_hint = layout_hint;
@@ -2962,7 +2759,7 @@ namespace netxs::input
             }
             else if (vk && sc)
             {
-                keyid = input::key::_find_abstract_key(vk, sc, extflag, layout_hint);
+                keyid = input::key::find_abstract_vkey(vk, sc, extflag, layout_hint);
             }
             return keyid;
         }
@@ -2983,31 +2780,11 @@ namespace netxs::input
                 {
                     auto shifted_uc = utf::to_code(latin_shifted);
                     auto unshift_uc = utf::to_code(latin_unshift);
-                    if (unshift_uc >= '0' && unshift_uc <= '9') // Check digits row.
-                    {
-                        keyid = input::key::Key0 + (unshift_uc - '0') * 2;
-                    }
-                    else if (shifted_uc >= '0' && shifted_uc <= '9') // Check digits row.
-                    {
-                        keyid = input::key::Key0 + (shifted_uc - '0') * 2;
-                    }
-                    else if (unshift_uc >= 'a' && unshift_uc <= 'z') // Fast check latin letters.
-                    {
-                        keyid = input::key::KeyA + (unshift_uc - 'a') * 2;
-                    }
-                    else
-                    {
-                        using keyrec = std::decay_t<decltype(input::key::uc_map[0])>;
-                        auto [head, tail] = std::ranges::equal_range(input::key::uc_map, unshift_uc, {}, &keyrec::uc);
-                        if (head != tail)
-                        {
-                            keyid = head->keyid;
-                        }
-                    }
+                    keyid = input::key::find_abstract_uc(shifted_uc, unshift_uc);
                 }
                 if (vk && sc && keyid == input::key::undef)
                 {
-                    keyid = input::key::_find_abstract_key(vk, sc, extflag, layout_hint);
+                    keyid = input::key::find_abstract_vkey(vk, sc, extflag, layout_hint);
                 }
             }
             return keyid;
