@@ -5558,9 +5558,8 @@ namespace netxs::gui
             auto hkl = layout_id ? (HKL)layout_id : ::GetKeyboardLayout(0);
             if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
             {
+                if (extflag) scancod |= ENHANCED_KEY;
                 auto buf = wide(8, 0);
-                auto flags = extflag ? 1u : 0u;
-                flags |= 2; // ToUnicodeEx will translate scancodes marked as key break events in addition to its usual treatment of key make events.
                 auto key_matrix = std::array<byte, 256>{};
                 if (apply_modifiers)
                 {
@@ -5574,21 +5573,19 @@ namespace netxs::gui
                     key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
                     key_matrix[vkey::capslock] = vkstat[vkey::capslock];
                 }
-                auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
-                if (rc > 0)
+                auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, 0, hkl);
+                if (rc != 0)
                 {
-                    utf::to_utf(buf.data(), rc, unshift);
+                    utf::to_utf(buf.data(), rc > 0 ? rc : 1, unshift);
+                    if (rc < 0) keybd_reset_deadkey((arch)hkl);
                     key_matrix[vkey::shift ] = 0x80;
                     key_matrix[vkey::lshift] = 0x80;
-                    rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, flags, hkl);
-                    if (rc > 0)
+                    rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, 0, hkl);
+                    if (rc != 0)
                     {
-                        utf::to_utf(buf.data(), rc, shifted);
+                        utf::to_utf(buf.data(), rc > 0 ? rc : 1, shifted);
+                        if (rc < 0) keybd_reset_deadkey((arch)hkl);
                     }
-                }
-                if (rc < 0)
-                {
-                    keybd_reset_deadkey((arch)hkl);
                 }
             }
         }
@@ -5805,6 +5802,7 @@ namespace netxs::gui
                 auto sc = i | ex_bit;
                 if (auto vk = ::MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK, hkl))
                 {
+                    sc = ex_bit ? (i | ENHANCED_KEY) : i;
                     auto l = ::ToUnicodeEx(vk, sc, key_states.data(), &c, 1, 0, hkl);
                     if (l == 1 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'))
                     {

@@ -2953,9 +2953,9 @@ namespace netxs::input
                 keyid = keycode;
                 if constexpr (debugmode) log("Fast detection of function keys: ", keyid);
             }
-            else
+            else if (vk && sc)
             {
-                keyid = _find_abstract_key(vk, sc, extflag, layout_hint);
+                keyid = input::key::_find_abstract_key(vk, sc, extflag, layout_hint);
             }
             return keyid;
         }
@@ -2998,7 +2998,7 @@ namespace netxs::input
                         }
                     }
                 }
-                if (keyid == input::key::undef)
+                if (vk && sc && keyid == input::key::undef)
                 {
                     keyid = input::key::_find_abstract_key(vk, sc, extflag, layout_hint);
                 }
