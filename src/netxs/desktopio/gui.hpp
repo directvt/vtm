@@ -5575,8 +5575,10 @@ namespace netxs::gui
         {
             shifted.clear();
             unshift.clear();
-            auto is_printable = scancod && ((virtcod >= 0x30 && virtcod <= 0x5A)
+            auto is_printable = scancod && ((virtcod <= 0x20)
+                                         || (virtcod >= 0x30 && virtcod <= 0x5A)
                                          || (virtcod >= 0x60 && virtcod <= 0x6F)
+                                         || (virtcod == 0x92) // Numpad equal.
                                          || (virtcod >= 0xB8 && virtcod <= 0xE6));
             auto hkl = layout_id ? (HKL)layout_id : ::GetKeyboardLayout(0);
             if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
