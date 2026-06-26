@@ -4576,6 +4576,8 @@ namespace netxs::gui
                 state |= old_ls | old_rs;
                 if (new_ls != !!old_ls || new_rs != !!old_rs) // MS Windows Shift+Shift bug workaround.
                 {
+                    auto& rshift = input::key::map::data(input::key::RightShift);
+                    auto& lshift = input::key::map::data(input::key::LeftShift);
                     keymod = state;
                     //todo unify
                     if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
@@ -4584,12 +4586,12 @@ namespace netxs::gui
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
                             keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                         }
                         //if (old_ls && !new_ls) // LeftShift released.
                         {
                             keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                         }
                     }
                     else
@@ -4597,24 +4599,24 @@ namespace netxs::gui
                         if (old_ls && !new_ls) // LeftShift released.
                         {
                             keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                         }
                         if (old_rs && !new_rs) // RightShift released.
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
                             keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                         }
                     }
                     if (!old_ls && new_ls) // LeftShift pressed.
                     {
                         keymod |= mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
                     }
                     if (!old_rs && new_rs) // RightShift pressed.
                     {
                         keymod |= mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
                     }
                     if (new_ls && new_rs) // Two Shifts pressed.
                     {
@@ -4645,6 +4647,27 @@ namespace netxs::gui
                         if constexpr (debugmode) log("Fake left ctrl key '%%' event filtered", keystat == input::key::pressed ? "pressed" : keystat == input::key::released ? "released" : "repeated");
                         wait_ralt = keystat != input::key::released; // Zeroize flag on release.
                         return;
+                    }
+                }
+                if (virtcod == vkey::ctrl && keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
+                {
+                    auto& break_key = input::key::map::data(input::key::Break);
+                    keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                    if constexpr (debugmode) log("Fake Pause 'release' key event generated");
+                }
+                if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
+                {
+                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
+                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
+                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
+                    }
+                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
                     }
                 }
             }
@@ -5856,7 +5879,7 @@ namespace netxs::gui
             }
             else
             {
-                if constexpr (debugmode) log("Layout %% is not latin-based. Looking for klid fallback.", utf::adjust(utf::to_hex(layout_id), 8, "0", true));
+                if constexpr (debugmode) log("The %% layout is not latin-based. Looking for a fallback layout.", utf::adjust(utf::to_hex(layout_id), 8, "0", true));
                 hkl_latin = keybd_find_layout(); // Find hkl fallback.
             }
             if (std::exchange(xlayout, layout_id) != layout_id)
