@@ -262,12 +262,12 @@
     <tr><th>Alt+Shift+E</th>     <td>Equalize split ratio.</td></tr>
     <tr><th>Alt+Shift+F2</th>    <td>Set tiling window manager title using clipboard data.</td></tr>
     <tr><th>Alt+Shift+W</th>     <td>Close active application.</td></tr>
-    <tr><th>LeftArrow</th>       <td>Move the split grip to the left.</td></tr>
-    <tr><th>RightArrow</th>      <td>Move the split grip to the right.</td></tr>
-    <tr><th>UpArrow</th>         <td>Move the split grip up.</td></tr>
-    <tr><th>DownArrow</th>       <td>Move the split grip down.</td></tr>
-    <tr><th>'-'</th>             <td>Decrease the split grip width.</td></tr>
-    <tr><th>'+'<br>'='</th>      <td>Increase the split grip width.</td></tr>
+    <tr><th>LeftArrow</th>       <td>Split grip: Move the split grip to the left.</td></tr>
+    <tr><th>RightArrow</th>      <td>Split grip: Move the split grip to the right.</td></tr>
+    <tr><th>UpArrow</th>         <td>Split grip: Move the split grip up.</td></tr>
+    <tr><th>DownArrow</th>       <td>Split grip: Move the split grip down.</td></tr>
+    <tr><th>'-'</th>             <td>Split grip: Decrease the split grip width.</td></tr>
+    <tr><th>'+'<br>'='</th>      <td>Split grip: Increase the split grip width.</td></tr>
     <tr><th>Shift+Tab</th>       <td>Focus the previous split grip.</td></tr>
     <tr><th>Tab</th>             <td>Focus the next split grip.</td></tr>
   </tbody>
