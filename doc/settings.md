@@ -459,9 +459,10 @@ Type        | Example                |Description
 `Specific`  | `LeftShift+RightShift` | A key combination with explicitly specified physical keys.
 `Scancodes` | `0x3B+0x3C`            | A key combination represented solely by scan codes of physical keys in hexadecimal format.
 
-Generic, literal and specific key sequences can be mixed in any order within a key chord list.
-
-The required key combination sequence can be generated on the Info page, by clicking the label in the lower right corner of the vtm desktop.
+Notes:
+- Generic, literal and specific key sequences can be mixed in any order within a key chord list.
+- The required key combination sequence can be generated on the Info page, by clicking the label in the lower right corner of the vtm desktop.
+- "Literal" key combinations automatically filter out keyboard shift modifiers such as Shift/AltGr/IsoLevel5Shift.
 
 #### Mouse events
 
@@ -1088,7 +1089,6 @@ Notes
         </gate>
         <desktop script*>  <!-- Desktop-level bindings. -->
             <script=FocusTaskbar    on="Esc+F1"       />
-            <script=FocusTaskbar    on="Alt+Z"        />
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />
@@ -1161,7 +1161,6 @@ Notes
         </tile>
         <terminal script*>  <!-- Terminal-specific bindings. -->
             <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
-            <script=ExclusiveKeyboardMode on="preview: Alt+Shift+B"/>
             <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. The Esc key is used as a modifier. Press/release events are sent only if the key is released without being combined with any other keys. -->
             <script                         on="-Esc">  -- Clear selection (if any) and send Esc press/release events.
                 vtm.terminal.ClearSelection()

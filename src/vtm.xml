@@ -263,18 +263,10 @@ R"==(
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
         </gate>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
         <desktop script*>  <!-- Desktop-level bindings. -->
-)=="
-#if defined(_WIN32)
-R"==(
             <script=FocusTaskbar    on="Esc+F1"       />
-)=="
-#else
-R"==(
-            <script=FocusTaskbar    on="Alt+Z"        />
-)=="
-#endif
-R"==(
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />
@@ -345,18 +337,10 @@ R"==(
                 <script=TileFocusNextGrip     on="Tab"                               />
             </grip>
         </tile>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
         <terminal script*>  <!-- Terminal-specific bindings. -->
-)=="
-#if defined(_WIN32)
-R"==(
             <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
-)=="
-#else
-R"==(
-            <script=ExclusiveKeyboardMode on="preview: Alt+Shift+B"/>
-)=="
-#endif
-R"==(
             <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. The Esc key is used as a modifier. Press/release events are sent only if the key is released without being combined with any other keys. -->
             <script                         on="-Esc">  -- Clear selection (if any) and send Esc press/release events.
                 vtm.terminal.ClearSelection()

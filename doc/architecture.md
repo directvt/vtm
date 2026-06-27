@@ -298,6 +298,7 @@ In Classic VT mode, a vtm process parses input from multiple standard sources an
     - SGR mouse reporting sequences `\x1b[<s;x;yM/m` are redirected to the mouse event channel.
     - Terminal window focus reporting sequences `\x1b[I`/`\x1b[O` are redirected to the focus event channel.
     - Line style reporting sequences `\x1b[33:STYLEp` are redirected to the style event channel (current/selected line wrapping on/off, left/right/center alignment).
+    - KKP keyboard reporting sequences are mapped to the Abstract Latin Layout (ALL) and forwarded to the keyboard event channel.
     - All incoming text flow that does not fall into the above categories is clusterized, forming a key-pressed stream forwarded to the keyboard event channel.
 - Operating system signals
     - SIGWINCH events are forwarded to the window size event channel.
