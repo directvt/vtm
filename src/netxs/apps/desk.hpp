@@ -107,7 +107,7 @@ namespace netxs::app::desk
                     {
                         auto check_gear_id = gear.id;
                         window.base::signal(tier::request, e2::form::prop::window::accesslock, check_gear_id);
-                        if (gear.meta(hids::anyAlt) && check_gear_id) // Pull window.
+                        if (gear.meta(mods::anyAlt) && check_gear_id) // Pull window.
                         {
                             window.base::riseup(tier::preview, e2::form::layout::expose);
                             auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
@@ -126,7 +126,7 @@ namespace netxs::app::desk
                     });
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                        if (gear.meta(mods::anyCtrl)) // Toggle group focus.
                         {
                             if (pro::focus::test(window, gear))
                             {
@@ -143,7 +143,7 @@ namespace netxs::app::desk
                             }
                             gear.dismiss(true); // Suppress double click.
                         }
-                        else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
+                        else if (gear.meta(mods::anyAlt)) // Skip it and wait for Alt+Dblclick.
                         {
                             gear.dismiss();
                         }
@@ -344,9 +344,9 @@ namespace netxs::app::desk
                         });
                         boss.on(tier::mouserelease, input::key::LeftClick, [&, inst_id, group_focus = faux](hids& gear) mutable
                         {
-                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
+                            if (gear.meta(mods::anyCtrl | mods::anyAlt | mods::anyShift | mods::anySuper | mods::anyHyper)) // Not supported with any modifier but Ctrl.
                             {
-                                if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                                if (gear.meta(mods::anyCtrl)) // Toggle group focus.
                                 {
                                     group_focus = !group_focus;
                                     if (group_focus) boss.base::riseup(tier::release, desk::events::ui::focus::set, gear);

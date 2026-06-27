@@ -1338,7 +1338,7 @@ namespace netxs::generics
             }
             if (next_index == std::numeric_limits<T>::max() - 1) [[unlikely]]
             {
-                return T{}; 
+                return T{};
             }
             return ++next_index;
         }

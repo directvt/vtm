@@ -264,7 +264,7 @@ namespace netxs::directvt
 
             // stream: .
             template<class T>
-            void fuse(T&& data) { fuse_ext(block, std::forward<T>(data)); }
+            void fuse(T&& data) { binary::fuse_ext(block, std::forward<T>(data)); }
             // stream: Replace bytes at specified position.
             template<class T>
             inline auto& add_at(sz_t at, T&& data)
@@ -1037,6 +1037,7 @@ namespace netxs::directvt
                                          (si32, scancod)  // syskeybd: Scancode.
                                          (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                          (si32, keycode)  // syskeybd: Key id.
+                                         (ui32, xlayout)  // syskeybd: Keyboard layout ID (KLID).
                                          (byte, payload)  // syskeybd: Payload type.
                                          (bool, extflag)  // syskeybd: Win32 extflag.
                                          (bool, handled)  // syskeybd: Key event is handled.
@@ -1044,7 +1045,9 @@ namespace netxs::directvt
                                          (text, cluster)  // syskeybd: Generated string.
                                          (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                          (text, scchord)  // sysmouse: Key scancode-based chord.
-                                         (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
+                                         (text, chchord)  // sysmouse: Key virtcode+cluster-based chord.
+                                         (text, shifted)  // syskeybd: Shifted key code (KKP).
+                                         (text, unshift)) // syskeybd: Unshifted key code (KKP).
         STRUCT_macro(sysmouse,           (id_t, gear_id)  // sysmouse: Device id.
                                          (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                          (time, timecod)  // sysmouse: Event time code.

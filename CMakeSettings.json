@@ -5,7 +5,8 @@
       // /bigobj           Our event model spawns a large number of objects. By default, an object file can hold up to 65,279 (almost 2^16) addressable sections. This limit applies no matter which target platform is specified. /bigobj increases that address capacity to 4,294,967,296 (2^32).
       // /utf-8            All literals in our source code are in UTF-8 format.
       // /Zc:preprocessor  Enable a new, modern preprocessor that is fully conformant to C99, C++11, and later standards.
-      "WIN32_CXX_FLAGS": "/EHsc /bigobj /utf-8 /Zc:preprocessor",
+      // /constexpr:steps  Increase the constexpr evaluation limit.
+      "WIN32_CXX_FLAGS": "/EHsc /bigobj /utf-8 /Zc:preprocessor /constexpr:steps 10000000",
       // /MTd              Static debug build (don't rely on the shared dlls).
       // /DDEBUG           Define the preprocessor symbol DEBUG.
       // /Zi               Generate complete debugging information (.PDB files) to allow for source-level debugging in Visual Studio.

@@ -18,6 +18,7 @@
 namespace netxs::gui
 {
     namespace e2 = netxs::events::userland::e2;
+    namespace vkey = netxs::input::vkey;
 
     using namespace ui;
     using bits = netxs::raster<std::span<argb>>;
@@ -3015,52 +3016,6 @@ namespace netxs::gui
             static constexpr auto tooltip  = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
-        struct vkey
-        {
-            static constexpr auto lbutton  = 0x01; // VK_LBUTTON;
-            static constexpr auto rbutton  = 0x02; // VK_RBUTTON;
-            static constexpr auto mbutton  = 0x04; // VK_MBUTTON;
-            static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1;
-            static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2;
-
-            static constexpr auto shift    = 0x10; // VK_SHIFT;
-            static constexpr auto control  = 0x11; // VK_CONTROL;
-            static constexpr auto alt      = 0x12; // VK_MENU;
-            static constexpr auto lshift   = 0xA0; // VK_LSHIFT;
-            static constexpr auto rshift   = 0xA1; // VK_RSHIFT;
-            static constexpr auto lcontrol = 0xA2; // VK_LCONTROL;
-            static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
-            static constexpr auto lalt     = 0xA4; // VK_LMENU;
-            static constexpr auto ralt     = 0xA5; // VK_RMENU;
-            static constexpr auto lwin     = 0x5B; // VK_LWIN;
-            static constexpr auto rwin     = 0x5C; // VK_RWIN;
-
-            static constexpr auto enter    = 0x0D; // VK_RETURN;
-            static constexpr auto left     = 0x25; // VK_LEFT;
-            static constexpr auto up       = 0x26; // VK_UP;
-            static constexpr auto right    = 0x27; // VK_RIGHT;
-            static constexpr auto down     = 0x28; // VK_DOWN;
-            static constexpr auto end      = 0x23; // VK_END;
-            static constexpr auto home     = 0x24; // VK_HOME;
-
-            static constexpr auto f11      = 0x7A; // VK_F11;
-            static constexpr auto f12      = 0x7B; // VK_F12;
-
-            static constexpr auto key_0    = '0'; // VK_0;
-
-            static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
-            static constexpr auto capslock = 0x14; // VK_CAPITAL;
-            static constexpr auto scrllock = 0x91; // VK_SCROLL;
-            static constexpr auto kana     = 0x15; // VK_KANA;
-            static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA;
-            static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA;
-
-            static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY;
-            static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO;
-            static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW;
-
-            static constexpr auto packet   = 0xE7; // VK_PACKET;
-        };
         struct cont
         {
             si32  cmd;
@@ -3511,8 +3466,12 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         link  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
-        bool  fake_ctrl; // winbase: Fake ctrl key event on AltGr press/release (non-US kb layouts).
+        bool  fake_ralt; // winbase: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
+        si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
+        ui32  xlayout; // winbase: Current keyboard layout (HKL).
+        arch  hkl_latin; // winbase: User's latin-based keyboard layout.
+        si32  layout_hint; // winbase: Layout hint for key lookup.
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -3544,8 +3503,11 @@ namespace netxs::gui
               whlacc{ 0.f },
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
-              fake_ctrl{ faux },
-              wait_ralt{ faux }
+              fake_ralt{ faux },
+              wait_ralt{ faux },
+              xlayout{},
+              hkl_latin{},
+              layout_hint{ -1 }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -3557,7 +3519,17 @@ namespace netxs::gui
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
-        virtual void keybd_sync_layout() = 0;
+        virtual void keybd_sync_layout()
+        {
+            auto& gear = *stream.gears;
+            auto temp = std::exchange(gear.payload, input::keybd::type::kblayout);
+            gear.xlayout = xlayout;
+            chords.reset(gear, faux); // faux: Keep pressed key state.
+            stream_keybd(gear);
+            gear.payload = temp;
+            if constexpr (debugmode) log("Sync kb layout: xlayout=%%", utf::to_hex(xlayout));
+        }
+        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
@@ -3566,6 +3538,8 @@ namespace netxs::gui
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod) = 0;
+        virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
+        virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
         virtual void mouse_release(si32 released_by) = 0;
@@ -3599,8 +3573,8 @@ namespace netxs::gui
         }
         auto ctrl_pressed()
         {
-            return mfocus.focused() ? keybd_test_pressed(vkey::control)
-                                    : keybd_read_pressed(vkey::control);
+            return mfocus.focused() ? keybd_test_pressed(vkey::ctrl)
+                                    : keybd_read_pressed(vkey::ctrl);
         }
         auto lbutton_pressed()
         {
@@ -4278,17 +4252,17 @@ namespace netxs::gui
             else
             {
                 auto state = 0;
-                if (keybd_read_pressed(vkey::lshift  )) state |= input::hids::LShift;
-                if (keybd_read_pressed(vkey::rshift  )) state |= input::hids::RShift;
-                if (keybd_read_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
-                if (keybd_read_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
-                if (keybd_read_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-                if (keybd_read_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (keybd_read_pressed(vkey::lwin    )) state |= input::hids::LWin;
-                if (keybd_read_pressed(vkey::rwin    )) state |= input::hids::RWin;
-                if (keybd_read_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-                if (keybd_read_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-                if (keybd_read_toggled(vkey::numlock )) state |= input::hids::NumLock;
+                if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
+                if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
+                if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+                if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+                if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
+                if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
+                if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
+                if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
+                if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
+                if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+                if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
                 return state;
             }
         }
@@ -4363,7 +4337,7 @@ namespace netxs::gui
             stream.m.changed++;
             stream.m.timecod = datetime::now();
             stream.m.enabled = hids::stat::halt;
-            if (!mfocus.focused()) stream.m.ctlstat &= input::hids::NumLock | input::hids::CapsLock | input::hids::ScrlLock;
+            if (!mfocus.focused()) stream.m.ctlstat &= mods::NumLock | mods::CapsLock | mods::ScrollLock;
             if (std::exchange(stream.gears->tooltip.visible, faux)) // Hide all active tooltips on mouse leave.
             {
                 update_tooltip();
@@ -4558,51 +4532,52 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
+        void keybd_send_state(si32 virtcod = {},
+                              si32 keystat = {},
+                              si32 scancod = {},
+                              bool extflag = {},
+                              view cluster = {},
+                              bool synth = faux,
+                              byte payload = input::keybd::type::keypress)
         {
             auto state = 0;
-            auto cs = 0;
-            if (extflag) cs |= input::key::ExtendedKey;
             if (synth)
             {
                 state = keymod;
             }
             else
             {
-                if (fake_ctrl && wait_ralt) // RAlt is expected right after the fake LCtrl when AltGr is pressed.
+                if (fake_ralt && wait_ralt) // RAlt is expected right after the fake LCtrl when AltGr is pressed.
                 {
                     wait_ralt = faux;
                     auto is_ralt = scancod == input::key::map::data(input::key::RightAlt).scan/*0x38*/ && extflag; // RAlt.
                     if (!is_ralt) // If something else comes instead of RAlt, it means that the LCtrl key was actually pressed.
                     {
-                        fake_ctrl = faux;
-                        keybd_send_state(vkey::control, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
+                        fake_ralt = faux;
+                        keybd_send_state(vkey::ctrl, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
                     }
                 }
-                if (fake_ctrl) state |= input::hids::AltGr; // Keep AltGr flag even if RightAlt released.
-                if (fake_ctrl && keystat == input::key::released && scancod == input::key::map::data(input::key::RightAlt).scan) // Clear the AltGr state.
-                {
-                    fake_ctrl = faux;
-                }
-                if (keybd_test_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
-                if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-                if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-                if (keybd_test_pressed(vkey::lcontrol) && !fake_ctrl) state |= input::hids::LCtrl;
-                if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
-                if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-                if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (keybd_test_pressed(vkey::lwin    )) state |= input::hids::LWin;
-                if (keybd_test_pressed(vkey::rwin    )) state |= input::hids::RWin;
-                if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-                else                                    mouse_release(by::keybd);
-                auto old_ls = keymod & input::hids::LShift;
-                auto old_rs = keymod & input::hids::RShift;
+                if (keybd_test_toggled(vkey::numlock )              ) state |= mods::NumLock;
+                if (keybd_test_toggled(vkey::capslock)              ) state |= mods::CapsLock;
+                if (keybd_test_toggled(vkey::scrllock)              ) state |= mods::ScrollLock;
+                if (keybd_test_pressed(vkey::lctrl   ) && !fake_ralt) state |= mods::LCtrl;
+                if (keybd_test_pressed(vkey::rctrl   )              ) state |= mods::RCtrl;
+                if (keybd_test_pressed(vkey::lalt    )              ) state |= mods::LAlt;
+                if (keybd_test_pressed(vkey::ralt    ) && !fake_ralt) state |= mods::RAlt; // We never equate AltGr with RAlt.
+                if (keybd_test_pressed(vkey::lsuper  )              ) state |= mods::LSuper;
+                if (keybd_test_pressed(vkey::rsuper  )              ) state |= mods::RSuper;
+                if (keybd_test_pressed(vkey::ctrl    )              ) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+                else                                                  mouse_release(by::keybd);
+                auto old_ls = keymod & mods::LShift;
+                auto old_rs = keymod & mods::RShift;
                 auto new_ls = keybd_test_pressed(vkey::lshift);
                 auto new_rs = keybd_test_pressed(vkey::rshift);
                 //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
                 state |= old_ls | old_rs;
                 if (new_ls != !!old_ls || new_rs != !!old_rs) // MS Windows Shift+Shift bug workaround.
                 {
+                    auto& rshift = input::key::map::data(input::key::RightShift);
+                    auto& lshift = input::key::map::data(input::key::LeftShift);
                     keymod = state;
                     //todo unify
                     if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
@@ -4610,38 +4585,38 @@ namespace netxs::gui
                         //if (old_rs && !new_rs) // RightShift released.
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~input::hids::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                            keymod &= ~mods::RShift;
+                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                         }
                         //if (old_ls && !new_ls) // LeftShift released.
                         {
-                            keymod &= ~input::hids::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                            keymod &= ~mods::LShift;
+                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                         }
                     }
                     else
                     {
                         if (old_ls && !new_ls) // LeftShift released.
                         {
-                            keymod &= ~input::hids::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                            keymod &= ~mods::LShift;
+                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                         }
                         if (old_rs && !new_rs) // RightShift released.
                         {
                             layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~input::hids::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                            keymod &= ~mods::RShift;
+                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                         }
                     }
                     if (!old_ls && new_ls) // LeftShift pressed.
                     {
-                        keymod |= input::hids::LShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        keymod |= mods::LShift;
+                        keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
                     }
                     if (!old_rs && new_rs) // RightShift pressed.
                     {
-                        keymod |= input::hids::RShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        keymod |= mods::RShift;
+                        keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
                     }
                     if (new_ls && new_rs) // Two Shifts pressed.
                     {
@@ -4656,22 +4631,43 @@ namespace netxs::gui
                     if (keystat == input::key::pressed)
                     {
                         //if constexpr (debugmode) log("Fake LeftCtrl pressed");
-                        fake_ctrl = !(state & input::hids::RAlt) && keybd_read_pressed(vkey::ralt); // Actually AltGr is pressed.
+                        fake_ralt = !fake_ralt && keybd_read_pressed(vkey::ralt); // Actually AltGr is pressed.
                     }
                     else if (keystat == input::key::released)
                     {
-                        //if constexpr (debugmode) log("Fake LeftCtrl released");
-                        fake_ctrl = (state & input::hids::RAlt) && !keybd_read_pressed(vkey::ralt); // Actually AltGr is released.
+                        if constexpr (debugmode) log("Fake LeftCtrl released");
+                        fake_ralt = fake_ralt && !keybd_read_pressed(vkey::ralt); // Actually AltGr is released.
                     }
-                    else // Actually AltGr is repeated if fake_ctrl==true.
+                    else // Actually AltGr is repeated if fake_ralt==true.
                     {
                         //if constexpr (debugmode) log("Fake LeftCtrl repeated");
                     }
-                    if (fake_ctrl) // Filter input::key::repeated events as well.
+                    if (fake_ralt) // Filter input::key::repeated events as well.
                     {
                         if constexpr (debugmode) log("Fake left ctrl key '%%' event filtered", keystat == input::key::pressed ? "pressed" : keystat == input::key::released ? "released" : "repeated");
                         wait_ralt = keystat != input::key::released; // Zeroize flag on release.
                         return;
+                    }
+                }
+                if (virtcod == vkey::ctrl && keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
+                {
+                    auto& break_key = input::key::map::data(input::key::Break);
+                    keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                    if constexpr (debugmode) log("Fake Pause 'release' key event generated");
+                }
+                if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
+                {
+                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
+                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
+                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
+                    }
+                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
                     }
                 }
             }
@@ -4688,24 +4684,37 @@ namespace netxs::gui
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
             }
-            gear.payload = input::keybd::type::keypress;
+            gear.payload = payload;
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            auto keycode = input::key::xlat(virtcod, scancod, cs);
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, fake_ralt, layout_hint, [&]
+            {
+                auto latin_shifted = text{};
+                auto latin_unshift = text{};
+                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
+                return std::pair{ latin_shifted, latin_unshift };
+            });
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
+            gear.xlayout = xlayout;
             gear.cluster = cluster;
-            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                                                || virtcod == vkey::lwin     || virtcod == vkey::rwin);
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper);
             //print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
                 synth ? chords.build(gear)
                       : chords.build(gear, [&](auto index){ return !keybd_test_pressed(index); });
                 stream_keybd(gear);
+            }
+            if (fake_ralt && keystat == input::key::released && scancod == input::key::map::data(input::key::RightAlt).scan) // Clear the AltGr state.
+            {
+                fake_ralt = faux;
             }
         }
         void keybd_send_input(view utf8, byte payload_type)
@@ -4864,7 +4873,15 @@ namespace netxs::gui
                     base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
-                        if (mfocus.wheel) window_post_command(ipc::sync_state);
+                        if (!xlayout) // The first focus event - sync keybd layout.
+                        {
+                            keybd_sync_layout();
+                        }
+                        if (mfocus.wheel)
+                        {
+                            //todo share keybd layout between group focused windows
+                            window_post_command(ipc::sync_state);
+                        }
                     });
                 }
             }
@@ -4920,9 +4937,13 @@ namespace netxs::gui
                     keybd_read_vkstat(); // It must be called in current thread.
                     for (auto target : target_list.value()) window_send_command(target, ipc::main_focus, local_target);
                 }
-                else if (target_list) // Send to all that the focus is going to lost.
+                else
                 {
-                    for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
+                    keybd_reset_deadkey(); // Force reset deadkey state if it is. Windows doesn't reset deadkey state when refocusing but all other platforms do.
+                    if (target_list) // Send to all that the focus is going to lost.
+                    {
+                        for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
+                    }
                 }
             }
         }
@@ -4941,9 +4962,9 @@ namespace netxs::gui
                     layer_timer_stop(master, timers::rightshift);
                     keybd_sync_state();
                     //::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-                    //if (keymod & input::hids::RShift)
+                    //if (keymod & mods::RShift)
                     //{
-                    //    keymod &= ~input::hids::RShift;
+                    //    keymod &= ~mods::RShift;
                     //    keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
                     //}
                 }
@@ -5448,7 +5469,6 @@ namespace netxs::gui
 
         tsfl tslink; // window: TSF link.
         MSG  winmsg; // window: Last OS window message.
-        text toUTF8; // window: UTF-8 conversion buffer.
         wide toWIDE; // window: UTF-16 conversion buffer.
 
         window(auto&& ...Args)
@@ -5543,6 +5563,57 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
+        void keybd_reset_deadkey(arch hkl = {})
+        {
+            auto uc = L' ';
+            auto ks = std::array<byte, 256>{};
+            auto vk = input::key::map::data(input::key::Space).vkey;
+            auto sc = input::key::map::data(input::key::Space).scan;
+            ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, (HKL)hkl);
+        }
+        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
+        {
+            shifted.clear();
+            unshift.clear();
+            auto is_printable = scancod && ((virtcod <= 0x20)
+                                         || (virtcod >= 0x30 && virtcod <= 0x5A)
+                                         || (virtcod >= 0x60 && virtcod <= 0x6F)
+                                         || (virtcod == 0x92) // Numpad equal.
+                                         || (virtcod >= 0xB8 && virtcod <= 0xE6));
+            auto hkl = layout_id ? (HKL)layout_id : ::GetKeyboardLayout(0);
+            if (is_printable && virtcod != last_deadkey_vkey) // Alphanumeric + punctuation (excluding deadkeys).
+            {
+                if (extflag) scancod |= ENHANCED_KEY;
+                auto buf = wide(8, 0);
+                auto key_matrix = std::array<byte, 256>{};
+                if (apply_modifiers)
+                {
+                    if (fake_ralt) // Emulate AltGr pressed.
+                    {
+                        key_matrix[vkey::ctrl ] = 0x80;
+                        key_matrix[vkey::lctrl] = 0x80;
+                        key_matrix[vkey::alt  ] = 0x80;
+                        key_matrix[vkey::ralt ] = 0x80;
+                    }
+                    key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
+                    key_matrix[vkey::capslock] = vkstat[vkey::capslock];
+                }
+                auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, 0, hkl);
+                if (rc != 0)
+                {
+                    utf::to_utf(buf.data(), rc > 0 ? rc : 1, unshift);
+                    if (rc < 0) keybd_reset_deadkey((arch)hkl);
+                    key_matrix[vkey::shift ] = 0x80;
+                    key_matrix[vkey::lshift] = 0x80;
+                    rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, 0, hkl);
+                    if (rc != 0)
+                    {
+                        utf::to_utf(buf.data(), rc > 0 ? rc : 1, shifted);
+                        if (rc < 0) keybd_reset_deadkey((arch)hkl);
+                    }
+                }
+            }
+        }
         void layer_present(layer& s)
         {
             if (!s.hdc) return;
@@ -5641,7 +5712,7 @@ namespace netxs::gui
                 while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
                 if (toWIDE.size()) keytype = 2;
             }
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
             //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
             if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
@@ -5657,24 +5728,39 @@ namespace netxs::gui
                 }
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-            if (keytype != 2) // Do not notify dead keys.
+            auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
+            auto cluster = utf::to_utf(toWIDE);
+            toWIDE.clear();
+            if (is_deadkey_released)
             {
-                toUTF8.clear();
+                //if constexpr (debugmode) log("deadkey released");
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+                last_deadkey_vkey = {};
+            }
+            else if (keytype != 2)
+            {
                 if (keytype == 1)
                 {
-                    utf::to_utf(toWIDE, toUTF8);
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
                         keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        toWIDE.clear();
+                        keybd_send_input(cluster, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         //print_vkstat("Alt+Numpad");
                         return true;
                     }
                 }
-                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8);
+                else
+                {
+                    cluster.clear();
+                }
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
             }
-            toWIDE.clear();
+            else
+            {
+                last_deadkey_vkey = virtcod;
+                //if constexpr (debugmode) log("deadkey pressed");
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+            }
             //print_vkstat("keybd_read_input");
             return true;
         }
@@ -5692,7 +5778,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (keybd_test_pressed(vkey::rwin) || keybd_test_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    if (keybd_test_pressed(vkey::rsuper) || keybd_test_pressed(vkey::lsuper)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                     ::DispatchMessageW(&winmsg);
                 }
             }
@@ -5729,14 +5815,152 @@ namespace netxs::gui
             ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
             //print_vkstat("deactivate");
         }
+        auto is_layout_latin_based(HKL hkl)
+        {
+            static constexpr auto all_26_letters = (1 << ('z' - 'a' + 1)) - 1;
+            auto c = wchr{};
+            auto latin_mask = 0; // A-Z (26 bits).
+            auto key_states = std::array<byte, 256>{};
+            for (auto ex_bit : { 0x0000, 0xE000 })
+            for (auto i = 1u; i < 0x100u; i++)
+            {
+                auto sc = i | ex_bit;
+                if (auto vk = ::MapVirtualKeyExW(sc, MAPVK_VSC_TO_VK, hkl))
+                {
+                    sc = ex_bit ? (i | ENHANCED_KEY) : i;
+                    auto l = ::ToUnicodeEx(vk, sc, key_states.data(), &c, 1, 0, hkl);
+                    if (l == 1 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'))
+                    {
+                        latin_mask |= (1 << ((c & 0x1F) - 1));
+                        if (latin_mask == all_26_letters) return true;
+                    }
+                    else if (l < 0) // Reset deadkey.
+                    {
+                        key_states[vk] = 0x80; // Double press resets deadkey key.
+                        ::ToUnicodeEx(vk, sc, key_states.data(), &c, 1, 0, hkl);
+                        key_states[vk] = 0x00;
+                    }
+                }
+            }
+            return faux;
+        }
+        auto keybd_find_layout() // Find any installed latin-based keyboard layout.
+        {
+            auto latin_hkl = HKL{};
+            auto layout_count = ::GetKeyboardLayoutList(0, nullptr);
+            auto layouts = std::vector<HKL>(layout_count);
+            ::GetKeyboardLayoutList(layout_count, layouts.data());
+            if constexpr (debugmode)
+            {
+                log("Installed layouts:");
+                for (auto hkl : layouts) log("  %%", hkl);
+            }
+            for (auto hkl : layouts) // Iterate over user's layouts.
+            {
+                if (is_layout_latin_based(hkl))
+                {
+                    latin_hkl = hkl;
+                    break;
+                }
+            }
+            if constexpr (debugmode)
+            if (!latin_hkl)
+            {
+                log("Latin-based keyboard layout not found");
+            }
+            return (arch)latin_hkl;
+        }
         void keybd_sync_layout()
         {
             keybd_sync_state();
-            //todo sync kb layout
-            //auto hkl = ::GetKeyboardLayout(0);
-            auto kblayout = wide(KL_NAMELENGTH, '\0');
-            ::GetKeyboardLayoutNameW(kblayout.data());
-            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+            auto hkl = ::GetKeyboardLayout(0); // Get current layout's hkl.
+            auto layout_id = (ui32)(arch)hkl;
+            if (is_layout_latin_based(hkl))
+            {
+                hkl_latin = (arch)hkl;
+            }
+            else
+            {
+                if constexpr (debugmode) log("The %% layout is not latin-based. Looking for a fallback layout.", utf::adjust(utf::to_hex(layout_id), 8, "0", true));
+                hkl_latin = keybd_find_layout(); // Find hkl fallback.
+            }
+            if (std::exchange(xlayout, layout_id) != layout_id)
+            {
+                log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(layout_id), 8, "0", true));
+                winbase::keybd_sync_layout();
+            }
+        }
+        si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
+        {
+            if constexpr (debugmode) log("%%Media key pressed: cmd=%% uDevice=%%, dwKeys=%%", prompt::gui, utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys));
+            //todo use lut
+            switch (uDevice)
+            {
+                case FAPPCOMMAND_KEY:   // 0 User pressed a key.
+                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
+                    //todo we only need to forward these events back into the system when they return untouched
+                    //return TRUE;
+                    break;
+                case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
+                    return FALSE;
+            }
+            switch (cmd)
+            {
+                case APPCOMMAND_BROWSER_BACKWARD:                  // 1 Navigate backward.
+                case APPCOMMAND_BROWSER_FORWARD:                   // 2 Navigate forward.
+                case APPCOMMAND_BROWSER_REFRESH:                   // 3 Refresh page.
+                case APPCOMMAND_BROWSER_STOP:                      // 4 Stop download.
+                case APPCOMMAND_BROWSER_SEARCH:                    // 5 Open search.
+                case APPCOMMAND_BROWSER_FAVORITES:                 // 6 Open favorites.
+                case APPCOMMAND_BROWSER_HOME:                      // 7 Navigate home.
+                case APPCOMMAND_VOLUME_MUTE:                       // 8 Mute the volume.
+                case APPCOMMAND_VOLUME_DOWN:                       // 9 Lower the volume.
+                case APPCOMMAND_VOLUME_UP:                         // 10 Raise the volume.
+                case APPCOMMAND_MEDIA_NEXTTRACK:                   // 11 Go to next track.
+                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               // 12 Go to previous track.
+                case APPCOMMAND_MEDIA_STOP:                        // 13 Stop playback.
+                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
+                case APPCOMMAND_LAUNCH_MAIL:                       // 15 Open mail.
+                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               // 16 Go to Media Select mode.
+                case APPCOMMAND_LAUNCH_APP1:                       // 17 Start App1.
+                case APPCOMMAND_LAUNCH_APP2:                       // 18 Start App2.
+                case APPCOMMAND_BASS_DOWN:                         // 19 Decrease the bass.
+                case APPCOMMAND_BASS_BOOST:                        // 20 Toggle the bass boost on and off.
+                case APPCOMMAND_BASS_UP:                           // 21 Increase the bass.
+                case APPCOMMAND_TREBLE_DOWN:                       // 22 Decrease the treble.
+                case APPCOMMAND_TREBLE_UP:                         // 23 Increase the treble.
+                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            // 24 Mute the microphone.
+                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            // 25 Decrease microphone volume.
+                case APPCOMMAND_MICROPHONE_VOLUME_UP:              // 26 Increase microphone volume.
+                case APPCOMMAND_HELP:                              // 27 Open the Help dialog.
+                case APPCOMMAND_FIND:                              // 28 Open the Find dialog.
+                case APPCOMMAND_NEW:                               // 29 Create a new window.
+                case APPCOMMAND_OPEN:                              // 30 Open a window.
+                case APPCOMMAND_CLOSE:                             // 31 Close the window (not the application).
+                case APPCOMMAND_SAVE:                              // 32 Save current document.
+                case APPCOMMAND_PRINT:                             // 33 Print current document.
+                case APPCOMMAND_UNDO:                              // 34 Undo last action.
+                case APPCOMMAND_REDO:                              // 35 Redo last action.
+                case APPCOMMAND_COPY:                              // 36 Copy the selection.
+                case APPCOMMAND_CUT:                               // 37 Cut the selection.
+                case APPCOMMAND_PASTE:                             // 38 Paste
+                case APPCOMMAND_REPLY_TO_MAIL:                     // 39 Reply to a mail message.
+                case APPCOMMAND_FORWARD_MAIL:                      // 40 Forward a mail message.
+                case APPCOMMAND_SEND_MAIL:                         // 41 Send a mail message.
+                case APPCOMMAND_SPELL_CHECK:                       // 42 Initiate a spell check.
+                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
+                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 // 44 Toggle the microphone.
+                case APPCOMMAND_CORRECTION_LIST:                   // 45 Brings up the correction list when a word is incorrectly identified during speech input.
+                case APPCOMMAND_MEDIA_PLAY:                        // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_PAUSE:                       // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_RECORD:                      // 48 Begin recording the current stream.
+                case APPCOMMAND_MEDIA_FAST_FORWARD:                // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_REWIND:                      // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_CHANNEL_UP:                  // 51 Increment the channel value, for example, for a TV or radio tuner.
+                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                // 52 Decrement the channel value, for example, for a TV or radio tuner.
+                    break;
+            }
+            return FALSE; // The event is not processed.
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
@@ -5788,7 +6012,7 @@ namespace netxs::gui
             auto target_list = mfocus.copy();
             auto local_hwnd = (ui32)master.hWnd;
             auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)vkstat.size(), .lpData = (void*)vkstat.data() };
-            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
+            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),  .lpData = (void*)block.data()  };
             for (auto target : target_list) // Send to group focused targets.
             {
                 if (target != local_hwnd)
@@ -5952,6 +6176,13 @@ namespace netxs::gui
                     case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
                     case WM_CLIPBOARDUPDATE:  w->book_clipboard();                               break; // Schedule clipboard update.
                     case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
+                    case WM_APPCOMMAND:
+                    {
+                        auto cmd     = GET_APPCOMMAND_LPARAM(lParam);
+                        auto uDevice = GET_DEVICE_LPARAM(lParam);
+                        auto dwKeys  = GET_KEYSTATE_LPARAM(lParam);
+                        stat = w->keybd_read_media(cmd, uDevice, dwKeys);                        break; // Media key pressed.
+                    }
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
@@ -6054,11 +6285,14 @@ namespace netxs::gui
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
+        si32 keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
+        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}

@@ -901,7 +901,7 @@ namespace netxs::ui
                 // Drop it in favor of changing the cell size in GUI mode.
                 //boss.on(tier::mouserelease, input::key::MouseWheel, memo, [&](hids& gear)
                 //{
-                //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
+                //    if (gear.meta(mods::anyCtrl) && !gear.meta(mods::ScrollLock) && gear.whlsi)
                 //    {
                 //        auto& g = gears.take(gear);
                 //        if (!g.zoomon)// && g.inside)
@@ -979,7 +979,7 @@ namespace netxs::ui
                 boss.on(tier::mouserelease, input::key::MouseMove, memo, [&](hids& gear)
                 {
                     auto& g = gears.take(gear);
-                    if (g.zoomon && !gear.meta(hids::anyCtrl))
+                    if (g.zoomon && !gear.meta(mods::anyCtrl))
                     {
                         g.zoomon = faux;
                         gear.setfree();
@@ -1014,7 +1014,7 @@ namespace netxs::ui
                     auto& g = gears.take(gear);
                     if (g.seized)
                     {
-                        auto zoom = gear.meta(hids::anyCtrl);
+                        auto zoom = gear.meta(mods::anyCtrl);
                         auto area = boss.base::area();
                         auto coor = area.coor + gear.coord;
                         auto [preview_area, size_delta] = g.drag(area, coor, outer, zoom);
@@ -2175,7 +2175,7 @@ namespace netxs::ui
                 if (focus_on_click) boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
                 {
                     if (!gear) return;
-                    if (gear.meta(hids::anyCtrl))
+                    if (gear.meta(mods::anyCtrl))
                     {
                         if (pro::focus::test(boss, gear))
                         {
@@ -4520,10 +4520,10 @@ namespace netxs::ui
             };
             on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
-                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                if (gear.meta(mods::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi)
                 {
-                    auto hz = (permit[X] && (gear.hzwhl || gear.meta(hids::anyAlt | hids::anyShift)))
+                    auto hz = (permit[X] && (gear.hzwhl || gear.meta(mods::anyAlt | mods::anyShift)))
                            || (permit == xy(axes::X_only));
                     if (hz) wheels<X>(gear.whlsi);
                     else    wheels<Y>(gear.whlsi);
@@ -5062,7 +5062,7 @@ namespace netxs::ui
             };
             base::on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
-                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                if (gear.meta(mods::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi)
                 {
                     auto delta = gear.whlsi > 0 ? 1 : -1;

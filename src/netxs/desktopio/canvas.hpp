@@ -1877,6 +1877,10 @@ namespace netxs
             {
                 return (token & netxs::letoh((ui64)0b1100'0000'0000'0000)) == netxs::letoh((ui64)0b1000'0000'0000'0000); // (bytes[1] & 0b1100'0000) == 0b1000'0000;
             }
+            void reset_jumbo_flag()
+            {
+                token |= (token & netxs::letoh((ui64)0b1000'0000'0000'0000)) >> 1; // (Do OR 8th with 7th bit: 00.., 01.. or 11.. is allowed, not 10..) Reset jumbo flag to avoid fake jumbo clusters.
+            }
             void set_jumbo_flag()
             {
                 token = (token & netxs::letoh(~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
@@ -1926,6 +1930,7 @@ namespace netxs
                     token = isrtl; // token = 0;
                     mtx(w, h);
                     std::memcpy(bytes() + 1, utf8.data(), count);
+                    reset_jumbo_flag();
                 }
                 else
                 {

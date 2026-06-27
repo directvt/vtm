@@ -608,6 +608,8 @@ namespace netxs::ansi
         auto& appkey(bool b)        { return add(b ? "\033[?1h"    : "\033[?1l"      ); } // escx: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
         auto& bpmode(bool b)        { return add(b ? "\033[?2004h" : "\033[?2004l"   ); } // escx: Set bracketed paste mode.
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // escx: Set autowrap mode.
+        auto& kkp_on(bool b)        { return add(b ? "\033[>31u"   : ""              ); } // escx: Set KKP mode.
+        auto& kkp_off(bool b)       { return add(b ? "\033[<1u"    : ""              ); } // escx: Reset KKP mode.
         auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based cursor position (CPR).
         auto& win_sz(twod p)        { return add("\033[8;", p.y, ";", p.x, "t"       ); } // escx: Report viewport size (Reply on CSI 18 t).
         auto& area_sz_px(twod p)    { return add("\033[4;", p.y, ";", p.x, "t"       ); } // escx: Report text area size in pixels (Reply on CSI 14 t).
@@ -726,9 +728,9 @@ namespace netxs::ansi
             static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
-            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & mods::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & mods::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & mods::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
@@ -801,9 +803,9 @@ namespace netxs::ansi
             static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
-            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & mods::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & mods::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & mods::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
@@ -1045,6 +1047,8 @@ namespace netxs::ansi
     auto cursor(bool b)        { return escx{}.cursor(b);     } // ansi: Cursor visibility.
     auto appkey(bool b)        { return escx{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
     auto bpmode(bool b)        { return escx{}.bpmode(b);     } // ansi: Set bracketed paste mode.
+    auto kkp_on(bool b)        { return escx{}.kkp_on(b);     } // ansi: Set KKP mode.
+    auto kkp_off(bool b)       { return escx{}.kkp_off(b);    } // ansi: Reset KKP mode.
     auto styled(si32 b)        { return escx{}.styled(b);     } // ansi: Enable line style reporting.
     auto style(si32 i)         { return escx{}.style(i);      } // ansi: Line style report.
     auto link(si32 i)          { return escx{}.link(i);       } // ansi: Set object id link.
@@ -1536,6 +1540,50 @@ namespace netxs::ansi
     template<class T> using osc_h = std::function<void(view&, T*&)>;
     template<class T> using osc_t = std::map<text, osc_h<T>>;
 
+    static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in CSI sequence.
+    using fifo32 = netxs::generics::bank<si32, maxarg>;
+
+    static const auto ints = [](auto cmd){ return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
+    static const auto pars = [](auto cmd){ return cmd >= 0x3C && cmd <= 0x3f; }; // Front "parameter bytes" in the range 0x3C–0x3F (0x30–0x3F)
+    static const auto cmds = [](auto cmd){ return cmd >= 0x40 && cmd <= 0x7E; };
+    static const auto isC0 = [](auto cmd){ return cmd <= 0x1F; };
+    static const auto read_CSI = [](auto& ascii, auto& queue, auto trap)
+    {
+        auto a = (si32)';';
+        auto b = 0;
+        auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
+        {
+            if (a == ':') queue.template push<true>(num);
+            else          queue.template push<faux>(num);
+        };
+        while (ascii.length())
+        {
+            if (auto param = utf::to_int(ascii))
+            {
+                push(param.value());
+                if (ascii.empty()) break;
+                a = ascii.front(); // Delimiter or cmd after number.
+                trap(a);
+                if (ascii.empty()) break;
+            }
+            else
+            {
+                auto c = ascii.front();
+                if (trap(c)) continue;
+                push(fifo32::skip); // Default parameter expressed by standalone delimiter/semicolon.
+                a = c; // Delimiter or cmd after number.
+            }
+            ascii.pop_front();
+            if (ansi::cmds(a))
+            {
+                queue.settop(a);
+                break;
+            }
+            else if (ansi::ints(a)) b = a; // Intermediate byte and parameter byte never appear at the same time, so consider they as a single group.
+        }
+        return b;
+    };
+
     template<class T, bool InitOutputMode = true>
     struct vt_parser
     {
@@ -1604,19 +1652,11 @@ namespace netxs::ansi
             // ESC [ n1 ; n2:p1:p2:...pi ; ... nx CSICMD
             //      [-----------------------]
 
-            static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in one escaped sequence.
-            using fifo32 = generics::bank<si32, maxarg>;
-
             if (ascii.length())
             {
-                auto b = 0;
-                auto ints = [](auto cmd){ return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = [](auto cmd){ return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
-                auto cmds = [](auto cmd){ return cmd >= 0x40 && cmd <= 0x7E; };
-                auto isC0 = [](auto cmd){ return cmd <= 0x1F; };
                 auto trap = [&](auto& c) // Catch and execute C0.
                 {
-                    if (isC0(c))
+                    if (ansi::isC0(c))
                     {
                         auto& intro = ansi::get_parser<T>().intro;
                         auto  empty = qiew{};
@@ -1627,61 +1667,25 @@ namespace netxs::ansi
                             if (ascii.empty()) break;
                             c = ascii.front();
                         }
-                        while (isC0(c));
+                        while (ansi::isC0(c));
                         return true;
                     }
                     return faux;
                 };
-                auto fill = [&](auto& queue)
-                {
-                    auto a = (si32)';';
-                    auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
-                    {
-                        if (a == ':') queue.template push<true>(num);
-                        else          queue.template push<faux>(num);
-                    };
-
-                    while (ascii.length())
-                    {
-                        if (auto param = utf::to_int(ascii))
-                        {
-                            push(param.value());
-                            if (ascii.empty()) break;
-                            a = ascii.front(); // Delimiter or cmd after number.
-                            trap(a);
-                            if (ascii.empty()) break;
-                        }
-                        else
-                        {
-                            auto c = ascii.front();
-                            if (trap(c)) continue;
-                            push(fifo32::skip); // Default parameter expressed by standalone delimiter/semicolon.
-                            a = c; // Delimiter or cmd after number.
-                        }
-                        ascii.pop_front();
-                        if (cmds(a))
-                        {
-                            queue.settop(a);
-                            break;
-                        }
-                        else if (ints(a)) b = a; // Intermediate byte and parameter byte never appear at the same time, so consider they as a single group.
-                    }
-                };
-
                 auto& csier = ansi::get_parser<T>().csier;
                 auto c = ascii.front();
-                if (cmds(c))
+                if (ansi::cmds(c))
                 {
                     ascii.pop_front();
                     csier.proceed(c, client);
                 }
                 else
                 {
-                    auto queue = fifo32{ ccc_nop }; // Reserve for the command type.
-                    if (pars(c))
+                    auto queue = ansi::fifo32{ ansi::ccc_nop }; // Reserve for the command type.
+                    if (ansi::pars(c))
                     {
                         ascii.pop_front();
-                        fill(queue);
+                        auto b = ansi::read_CSI(ascii, queue, trap);
                         if (c == '?' )
                         {
                             if (b == '$') csier.proceed_quest_dollarsn(queue, client);
@@ -1693,7 +1697,7 @@ namespace netxs::ansi
                     }
                     else
                     {
-                        fill(queue);
+                        auto b = ansi::read_CSI(ascii, queue, trap);
                              if (b == '\0') csier.proceed         (queue, client);
                         else if (b == '!' ) csier.proceed_excl    (queue, client);
                         else if (b == '#' ) csier.proceed_hash    (queue, client);

@@ -156,14 +156,14 @@ The state `kbmods=<KeyMods>` of keyboard modifiers is the binary OR of all curre
  ----|--------|------------------------------|--------------
  0   | Left   | <kbd>⌃ Ctrl</kbd>            | `0x0001`
  1   | Right  | <kbd>⌃ Ctrl</kbd>            | `0x0002`
- 2   | Left   | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd>                       | `0x0004`
- 3   | Right  | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd><br><kbd>⇮ AltGr</kbd> | `0x0008`
+ 2   | Left   | <kbd>⎇ Alt</kbd><br><kbd>◆ Meta</kbd><br><kbd>⌥ Option</kbd>     | `0x0004`
+ 3   | Right  | <kbd>⎇ Alt</kbd><br><kbd>◆ Meta</kbd><br><kbd>⌥ Option</kbd><br> | `0x0008`
  4   | Left   | <kbd>⇧ Shift</kbd>           | `0x0010`
  5   | Right  | <kbd>⇧ Shift</kbd>           | `0x0020`
- 6   | Left   | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>◆ Meta</kbd><br><kbd>❖ Super</kbd> | `0x0040`
- 7   | Right  | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>◆ Meta</kbd><br><kbd>❖ Super</kbd> | `0x0080`
- 8   |        | <kbd>reserved</kbd>          | `0x0100`
- 9   |        | <kbd>reserved</kbd>          | `0x0200`
+ 6   | Left   | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>❖ Super</kbd> | `0x0040`
+ 7   | Right  | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>❖ Super</kbd> | `0x0080`
+ 8   | Left   | <kbd>Hyper</kbd>             | `0x0100`
+ 9   | Right  | <kbd>Hyper</kbd>             | `0x0200`
  10  |        | <kbd>reserved</kbd>          | `0x0400`
  11  |        | <kbd>reserved</kbd>          | `0x0800`
  12  |        | <kbd>⇭ NumLock Mode</kbd>    | `0x1000`
@@ -182,186 +182,344 @@ AZERTY: "Z" = 11  "Q" = 1E  "S" = 1F  "D" = 20
 Dvorak: "," = 11  "A" = 1E  "O" = 1F  "E" = 20
 ```
 
-Scan codes for the keys on a standard 104-key keyboard:
+Scan codes for the keys of the abstract 112-key keyboard:
 
 ```
-┌────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────┐
-| 01 │  | 3B ║ 3C ║ 3D ║ 3E |  | 3F ║ 40 ║ 41 ║ 42 |  | 43 ║ 44 ║ 57 ║ 58 |  |E037║ 46 ║E045|
-└────┘  └────╨────╨────╨────┘  └────╨────╨────╨────┘  └────╨────╨────╨────┘  └────╨────╨────┘
-┌────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────────┐  ┌────╥────╥────┐  ┌────╥────╥────╥────┐
-| 29 ║ 02 ║ 03 ║ 04 ║ 05 ║ 06 ║ 07 ║ 08 ║ 09 ║ 0A ║ 0B ║ 0C ║ 0D ║     0E |  |E052║E047║E049|  | 45 ║E035║ 37 ║ 4A |
-╞════╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══════╡  ╞════╬════╬════╡  ╞════╬════╬════╬════╡
-| 0F   ║ 10 ║ 11 ║ 12 ║ 13 ║ 14 ║ 15 ║ 16 ║ 17 ║ 18 ║ 19 ║ 1A ║ 1B ║   2B |  |E053║E04F║E051|  | 47 ║ 48 ║ 49 ║    |
-╞══════╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩╦═══╩══════╡  └────╨────╨────┘  ╞════╬════╬════╣ 4E |
-| 3A    ║ 1E ║ 1F ║ 20 ║ 21 ║ 22 ║ 23 ║ 24 ║ 25 ║ 26 ║ 27 ║ 28 ║       1C |                    | 4B ║ 4C ║ 4D ║    |
-╞═══════╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩══════════╡       ┌────┐       ╞════╬════╬════╬════╡
-| 2A      ║ 2C ║ 2D ║ 2E ║ 2F ║ 30 ║ 31 ║ 32 ║ 33 ║ 34 ║ 35 ║          36 |       |E048|       | 4F ║ 50 ║ 51 ║    |
-╞══════╦══╩═╦══╩═══╦╩════╩════╩════╩════╩════╩════╩╦═══╩╦═══╩╦═════╦══════╡  ┌────┼────┼────┐  ╞════╩════╬════╣E01C|
-| 1D   ║ 5B ║ 38   ║               39              ║E038║ 5C ║  5D ║ E01D |  |E04B|E050|E04D|  |      52 ║ 53 ║    |
-└──────╨────╨──────╨───────────────────────────────╨────╨────╨─────╨──────┘  └────┴────┴────┘  └─────────╨────╨────┘
+                                                                               ┌────┐    ┌────┐
+                                                                               | 54 |    |E046| 2 keys (SysReq=Alt+PrintScreen, Break=Ctrl+Pause)
+                                                                               └────┘    └────┘
+┌────┐    ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────┐
+| 01 │    | 3B ║ 3C ║ 3D ║ 3E |  | 3F ║ 40 ║ 41 ║ 42 |  | 43 ║ 44 ║ 57 ║ 58 |  |E037║ 46 ║ 45 | 16 keys
+└────┘    └────╨────╨────╨────┘  └────╨────╨────╨────┘  └────╨────╨────╨────┘  └────╨────╨────┘
+┌────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥────╥─────┐  ┌────╥────╥────┐  ┌────╥────╥────╥────┐
+| 29 ║ 02 ║ 03 ║ 04 ║ 05 ║ 06 ║ 07 ║ 08 ║ 09 ║ 0A ║ 0B ║ 0C ║ 0D ║ 7D ║  0E |  |E052║E047║E049|  |E045║E035║ 37 ║ 4A | 22 keys
+╞════╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═════╡  ╞════╬════╬════╡  ╞════╬════╬════╬════╡
+| 0F   ║ 10 ║ 11 ║ 12 ║ 13 ║ 14 ║ 15 ║ 16 ║ 17 ║ 18 ║ 19 ║ 1A ║ 1B ║     2B |  |E053║E04F║E051|  | 47 ║ 48 ║ 49 ║ 4E | 21 keys
+╞══════╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩════════╡  └────╨────╨────┘  ╞════╬════╬════╬════╣
+| 3A     ║ 1E ║ 1F ║ 20 ║ 21 ║ 22 ║ 23 ║ 24 ║ 25 ║ 26 ║ 27 ║ 28 ║        1C |                    | 4B ║ 4C ║ 4D ║ 7E | 17 keys
+╞═════╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦══╩═╦═════════╡       ┌────┐       ╞════╬════╬════╬════╡
+| 2A  ║ 56 ║ 2C ║ 2D ║ 2E ║ 2F ║ 30 ║ 31 ║ 32 ║ 33 ║ 34 ║ 35 ║ 73 ║      36 |       |E048|       | 4F ║ 50 ║ 51 ║    | 19 keys
+╞═════╩═╦══╩═╦══╩═══╦╩═══╦╩════╩════╩════╩════╩╦═══╩╦═══╩╦═══╩╦═══╩═╦═══════╡  ┌────┼────┼────┐  ╞════╩════╬════╣E01C|
+| 1D    ║ 5B ║ 38   ║ 7B ║            39       ║ 70 ║E038║ 5C ║  5D ║  E01D |  |E04B|E050|E04D|  |      52 ║ 53 ║    | 15 keys
+└───────╨────╨──────╨────╨─────────────────────╨────╨────╨────╨─────╨───────┘  └────┴────┴────┘  └─────────╨────╨────┘
 ```
 
 #### Physical keys
 
 The `<KeyId>` is incremented by 2 for each generic key, providing two `<KeyId>` placeholders for each physical key to distinguish between Left and Right (or Numpad) in the last bit. Ignore the last bit of `<KeyId>` for tracking generic keys.
 
-Key ID | Name               | Generic Name       | Scan Code | Notes
--------|--------------------|--------------------|-----------|------
-0      | `undef`            | `undef`            | `0x0000`  |
-1      | `config`           | `config`           | `0x00FF`  |
-2      | `LeftCtrl`         | `Ctrl`             | `0x001D`  |
-3      | `RightCtrl`        | `Ctrl`             | `0x011D`  |
-4      | `LeftAlt`          | `Alt`              | `0x0038`  |
-5      | `RightAlt`         | `Alt`              | `0x0138`  |
-6      | `LeftShift`        | `Shift`            | `0x002A`  |
-7      | `RightShift`       | `Shift`            | `0x0036`  |
-8      | `LeftWin`          | `Win`              | `0x015B`  |
-9      | `RightWin`         | `Win`              | `0x015C`  |
-10     | `Apps`             | `Apps`             | `0x015D`  |
-12     | `NumLock`          | `NumLock`          | `0x0045`  |
-14     | `CapsLock`         | `CapsLock`         | `0x003A`  |
-16     | `ScrollLock`       | `ScrollLock`       | `0x0045`  |
-18     | `Esc`              | `Esc`              | `0x0001`  |
-20     | `Space`            | `Space`            | `0x0039`  |
-22     | `Backspace`        | `Backspace`        | `0x000E`  |
-24     | `Tab`              | `Tab`              | `0x000F`  |
-26     | `Break`            | `Break`            | `0x0046`  | Ctrl + Pause
-28     | `Pause`            | `Pause`            | `0x0045`  |
-30     | `Select`           | `Select`           | `0x0000`  |
-32     | `SysRq`            | `SysRq`            | `0x0054`  | Alt + PrintScreen
-34     | `PrintScreen`      | `PrintScreen`      | `0x0137`  |
-36     | `KeyEnter`         | `Enter`            | `0x001C`  |
-37     | `NumpadEnter`      | `Enter`            | `0x011C`  |
-38     | `KeyPageUp`        | `PageUp`           | `0x0149`  |
-39     | `NumpadPageUp`     | `PageUp`           | `0x0049`  |
-40     | `KeyPageDown`      | `PageDown`         | `0x0151`  |
-41     | `NumpadPageDown`   | `PageDown`         | `0x0051`  |
-42     | `KeyEnd`           | `End`              | `0x014F`  |
-43     | `NumpadEnd`        | `End`              | `0x004F`  |
-44     | `KeyHome`          | `Home`             | `0x0147`  |
-45     | `NumpadHome`       | `Home`             | `0x0047`  |
-46     | `KeyLeftArrow`     | `LeftArrow`        | `0x014B`  |
-47     | `NumpadLeftArrow`  | `LeftArrow`        | `0x004B`  |
-48     | `KeyUpArrow`       | `UpArrow`          | `0x0148`  |
-49     | `NumpadUpArrow`    | `UpArrow`          | `0x0048`  |
-50     | `KeyRightArrow`    | `RightArrow`       | `0x014D`  |
-51     | `NumpadRightArrow` | `RightArrow`       | `0x004D`  |
-52     | `KeyDownArrow`     | `DownArrow`        | `0x0150`  |
-53     | `NumpadDownArrow`  | `DownArrow`        | `0x0050`  |
-54     | `Key0`             | `0`                | `0x000B`  |
-55     | `Numpad0`          | `0`                | `0x0052`  |
-56     | `Key1`             | `1`                | `0x0002`  |
-57     | `Numpad1`          | `1`                | `0x004F`  |
-58     | `Key2`             | `2`                | `0x0003`  |
-59     | `Numpad2`          | `2`                | `0x0050`  |
-60     | `Key3`             | `3`                | `0x0004`  |
-61     | `Numpad3`          | `3`                | `0x0051`  |
-62     | `Key4`             | `4`                | `0x0005`  |
-63     | `Numpad4`          | `4`                | `0x004B`  |
-64     | `Key5`             | `5`                | `0x0006`  |
-65     | `Numpad5`          | `5`                | `0x004C`  |
-66     | `Key6`             | `6`                | `0x0007`  |
-67     | `Numpad6`          | `6`                | `0x004D`  |
-68     | `Key7`             | `7`                | `0x0008`  |
-69     | `Numpad7`          | `7`                | `0x0047`  |
-70     | `Key8`             | `8`                | `0x0009`  |
-71     | `Numpad8`          | `8`                | `0x0048`  |
-72     | `Key9`             | `9`                | `0x000A`  |
-73     | `Numpad9`          | `9`                | `0x0049`  |
-74     | `KeyInsert`        | `Insert`           | `0x0152`  |
-75     | `NumpadInsert`     | `Insert`           | `0x0052`  |
-76     | `KeyDelete`        | `Delete`           | `0x0153`  |
-77     | `NumpadDelete`     | `Delete`           | `0x0055`  |
-78     | `KeyClear`         | `Clear`            | `0x014C`  |
-79     | `NumpadClear`      | `Clear`            | `0x004C`  | Numpad 5
-80     | `KeyMultiply`      | `*`                | `0x0009`  |
-81     | `NumpadMultiply`   | `*`                | `0x0037`  |
-82     | `KeyPlus`          | `Plus`             | `0x000D`  |
-83     | `NumpadPlus`       | `Plus`             | `0x004E`  |
-84     | `KeySeparator`     | `Separator`        | `0x0000`  |
-85     | `NumpadSeparator`  | `Separator`        | `0x0000`  |
-86     | `KeyMinus`         | `Minus`            | `0x000C`  |
-87     | `NumpadMinus`      | `Minus`            | `0x004A`  |
-88     | `KeyPeriod`        | `.`                | `0x0034`  |
-89     | `NumpadDecimal`    | `.`                | `0x0053`  |
-90     | `KeySlash`         | `/`                | `0x0035`  |
-91     | `NumpadSlash`      | `/`                | `0x0135`  |
-92     | `BackSlash`        | `BackSlash`        | `0x002B`  |
-94     | `OpenBracket`      | `[`                | `0x001A`  |
-96     | `ClosedBracket`    | `]`                | `0x001B`  |
-98     | `Equal`            | `=`                | `0x000D`  |
-100    | `BackQuote`        | `` ` ``            | `0x0029`  |
-102    | `SingleQuote`      | `'`                | `0x0028`  |
-104    | `Comma`            | `,`                | `0x0033`  |
-106    | `Semicolon`        | `;`                | `0x0027`  |
-108    | `F1`               | `F1`               | `0x003B`  |
-110    | `F2`               | `F2`               | `0x003C`  |
-112    | `F3`               | `F3`               | `0x003D`  |
-114    | `F4`               | `F4`               | `0x003E`  |
-116    | `F5`               | `F5`               | `0x003F`  |
-118    | `F6`               | `F6`               | `0x0040`  |
-120    | `F7`               | `F7`               | `0x0041`  |
-122    | `F8`               | `F8`               | `0x0042`  |
-124    | `F9`               | `F9`               | `0x0043`  |
-126    | `F10`              | `F10`              | `0x0044`  |
-128    | `F11`              | `F11`              | `0x0057`  |
-130    | `F12`              | `F12`              | `0x005B`  |
-132    | `F13`              | `F13`              | `0x0000`  |
-134    | `F14`              | `F14`              | `0x0000`  |
-136    | `F15`              | `F15`              | `0x0000`  |
-138    | `F16`              | `F16`              | `0x0000`  |
-140    | `F17`              | `F17`              | `0x0000`  |
-142    | `F18`              | `F18`              | `0x0000`  |
-144    | `F19`              | `F19`              | `0x0000`  |
-146    | `F20`              | `F20`              | `0x0000`  |
-148    | `F21`              | `F21`              | `0x0000`  |
-150    | `F22`              | `F22`              | `0x0000`  |
-152    | `F23`              | `F23`              | `0x0000`  |
-154    | `F24`              | `F24`              | `0x0000`  |
-156    | `KeyA`             | `A`                | `0x0000`  |
-158    | `KeyB`             | `B`                | `0x0000`  |
-160    | `KeyC`             | `C`                | `0x0000`  |
-162    | `KeyD`             | `D`                | `0x0000`  |
-164    | `KeyE`             | `E`                | `0x0000`  |
-166    | `KeyF`             | `F`                | `0x0000`  |
-168    | `KeyG`             | `G`                | `0x0000`  |
-170    | `KeyH`             | `H`                | `0x0000`  |
-172    | `KeyI`             | `I`                | `0x0000`  |
-174    | `KeyJ`             | `J`                | `0x0000`  |
-176    | `KeyK`             | `K`                | `0x0000`  |
-178    | `KeyL`             | `L`                | `0x0000`  |
-180    | `KeyM`             | `M`                | `0x0000`  |
-182    | `KeyN`             | `N`                | `0x0000`  |
-184    | `KeyO`             | `O`                | `0x0000`  |
-186    | `KeyP`             | `P`                | `0x0000`  |
-188    | `KeyQ`             | `Q`                | `0x0000`  |
-190    | `KeyR`             | `R`                | `0x0000`  |
-192    | `KeyS`             | `S`                | `0x0000`  |
-194    | `KeyT`             | `T`                | `0x0000`  |
-196    | `KeyU`             | `U`                | `0x0000`  |
-198    | `KeyV`             | `V`                | `0x0000`  |
-200    | `KeyW`             | `W`                | `0x0000`  |
-202    | `KeyX`             | `X`                | `0x0000`  |
-204    | `KeyY`             | `Y`                | `0x0000`  |
-206    | `KeyZ`             | `Z`                | `0x0000`  |
-208    | `Sleep`            | `Sleep`            | `0x0000`  |
-210    | `Calculator`       | `Calculator`       | `0x0000`  |
-212    | `Mail`             | `Mail`             | `0x0000`  |
-214    | `MediaVolMute`     | `MediaVolMute`     | `0x0000`  |
-216    | `MediaVolDown`     | `MediaVolDown`     | `0x0000`  |
-218    | `MediaVolUp`       | `MediaVolUp`       | `0x0000`  |
-220    | `MediaNext`        | `MediaNext`        | `0x0000`  |
-222    | `MediaPrev`        | `MediaPrev`        | `0x0000`  |
-224    | `MediaStop`        | `MediaStop`        | `0x0000`  |
-226    | `MediaPlayPause`   | `MediaPlayPause`   | `0x0000`  |
-228    | `MediaSelect`      | `MediaSelect`      | `0x0000`  |
-230    | `BrowserBack`      | `BrowserBack`      | `0x0000`  |
-232    | `BrowserForward`   | `BrowserForward`   | `0x0000`  |
-234    | `BrowserRefresh`   | `BrowserRefresh`   | `0x0000`  |
-236    | `BrowserStop`      | `BrowserStop`      | `0x0000`  |
-238    | `BrowserSearch`    | `BrowserSearch`    | `0x0000`  |
-240    | `BrowserFavorites` | `BrowserFavorites` | `0x0000`  |
-242    | `BrowserHome`      | `BrowserHome`      | `0x0000`  |
+Key ID | Name               | Generic Name       | Literal Code | Unicode Code | Nodes
+-------|--------------------|--------------------|--------------|--------------|------
+ 0     | undef              | "undef"            | ""           | 0            | Any unknown key
+ 2     | LeftCtrl           | "Ctrl"             | ""           | 0
+  3    | RightCtrl          | "Ctrl"             | ""           | 0
+ 4     | LeftAlt            | "Alt"              | ""           | 0
+  5    | RightAlt           | "Alt"              | ""           | 0
+ 6     | LeftShift          | "Shift"            | ""           | 0
+  7    | RightShift         | "Shift"            | ""           | 0
+ 8     | LeftSuper          | "Super"            | ""           | 0            | LeftWin on Windows
+  9    | RightSuper         | "Super"            | ""           | 0            | RightWin on Windows
+ 10    | LeftHyper          | "Hyper"            | ""           | 0
+  11   | RightHyper         | "Hyper"            | ""           | 0
+ 12    | NumLock            | "NumLock"          | ""           | 0
+ 14    | CapsLock           | "CapsLock"         | ""           | 0
+ 16    | ScrollLock         | "ScrollLock"       | ""           | 0
+ 18    | AltGr              | "AltGr"            | ""           | 0            | aka IsoLevel3Shift
+ 20    | IsoLevel5Shift     | "IsoLevel5Shift"   | ""           | 0            | GroupSelect on Canadian Multilingual Standard layout
+ 22    | Kana               | "Kana"             | ""           | 0
+ 24    | Henkan             | "Henkan"           | ""           | 0
+ 26    | Muhenkan           | "Muhenkan"         | ""           | 0
+ 28    | Hanja              | "Hanja"            | ""           | 0
+ 30    | Hanguel            | "Hanguel"          | ""           | 0
+ 32    | Apps               | "Apps"             | ""           | 0
+ 34    | Select             | "Select"           | ""           | 0
+ 36    | Fn                 | "Fn"               | ""           | 0            | macOS/Linux specific
+ 38    | F1                 | "F1"               | ""           | 0
+ 40    | F2                 | "F2"               | ""           | 0
+ 42    | F3                 | "F3"               | ""           | 0
+ 44    | F4                 | "F4"               | ""           | 0
+ 46    | F5                 | "F5"               | ""           | 0
+ 48    | F6                 | "F6"               | ""           | 0
+ 50    | F7                 | "F7"               | ""           | 0
+ 52    | F8                 | "F8"               | ""           | 0
+ 54    | F9                 | "F9"               | ""           | 0
+ 56    | F10                | "F10"              | ""           | 0
+ 58    | F11                | "F11"              | ""           | 0
+ 60    | F12                | "F12"              | ""           | 0
+ 62    | F13                | "F13"              | ""           | 0
+ 64    | F14                | "F14"              | ""           | 0
+ 66    | F15                | "F15"              | ""           | 0
+ 68    | F16                | "F16"              | ""           | 0
+ 70    | F17                | "F17"              | ""           | 0
+ 72    | F18                | "F18"              | ""           | 0
+ 74    | F19                | "F19"              | ""           | 0
+ 76    | F20                | "F20"              | ""           | 0
+ 78    | F21                | "F21"              | ""           | 0
+ 80    | F22                | "F22"              | ""           | 0
+ 82    | F23                | "F23"              | ""           | 0
+ 84    | F24                | "F24"              | ""           | 0
+ 86    | F25                | "F25"              | ""           | 0
+ 88    | F26                | "F26"              | ""           | 0
+ 90    | F27                | "F27"              | ""           | 0
+ 92    | F28                | "F28"              | ""           | 0
+ 94    | F29                | "F29"              | ""           | 0
+ 96    | F30                | "F30"              | ""           | 0
+ 98    | F31                | "F31"              | ""           | 0
+ 100   | F32                | "F32"              | ""           | 0
+ 102   | F33                | "F33"              | ""           | 0
+ 104   | F34                | "F34"              | ""           | 0
+ 106   | F35                | "F35"              | ""           | 0
+ 108   | PrintScreen        | "PrintScreen"      | ""           | 0
+ 110   | Pause              | "Pause"            | ""           | 0
+ 112   | Break              | "Break"            | "\x03"       | 0x03
+ 114   | SysReq             | "SysReq"           | ""           | 0
+ 116   | Esc                | "Esc"              | "\x1B"       | 0x1b
+ 118   | Tab                | "Tab"              | "\x09"       | 0x09
+ 120   | Backspace          | "Backspace"        | "\x08"       | 0x08
+ 122   | Space              | "Space"            | "\x20"       | 0x20
+ 124   | KeyEnter           | "Enter"            | "\x0D"       | 0x0d
+  125  | NumpadEnter        | "Enter"            | "\x0D"       | 0x0d
+ 126   | KeyInsert          | "Insert"           | ""           | 0
+  127  | NumpadInsert       | "Insert"           | ""           | 0
+ 128   | KeyDelete          | "Delete"           | ""           | 0
+  129  | NumpadDelete       | "Delete"           | ""           | 0
+ 130   | KeyClear           | "Clear"            | ""           | 0
+  131  | NumpadClear        | "Clear"            | ""           | 0
+ 132   | KeyPageUp          | "PageUp"           | ""           | 0
+  133  | NumpadPageUp       | "PageUp"           | ""           | 0
+ 134   | KeyPageDown        | "PageDown"         | ""           | 0
+  135  | NumpadPageDown     | "PageDown"         | ""           | 0
+ 136   | KeyHome            | "Home"             | ""           | 0
+  137  | NumpadHome         | "Home"             | ""           | 0
+ 138   | KeyEnd             | "End"              | ""           | 0
+  139  | NumpadEnd          | "End"              | ""           | 0
+ 140   | KeyLeftArrow       | "LeftArrow"        | ""           | 0
+  141  | NumpadLeftArrow    | "LeftArrow"        | ""           | 0
+ 142   | KeyRightArrow      | "RightArrow"       | ""           | 0
+  143  | NumpadRightArrow   | "RightArrow"       | ""           | 0
+ 144   | KeyUpArrow         | "UpArrow"          | ""           | 0
+  145  | NumpadUpArrow      | "UpArrow"          | ""           | 0
+ 146   | KeyDownArrow       | "DownArrow"        | ""           | 0
+  147  | NumpadDownArrow    | "DownArrow"        | ""           | 0
+ 148   | Key0               | "0"                | "0"          | 0x30
+  149  | Numpad0            | "0"                | "0"          | 0x30
+ 150   | Key1               | "1"                | "1"          | 0x31
+  151  | Numpad1            | "1"                | "1"          | 0x31
+ 152   | Key2               | "2"                | "2"          | 0x32
+  153  | Numpad2            | "2"                | "2"          | 0x32
+ 154   | Key3               | "3"                | "3"          | 0x33
+  155  | Numpad3            | "3"                | "3"          | 0x33
+ 156   | Key4               | "4"                | "4"          | 0x34
+  157  | Numpad4            | "4"                | "4"          | 0x34
+ 158   | Key5               | "5"                | "5"          | 0x35
+  159  | Numpad5            | "5"                | "5"          | 0x35
+ 160   | Key6               | "6"                | "6"          | 0x36
+  161  | Numpad6            | "6"                | "6"          | 0x36
+ 162   | Key7               | "7"                | "7"          | 0x37
+  163  | Numpad7            | "7"                | "7"          | 0x37
+ 164   | Key8               | "8"                | "8"          | 0x38
+  165  | Numpad8            | "8"                | "8"          | 0x38
+ 166   | Key9               | "9"                | "9"          | 0x39
+  167  | Numpad9            | "9"                | "9"          | 0x39
+ 168   | KeyMultiply        | "*"                | "*"          | 0x2A
+  169  | NumpadMultiply     | "*"                | "*"          | 0x2A
+ 170   | KeySlash           | "/"                | "/"          | 0x2F
+  171  | NumpadDivide       | "/"                | "/"          | 0x2F
+ 172   | KeyPlus            | "Plus"             | "+"          | 0x2B
+  173  | NumpadPlus         | "Plus"             | "+"          | 0x2B
+ 174   | KeyMinus           | "Minus"            | "-"          | 0x2D
+  175  | NumpadMinus        | "Minus"            | "-"          | 0x2D
+ 176   | KeyEqual           | "="                | "="          | 0x3D
+  177  | NumpadEqual        | "="                | "="          | 0x3D
+ 178   | KeyPeriod          | "."                | "."          | 0x2E
+  179  | NumpadDecimal      | "."                | "."          | 0x2E
+ 180   | KeyComma           | ","                | ","          | 0x2C
+  181  | NumpadPoint        | ","                | ","          | 0x2C
+ 182   | Colon              | ":"                | ":"          | 0x3A
+ 184   | Semicolon          | ";"                | ";"          | 0x3B
+ 186   | TurnedComma        | "ʻ"                | "ʻ"          | 0x02BB
+ 188   | OpenSquareBracket  | "["                | "["          | 0x5B
+ 190   | CloseSquareBracket | "]"                | "]"          | 0x5D
+ 192   | OpenCurlyBracket   | "{"                | "{"          | 0x7B
+ 194   | CloseCurlyBracket  | "}"                | "}"          | 0x7D
+ 196   | CloseRoundBracket  | ")"                | ")"          | 0x29
+ 198   | LessThan           | "<"                | "<"          | 0x3C
+ 200   | BackSlash          | "\\"               | "\\"         | 0x5C
+ 202   | Underscore         | "_"                | "_"          | 0x5F
+ 204   | VerticalBar        | "\|"               | "\|"         | 0x7C
+ 206   | DivisionSign       | "÷"                | "÷"          | 0xF7
+ 208   | OneHalf            | "½"                | "½"          | 0xBD
+ 210   | SuperscriptTwo     | "²"                | "²"          | 0xB2
+ 212   | DegreeSign         | "°"                | "°"          | 0xB0
+ 214   | NumeroSign         | "º"                | "º"          | 0xBA
+ 216   | Acute              | "´"                | "´"          | 0xB4
+ 218   | Caron              | "ˇ"                | "ˇ"          | 0x02C7
+ 220   | Cedilla            | "¸"                | "¸"          | 0xB8
+ 222   | Circumflex         | "^"                | "^"          | 0x5E
+ 224   | Ogonek             | "˛"                | "˛"          | 0x02DB
+ 226   | Cross              | "˟"                | "˟"          | 0x02DF
+ 228   | Tilde              | "~"                | "~"          | 0x7E
+ 230   | Tonos              | "΄"                | "΄"          | 0x0384
+ 232   | Umlaut             | "¨"                | "¨"          | 0xA8
+ 234   | BackQuote          | "`"                | "`"          | 0x60
+ 236   | SingleQuote        | "'"                | "'"          | 0x27
+ 238   | DoubleQuote        | "\""               | "\""         | 0x22
+ 240   | SingleRightQuote   | "’"                | "’"          | 0x2019
+ 242   | SingleLowQuote     | "‚"                | "‚"          | 0x201A
+ 244   | DoubleLowQuote     | "„"                | "„"          | 0x201E
+ 246   | LeftGuillemet      | "«"                | "«"          | 0xAB
+ 248   | Hash               | "#"                | "#"          | 0x23
+ 250   | AtSign             | "@"                | "@"          | 0x40
+ 252   | Exclamation        | "!"                | "!"          | 0x21
+ 254   | InvertedExclamation| "¡"                | "¡"          | 0xA1
+ 256   | QuestionMark       | "?"                | "?"          | 0x3F
+ 258   | InvertedQuestion   | "¿"                | "¿"          | 0xBF
+ 260   | Paragraph          | "§"                | "§"          | 0xA7
+ 262   | Ampersand          | "&"                | "&"          | 0x26
+ 264   | Dollar             | "$"                | "$"          | 0x24
+ 266   | Percent            | "%"                | "%"          | 0x25
+ 268   | Dong               | "₫"                | "₫"          | 0x20AB
+ 270   | Yen                | "¥"                | "¥"          | 0xA5
+ 272   | DotlessI           | "ı"                | "ı"          | 0x0131
+ 274   | MicroSign          | "µ"                | "µ"          | 0xB5
+ 276   | Eth                | "ð"                | "ð"          | 0xF0
+ 278   | Thorn              | "þ"                | "þ"          | 0xFE
+ 280   | Eszett             | "ẞ"                | "ß"          | 0xDF
+ 282   | KeyA               | "A"                | "a"          | 0x61
+ 284   | KeyB               | "B"                | "b"          | 0x62
+ 286   | KeyC               | "C"                | "c"          | 0x63
+ 288   | KeyD               | "D"                | "d"          | 0x64
+ 290   | KeyE               | "E"                | "e"          | 0x65
+ 292   | KeyF               | "F"                | "f"          | 0x66
+ 294   | KeyG               | "G"                | "g"          | 0x67
+ 296   | KeyH               | "H"                | "h"          | 0x68
+ 298   | KeyI               | "I"                | "i"          | 0x69
+ 300   | KeyJ               | "J"                | "j"          | 0x6A
+ 302   | KeyK               | "K"                | "k"          | 0x6B
+ 304   | KeyL               | "L"                | "l"          | 0x6C
+ 306   | KeyM               | "M"                | "m"          | 0x6D
+ 308   | KeyN               | "N"                | "n"          | 0x6E
+ 310   | KeyO               | "O"                | "o"          | 0x6F
+ 312   | KeyP               | "P"                | "p"          | 0x70
+ 314   | KeyQ               | "Q"                | "q"          | 0x71
+ 316   | KeyR               | "R"                | "r"          | 0x72
+ 318   | KeyS               | "S"                | "s"          | 0x73
+ 320   | KeyT               | "T"                | "t"          | 0x74
+ 322   | KeyU               | "U"                | "u"          | 0x75
+ 324   | KeyV               | "V"                | "v"          | 0x76
+ 326   | KeyW               | "W"                | "w"          | 0x77
+ 328   | KeyX               | "X"                | "x"          | 0x78
+ 330   | KeyY               | "Y"                | "y"          | 0x79
+ 332   | KeyZ               | "Z"                | "z"          | 0x7A
+ 334   | AeLigature         | "Æ"                | "æ"          | 0xE6
+ 336   | AcuteA             | "Á"                | "á"          | 0xE1
+ 338   | BreveA             | "Ă"                | "ă"          | 0x0103
+ 340   | CircumflexA        | "Â"                | "â"          | 0xE2
+ 342   | GraveA             | "À"                | "à"          | 0xE0
+ 344   | OgonekA            | "Ą"                | "ą"          | 0x0105
+ 346   | RingA              | "Å"                | "å"          | 0xE5
+ 348   | TildeA             | "Ã"                | "ã"          | 0xE3
+ 350   | UmlautA            | "Ä"                | "ä"          | 0xE4
+ 352   | AcuteC             | "Ć"                | "ć"          | 0x0107
+ 354   | CaronC             | "Č"                | "č"          | 0x010D
+ 356   | CedillaC           | "Ç"                | "ç"          | 0xE7
+ 358   | DotAboveC          | "Ċ"                | "ċ"          | 0x010B
+ 360   | AcuteE             | "É"                | "é"          | 0xE9
+ 362   | CircumflexE        | "Ê"                | "ê"          | 0xEA
+ 364   | GraveE             | "È"                | "è"          | 0xE8
+ 366   | DotAboveE          | "Ė"                | "ė"          | 0x0117
+ 368   | OgonekE            | "Ę"                | "ę"          | 0x0119
+ 370   | UmlautE            | "Ë"                | "ë"          | 0xEB
+ 372   | CrossedD           | "Đ"                | "đ"          | 0x0111
+ 374   | BreveG             | "Ğ"                | "ğ"          | 0x011F
+ 376   | DotAboveG          | "Ġ"                | "ġ"          | 0x0121
+ 378   | CrossedH           | "Ħ"                | "ħ"          | 0x0127
+ 380   | AcuteI             | "Í"                | "í"          | 0xED
+ 382   | CircumflexI        | "Î"                | "î"          | 0xEE
+ 384   | GraveI             | "Ì"                | "ì"          | 0xEC
+ 386   | OgonekI            | "Į"                | "į"          | 0x012F
+ 388   | CrossedL           | "Ł"                | "ł"          | 0x0142
+ 390   | CaronN             | "Ň"                | "ň"          | 0x0148
+ 392   | TildeN             | "Ñ"                | "ñ"          | 0xF1
+ 394   | AcuteO             | "Ó"                | "ó"          | 0xF3
+ 396   | CircumflexO        | "Ô"                | "ô"          | 0xF4
+ 398   | DoubleAcuteO       | "Ő"                | "ő"          | 0x0151
+ 400   | GraveO             | "Ò"                | "ò"          | 0xF2
+ 402   | HornO              | "Ơ"                | "ơ"          | 0x01A1
+ 404   | SlashedO           | "Ø"                | "ø"          | 0xF8
+ 406   | TildeO             | "Õ"                | "õ"          | 0xF5
+ 408   | UmlautO            | "Ö"                | "ö"          | 0xF6
+ 410   | AcuteS             | "Ś"                | "ś"          | 0x015B
+ 412   | CaronS             | "Š"                | "š"          | 0x0161
+ 414   | CedillaS           | "Ş"                | "ş"          | 0x015F
+ 416   | CommaS             | "Ș"                | "ș"          | 0x0219
+ 418   | CedillaT           | "Ţ"                | "ţ"          | 0x0163
+ 420   | CommaT             | "Ț"                | "ț"          | 0x021B
+ 422   | AcuteU             | "Ú"                | "ú"          | 0xFA
+ 424   | DoubleAcuteU       | "Ű"                | "ű"          | 0x0171
+ 426   | GraveU             | "Ù"                | "ù"          | 0xF9
+ 428   | HornU              | "Ư"                | "ư"          | 0x01B0
+ 430   | MacronU            | "Ū"                | "ū"          | 0x016B
+ 432   | OgonekU            | "Ų"                | "ų"          | 0x0173
+ 434   | RingU              | "Ů"                | "ů"          | 0x016F
+ 436   | UmlautU            | "Ü"                | "ü"          | 0xFC
+ 438   | CaronZ             | "Ž"                | "ž"          | 0x017E
+ 440   | DotAboveZ          | "Ż"                | "ż"          | 0x017C
+ 442   | Sleep              | "Sleep"            | ""           | 0
+ 444   | AppStart1          | "AppStart1"        | ""           | 0
+ 446   | AppStart2          | "AppStart2"        | ""           | 0
+ 448   | AppNewWindow       | "AppNewWindow"     | ""           | 0
+ 450   | AppOpenWindow      | "AppOpenWindow"    | ""           | 0
+ 452   | AppHelp            | "AppHelp"          | ""           | 0
+ 454   | AppSave            | "AppSave"          | ""           | 0
+ 456   | AppFind            | "AppFind"          | ""           | 0
+ 458   | AppPrint           | "AppPrint"         | ""           | 0
+ 460   | AppClose           | "AppClose"         | ""           | 0
+ 462   | AppCut             | "AppCut"           | ""           | 0
+ 464   | AppCopy            | "AppCopy"          | ""           | 0
+ 466   | AppPaste           | "AppPaste"         | ""           | 0
+ 468   | AppUndo            | "AppUndo"          | ""           | 0
+ 470   | AppRedo            | "AppRedo"          | ""           | 0
+ 472   | AppSpeechMode      | "AppSpeechMode"    | ""           | 0
+ 474   | AppSpeechCorrection| "AppSpeechCorrect" | ""           | 0
+ 476   | AppSpellCheck      | "AppSpellCheck"    | ""           | 0
+ 478   | Calculator         | "Calculator"       | ""           | 0
+ 480   | Mail               | "Mail"             | ""           | 0
+ 482   | MailSend           | "MailSend"         | ""           | 0
+ 484   | MailForward        | "MailForward"      | ""           | 0
+ 486   | MailReply          | "MailReply"        | ""           | 0
+ 488   | MediaBassBoost     | "MediaBassBoost"   | ""           | 0
+ 490   | MediaBassDown      | "MediaBassDown"    | ""           | 0
+ 492   | MediaBassUp        | "MediaBassUp"      | ""           | 0
+ 494   | MediaChanDown      | "MediaChanDown"    | ""           | 0
+ 496   | MediaChanUp        | "MediaChanUp"      | ""           | 0
+ 498   | MediaTrebleDown    | "MediaTrebleDown"  | ""           | 0
+ 500   | MediaTrebleUp      | "MediaTrebleUp"    | ""           | 0
+ 502   | MediaVolMute       | "MediaVolMute"     | ""           | 0
+ 504   | MediaVolDown       | "MediaVolDown"     | ""           | 0
+ 506   | MediaVolUp         | "MediaVolUp"       | ""           | 0
+ 508   | MediaNext          | "MediaNext"        | ""           | 0
+ 510   | MediaPrev          | "MediaPrev"        | ""           | 0
+ 512   | MediaStop          | "MediaStop"        | ""           | 0
+ 514   | MediaPause         | "MediaPause"       | ""           | 0
+ 516   | MediaPlayPause     | "MediaPlayPause"   | ""           | 0
+ 518   | MediaPlay          | "MediaPlay"        | ""           | 0
+ 520   | MediaSelectMode    | "MediaSelectMode"  | ""           | 0
+ 522   | MediaReverse       | "MediaReverse"     | ""           | 0
+ 524   | MediaRecord        | "MediaRecord"      | ""           | 0
+ 526   | MediaFastForward   | "MediaFastForward" | ""           | 0
+ 528   | MediaRewind        | "MediaRewind"      | ""           | 0
+ 530   | MicAirToggle       | "MicAirToggle"     | ""           | 0
+ 532   | MicMute            | "MicMute"          | ""           | 0
+ 534   | MicVolUp           | "MicVolUp"         | ""           | 0
+ 536   | MicVolDown         | "MicVolDown"       | ""           | 0
+ 538   | BrowserBackward    | "BrowserBackward"  | ""           | 0
+ 540   | BrowserForward     | "BrowserForward"   | ""           | 0
+ 542   | BrowserRefresh     | "BrowserRefresh"   | ""           | 0
+ 544   | BrowserStop        | "BrowserStop"      | ""           | 0
+ 546   | BrowserSearch      | "BrowserSearch"    | ""           | 0
+ 548   | BrowserFavorites   | "BrowserFavorites" | ""           | 0
+ 550   | BrowserHome        | "BrowserHome"      | ""           | 0
 
 ### Mouse
 

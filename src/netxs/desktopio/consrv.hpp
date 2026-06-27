@@ -546,6 +546,7 @@ struct impl : consrv
         hist  inputs; // evnt: Input history per process name storage.
         mbtn  dclick; // evnt: Mouse double-click tracker.
         si32  mstate; // evnt: Mouse button last state.
+        ui32  layout; // evnt: Current keyboard layout id.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -554,7 +555,8 @@ struct impl : consrv
                leader{      },
                ctrl_c{ faux },
                fstate{ true },
-               mstate{      }
+               mstate{      },
+               layout{      }
         { }
 
         auto& ref_history(text& exe)
@@ -1088,15 +1090,24 @@ struct impl : consrv
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
+
+            if (gear.xlayout != layout) // Sync kb layout.
+            {
+                layout = gear.xlayout;
+                auto data = nt::console::layout_input{ .layout_id = layout };
+                stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&data));
+            }
+
             toWIDE.clear();
-            utf::to_utf(gear.cluster, toWIDE);
+            auto cluster = input::key::get_cluster(gear, faux);
+            utf::to_utf(cluster, toWIDE);
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
-            auto altgr_not_released = gear.ctlstat & input::hids::AltGr && (gear.keystat != input::key::released || gear.keycode != input::key::RightAlt);
+            auto altgr_pressed = input::key::kmap::pressed(gear, input::key::AltGr);
             auto ctrls = os::nt::ms_kbstate(gear.ctlstat)
                        | (gear.extflag ? ENHANCED_KEY : 0)
-                       | (altgr_not_released ? LEFT_CTRL_PRESSED : 0);
+                       | (altgr_pressed ? LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.keystat)
@@ -1117,12 +1128,12 @@ struct impl : consrv
                 }
                 else
                 {
-                    if (gear.ctlstat & input::hids::AltGr && gear.keycode == input::key::RightAlt) // Generate fake LeftCtrl events on AltGr activity.
+                    if (gear.keycode == input::key::AltGr) // Generate fake LeftCtrl events on AltGr activity.
                     {
                         auto lctrl = input::key::map::data(input::key::LeftCtrl);
                         auto pre_ctrls = ctrls;
-                        if (gear.keystat == input::key::pressed ) pre_ctrls &= ~(RIGHT_ALT_PRESSED | ENHANCED_KEY); // AltGr is not pressed yet.
-                        else                                      pre_ctrls = (pre_ctrls & ~ENHANCED_KEY) | RIGHT_ALT_PRESSED; // AltGr is still pressed.
+                        if (gear.keystat == input::key::pressed) pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY | RIGHT_ALT_PRESSED)) | LEFT_CTRL_PRESSED; // AltGr is not pressed yet.
+                        else                                     pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY                    )) | RIGHT_ALT_PRESSED; // AltGr is still pressed.
                         generate(c, pre_ctrls, lctrl.vkey, gear.keystat, lctrl.scan); // Restore the LeftCtrl+RightAlt state for AltGr.
                     }
                     generate(c, ctrls, gear.virtcod, gear.keystat, gear.scancod);
@@ -1576,7 +1587,7 @@ struct impl : consrv
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
-                answer.send_data<Complete>(server.condrv, data);
+                answer.template send_data<Complete>(server.condrv, data); //todo MSVC2026 requires template keyword
             }
             else
             {
@@ -1585,7 +1596,7 @@ struct impl : consrv
                 if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(i.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
-                answer.send_data<Complete>(server.condrv, data);
+                answer.template send_data<Complete>(server.condrv, data); //todo MSVC2026 requires template keyword
             }
             if (cooked.rest.empty()) // Keep user's handle (ondata) in signaled state if queue is not empty. Flush (make it non-signaled) it if empty.
             {
@@ -1806,13 +1817,13 @@ struct impl : consrv
             if (size == recbuf.size())
             {
                 if (server.io_log) logbuf(recbuf);
-                answer.send_data<Complete>(server.condrv, recbuf);
+                answer.template send_data<Complete>(server.condrv, recbuf); //todo MSVC2026 requires template keyword
                 recbuf.clear();
             }
             else
             {
                 if (server.io_log) logbuf(std::span{ recbuf.data(), size });
-                answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
+                answer.template send_data<Complete>(server.condrv, std::span{ recbuf.data(), size }); //todo MSVC2026 requires template keyword
                 if (peek) recbuf.clear();
                 else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
             }

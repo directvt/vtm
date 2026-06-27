@@ -474,7 +474,7 @@ namespace netxs::ui
                     if (gear_test.second == 0)
                     {
                         if (pro::focus::test(owner, gear)) pro::focus::off(owner.This(), gear.id);
-                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on);
+                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(mods::anyCtrl) ? solo::off : solo::on);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -563,6 +563,7 @@ namespace netxs::ui
                     auto focused = !!count;
                     if (std::exchange(state, focused) != state)
                     {
+                        owner.set_deadkey_preview();
                         owner.ipccon.focus(focused, encod);
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
@@ -8211,6 +8212,7 @@ namespace netxs::ui
         std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
         ui16                                                  image_sixel_count{}; // term: Registered sixel image count;
         std::vector<ui16>                                     image_removed_indexes; // term: Image indexes to be deleted.
+        text       deadkey_preview; // term: Deadkey preview.
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -9648,8 +9650,13 @@ namespace netxs::ui
         auto _paste(auto& data)
         {
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
-            follow[axis::X] = true;
-            follow[axis::Y] = true;
+            if (defcfg.resetonkey)
+            {
+                base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                unsync = true;
+                follow[axis::X] = true;
+                follow[axis::Y] = true;
+            }
             ipccon.paste(data, bpmode, kbmode);
         }
         auto paste(hids& gear)
@@ -9676,7 +9683,7 @@ namespace netxs::ui
             {
                 _copy(gear, data);
             }
-            auto ctrl_pressed = gear.meta(hids::anyCtrl);
+            auto ctrl_pressed = gear.meta(mods::anyCtrl);
             if (onesht != mime::disabled && !ctrl_pressed)
             {
                 selection_oneshot(mime::disabled);
@@ -9751,14 +9758,18 @@ namespace netxs::ui
         void selection_lclick(hids& gear)
         {
             auto& console = *target;
-            auto go_on = gear.meta(hids::anyCtrl);
+            auto go_on = gear.meta(mods::anyCtrl);
             if (go_on && console.selection_active())
             {
                 console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
             }
-            else selection_cancel();
+            else
+            {
+                target->selection_create(gear.click, faux); // Update lookup's beginning position.
+                selection_cancel();
+            }
         }
         void selection_dblclk(hids& gear)
         {
@@ -9777,8 +9788,8 @@ namespace netxs::ui
         void selection_create(hids& gear)
         {
             auto& console = *target;
-            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
-            auto go_on = gear.meta(hids::anyCtrl);
+            auto boxed = selalt ^ !!gear.meta(mods::anyAlt);
+            auto go_on = gear.meta(mods::anyCtrl);
             console.selection_follow(gear.click, go_on);
             if (go_on) console.selection_extend(gear.click, boxed);
             else       console.selection_create(gear.click, boxed);
@@ -9805,7 +9816,7 @@ namespace netxs::ui
         {
             // Check bounds and scroll if needed.
             auto& console = *target;
-            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
+            auto boxed = selalt ^ !!gear.meta(mods::anyAlt);
             auto coord = twod{ gear.coord };
             auto vport = rect{ -origin, console.panel };
             auto delta = dot_00;
@@ -9869,7 +9880,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                    if (gear.meta(mods::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     if (altscr && target != &normal)
                     {
                         if (gear.whlsi)
@@ -10209,11 +10220,22 @@ namespace netxs::ui
             imefmt.flow::compose<faux>(imebox, test);
             return composit_cursor;
         }
+        void set_deadkey_preview(qiew cluster = {})
+        {
+            auto changed = std::exchange(deadkey_preview, cluster) != cluster;
+            if (io_log && changed) log("%%Deadkey preview: ", prompt::key, ansi::hi(deadkey_preview.size() ? deadkey_preview : " "));
+        }
         void key_event(hids& gear, bool forced_event = faux)
         {
             if (!forced_event && gear.touched && !rawkbd) return;
             switch (gear.payload)
             {
+                case keybd::type::deadkey:
+                    if (gear.keystat == input::key::pressed)
+                    {
+                        set_deadkey_preview(gear.cluster);
+                    }
+                    [[fallthrough]];
                 case keybd::type::keypress:
                     if (defcfg.resetonkey && gear.doinput())
                     {
@@ -10222,7 +10244,14 @@ namespace netxs::ui
                         follow[axis::X] = true;
                         follow[axis::Y] = true;
                     }
-                    ipccon.keybd(gear, decckm, kbmode);
+                    if (gear.payload == keybd::type::keypress)
+                    {
+                        if (deadkey_preview.size() && gear.cluster.size()) // Reset deadkey preview on input.
+                        {
+                            set_deadkey_preview();
+                        }
+                        ipccon.keybd(gear, decckm, kbmode);
+                    }
                     if (forced_event || !gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
@@ -10255,7 +10284,7 @@ namespace netxs::ui
                     else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
                     break;
                 case keybd::type::kblayout:
-                    //todo
+                    if (deadkey_preview.size()) set_deadkey_preview();
                     break;
             }
         }
@@ -10997,6 +11026,10 @@ namespace netxs::ui
                     caret.coor(original_cursor);
                     if (defclr.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
+                    if (deadkey_preview.size())
+                    {
+                        parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.txt(deadkey_preview); });
+                    }
                 }
                 if (invbit) // DECSCNM.
                 {
