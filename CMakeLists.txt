@@ -45,6 +45,9 @@ else()
                          GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
                          GIT_TAG        v3.5.0)
     FetchContent_MakeAvailable(lunasvg)
+endif()
+
+if(NOT TARGET lunasvg::lunasvg)
     add_library(lunasvg::lunasvg ALIAS lunasvg)
 endif()
 
