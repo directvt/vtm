@@ -13,12 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, ubuntu-22.04 ]
+        os: [ windows-2022, ubuntu-22.04 ]
         cpu: [ x64, x86, arm64, arm ]
         exclude:
-          - os: windows-latest
+          - os: windows-2022
             cpu: x86
-          - os: windows-latest
+          - os: windows-2022
             cpu: arm
 
         include:
@@ -38,7 +38,7 @@ jobs:
             cc: gcc-13
             flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
             triplet: x64-osx
-          - os: windows-latest
+          - os: windows-2022
             platform: windows
             cpu: Win32
             arch: x86
@@ -46,12 +46,12 @@ jobs:
             cc: cl
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /constexpr:steps 10000000" -A '
             triplet: x86-windows-static
-          - os: windows-latest
+          - os: windows-2022
             cxx: cl
-          - os: windows-latest
+          - os: windows-2022
             cpu: x64
             triplet: x64-windows-static
-          - os: windows-latest
+          - os: windows-2022
             cpu: arm64
             triplet: arm64-windows-static
           - os: ubuntu-22.04
@@ -84,12 +84,12 @@ jobs:
 
           - os: ubuntu-22.04
             flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
-          - os: windows-latest
+          - os: windows-2022
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /constexpr:steps 10000000" -A '
 
           - os: ubuntu-22.04
             platform: linux
-          - os: windows-latest
+          - os: windows-2022
             platform: windows
 
           - cpu: x64
@@ -117,13 +117,13 @@ jobs:
         sudo apt -y install ${{ matrix.apt }}
 
     - name: Clone and Bootstrap vcpkg (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2022'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
     - name: Clone and Bootstrap vcpkg (POSIX)
-      if: matrix.os != 'windows-latest'
+      if: matrix.os != 'windows-2022'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
@@ -142,41 +142,41 @@ jobs:
         VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         VCPKG_BUILD_TYPE: release
         MACOSX_DEPLOYMENT_TARGET: 11.0
-        WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
+        WIN32_RESOURCES: ${{ matrix.os == 'windows-2022' && '.resources/images/vtm.rc' || '' }}
       run: |
         pwsh -Command "if (!(Test-Path '${{ github.workspace }}/vcpkg_cache')) { New-Item -ItemType Directory -Force -Path '${{ github.workspace }}/vcpkg_cache' }"
-        cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
+        cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-2022' && matrix.cpu || '' }} -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.bin }} --config Release -v
 
     - name: Pack (POSIX)
-      if: matrix.os != 'windows-latest'
+      if: matrix.os != 'windows-2022'
       run: |
         7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
         7z a -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
 
     - name: Pack (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2022'
       run: |
         7z a -ssp -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.7z ${{ steps.strings.outputs.bin }}/Release/vtm.exe
 
     - name: Upload Artifact (POSIX)
-      if: matrix.os != 'windows-latest'
+      if: matrix.os != 'windows-2022'
       uses: actions/upload-artifact@main
       with:
         name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
         path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z
 
     - name: Upload Symbols (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2022'
       uses: actions/upload-artifact@main
       with:
         name: vtm_pdb_${{ matrix.platform }}_${{ matrix.arch }}
         path: ${{ steps.strings.outputs.bin }}/Release/vtm.pdb
 
     - name: Upload Artifact (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2022'
       uses: actions/upload-artifact@main
       with:
         name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
