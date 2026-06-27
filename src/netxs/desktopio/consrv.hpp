@@ -1587,7 +1587,7 @@ struct impl : consrv
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
-                answer.send_data<Complete>(server.condrv, data);
+                answer.template send_data<Complete>(server.condrv, data);
             }
             else
             {
@@ -1596,7 +1596,7 @@ struct impl : consrv
                 if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(i.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
-                answer.send_data<Complete>(server.condrv, data);
+                answer.template send_data<Complete>(server.condrv, data);
             }
             if (cooked.rest.empty()) // Keep user's handle (ondata) in signaled state if queue is not empty. Flush (make it non-signaled) it if empty.
             {
@@ -1817,13 +1817,13 @@ struct impl : consrv
             if (size == recbuf.size())
             {
                 if (server.io_log) logbuf(recbuf);
-                answer.send_data<Complete>(server.condrv, recbuf);
+                answer.template send_data<Complete>(server.condrv, recbuf);
                 recbuf.clear();
             }
             else
             {
                 if (server.io_log) logbuf(std::span{ recbuf.data(), size });
-                answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
+                answer.template send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
                 if (peek) recbuf.clear();
                 else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
             }
