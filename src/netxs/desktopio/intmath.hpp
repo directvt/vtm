@@ -51,6 +51,10 @@
     #include FT_MULTIPLE_MASTERS_H
     #include FT_SFNT_NAMES_H
     #include FT_COLOR_H
+
+    #ifndef FT_OTSVG_H
+        #define FT_OTSVG_H <freetype/otsvg.h>
+    #endif
     #include FT_OTSVG_H
 
     #include <hb-ft.h>

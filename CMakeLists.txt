@@ -21,11 +21,38 @@ add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
 # add_executable(term "src/netxs/apps/term.cpp")
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
-find_package(Freetype REQUIRED)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(vtm PRIVATE -fconstexpr-steps=100000000)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options(vtm PRIVATE /constexpr:steps10000000)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    target_compile_options(vtm PRIVATE -fconstexpr-loop-limit=100000000)
+endif()
+
+find_package(Freetype 2.13.2 QUIET)
 find_package(harfbuzz REQUIRED)
 find_package(Lua 5.4  REQUIRED)
 find_package(lunasvg QUIET)
 find_package(Stb     QUIET)
+
+if(Freetype_FOUND)
+    message(STATUS "Suitable FreeType found via find_package: ${FREETYPE_VERSION_STRING}")
+else()
+    message(STATUS "Suitable FreeType NOT found (min 2.13.2 required). Downloading via FetchContent...")
+    set(FT_WITH_ZLIB     OFF CACHE BOOL "" FORCE)
+    set(FT_WITH_BZIP2    OFF CACHE BOOL "" FORCE)
+    set(FT_WITH_PNG      OFF CACHE BOOL "" FORCE)
+    set(FT_WITH_HARFBUZZ OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(freetype
+                         GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
+                         GIT_TAG        VER-2-13-2)
+    FetchContent_MakeAvailable(freetype)
+    if(NOT TARGET Freetype::Freetype)
+        add_library(Freetype::Freetype ALIAS freetype)
+    endif()
+    set(FREETYPE_INCLUDE_DIRS "${freetype_SOURCE_DIR}/include"
+                              "${freetype_BINARY_DIR}/include")
+endif()
 
 if(lunasvg_FOUND)
     message(STATUS "LunaSVG found via find_package.")
@@ -37,6 +64,9 @@ else()
                          GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
                          GIT_TAG        v3.5.0)
     FetchContent_MakeAvailable(lunasvg)
+endif()
+
+if(NOT TARGET lunasvg::lunasvg)
     add_library(lunasvg::lunasvg ALIAS lunasvg)
 endif()
 

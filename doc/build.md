@@ -8,7 +8,7 @@ Build-time dependencies
  - `C++20 compiler`: [GCC 12](https://gcc.gnu.org/projects/cxx-status.html) or [Clang 16](https://clang.llvm.org/cxx_status.html)
  - `cmake` (minimum version v3.22)
  - `git`
- - `FreeType`
+ - `FreeType` (minimum version v2.13.2, will be fetched automatically via CMake if not found)
  - `HarfBuzz`
  - `Lua` (minimum version v5.4)
  - `LunaSVG` (Will be built automatically from source via CMake if not found in the system)
