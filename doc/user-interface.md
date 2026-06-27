@@ -23,29 +23,27 @@
   </tr>
 </thead>
 <tbody>
-  <tr><th>Esc+F1 ¹ (Alt+Z on non-Windows platforms)</th>      <td colspan="9">Focus taskbar</td></tr>
-
-  <tr><th>Esc | Alt</th>                                      <td colspan="3">Unfocus taskbar</td><td colspan="6"></td></tr>
-  <tr><th>LeftArrow</th>                                      <td colspan="3">Focus left item</td><td colspan="6"></td></tr>
-  <tr><th>RightArrow</th>                                     <td colspan="3">Focus right item</td><td colspan="6"></td></tr>
-  <tr><th>UpArrow</th>                                        <td colspan="3">Focus the previous item</td><td colspan="6"></td></tr>
-  <tr><th>DownArrow</th>                                      <td colspan="3">Focus the next item</td><td colspan="6"></td></tr>
-  <tr><th>PageUp</th>                                         <td colspan="3">Move focus half a page up</td><td colspan="6"></td></tr>
-  <tr><th>PageDown</th>                                       <td colspan="3">Move focus half a page down</td><td colspan="6"></td></tr>
-  <tr><th>Shift+Tab</th>                                      <td colspan="3">Focus the previous item group</td><td colspan="6"></td></tr>
-  <tr><th>Tab</th>                                            <td colspan="3">Focus the next item group</td><td colspan="6"></td></tr>
-  <tr><th>Home</th>                                           <td colspan="3">Move focus to the top</td><td colspan="6"></td></tr>
-  <tr><th>End</th>                                            <td colspan="3">Move focus to the bottom</td><td colspan="6"></td></tr>
-  <tr><th>Ctrl+LeftArrow</th>                                 <td colspan="3">Decrease taskbar width</td><td colspan="6"></td></tr>
-  <tr><th>Ctrl+RightArrow</th>                                <td colspan="3">Increase taskbar width</td><td colspan="6"></td></tr>
-  <tr><th>Space | Enter</th>                                  <td colspan="3">Activate focused item</td><td colspan="6"></td></tr>
-
-  <tr><th>Esc+I</th>                                          <td colspan="9">Open Info-page</td></tr>
-  <tr><th>Ctrl-Alt (Alt+Shift+B on non-Windows platforms)</th><td colspan="9">Toggle exclusive keyboard mode</td></tr>
-  <tr><th>Alt+Shift+N</th>                                    <td colspan="9">Run app</td></tr>
-  <tr><th>F10</th>                                            <td colspan="9">Disconnect all users and shutdown if there are no apps running</td></tr>
-  <tr><th>Shift+F7</th>                                       <td colspan="9">Leave current session</td></tr>
-  <tr><th>Ctrl+PageUp/PageDown</th>                           <td colspan="9">Switch focus between running apps</td></tr>
+  <tr><th>Esc+F1 ¹</th>             <td colspan="9">Focus taskbar</td></tr>
+  <tr><th>Esc | Alt</th>            <td colspan="3">Unfocus taskbar</td><td colspan="6"></td></tr>
+  <tr><th>LeftArrow</th>            <td colspan="3">Focus left item</td><td colspan="6"></td></tr>
+  <tr><th>RightArrow</th>           <td colspan="3">Focus right item</td><td colspan="6"></td></tr>
+  <tr><th>UpArrow</th>              <td colspan="3">Focus the previous item</td><td colspan="6"></td></tr>
+  <tr><th>DownArrow</th>            <td colspan="3">Focus the next item</td><td colspan="6"></td></tr>
+  <tr><th>PageUp</th>               <td colspan="3">Move focus half a page up</td><td colspan="6"></td></tr>
+  <tr><th>PageDown</th>             <td colspan="3">Move focus half a page down</td><td colspan="6"></td></tr>
+  <tr><th>Shift+Tab</th>            <td colspan="3">Focus the previous item group</td><td colspan="6"></td></tr>
+  <tr><th>Tab</th>                  <td colspan="3">Focus the next item group</td><td colspan="6"></td></tr>
+  <tr><th>Home</th>                 <td colspan="3">Move focus to the top</td><td colspan="6"></td></tr>
+  <tr><th>End</th>                  <td colspan="3">Move focus to the bottom</td><td colspan="6"></td></tr>
+  <tr><th>Ctrl+LeftArrow</th>       <td colspan="3">Decrease taskbar width</td><td colspan="6"></td></tr>
+  <tr><th>Ctrl+RightArrow</th>      <td colspan="3">Increase taskbar width</td><td colspan="6"></td></tr>
+  <tr><th>Space | Enter</th>        <td colspan="3">Activate focused item</td><td colspan="6"></td></tr>
+  <tr><th>Esc+I</th>                <td colspan="9">Open Info-page</td></tr>
+  <tr><th>Ctrl-Alt</th>             <td colspan="9">Toggle exclusive keyboard mode</td></tr>
+  <tr><th>Alt+Shift+N</th>          <td colspan="9">Run app</td></tr>
+  <tr><th>F10</th>                  <td colspan="9">Disconnect all users and shutdown if there are no apps running</td></tr>
+  <tr><th>Shift+F7</th>             <td colspan="9">Leave current session</td></tr>
+  <tr><th>Ctrl+PageUp/PageDown</th> <td colspan="9">Switch focus between running apps</td></tr>
   <tr>
     <th>LeftClick</th>
     <td>Run app</td>
@@ -253,25 +251,25 @@
     <tr><th>Hotkey ¹</th>              <th>Default action</th></tr>
   </thead>
   <tbody>
-    <tr><th>Ctrl+PageUp</th>            <td>Focus the previous pane or the split grip.</td></tr>
-    <tr><th>Ctrl+PageDown</th>          <td>Focus the next pane or the split grip.</td></tr>
-    <tr><th>Alt+Shift+N</th>            <td>Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar.</td></tr>
-    <tr><th>Alt+Shift+A</th>            <td>Select all panes.</td></tr>
-    <tr><th>Alt+Shift+'|'</th>          <td>Split active panes horizontally.</td></tr>
-    <tr><th>Alt+Shift+Minus</th>        <td>Split active panes vertically.</td></tr>
-    <tr><th>Alt+Shift+R</th>            <td>Change split orientation.</td></tr>
-    <tr><th>Alt+Shift+S</th>            <td>Swap two or more panes.</td></tr>
-    <tr><th>Alt+Shift+E</th>            <td>Equalize split ratio.</td></tr>
-    <tr><th>Alt+Shift+F2</th>           <td>Set tiling window manager title using clipboard data.</td></tr>
-    <tr><th>Alt+Shift+W</th>            <td>Close active application.</td></tr>
-    <tr><th>LeftArrow</th>              <td>Move the split grip to the left.</td></tr>
-    <tr><th>RightArrow</th>             <td>Move the split grip to the right.</td></tr>
-    <tr><th>UpArrow</th>                <td>Move the split grip up.</td></tr>
-    <tr><th>DownArrow</th>              <td>Move the split grip down.</td></tr>
-    <tr><th>'-'</th>                    <td>Decrease the split grip width.</td></tr>
-    <tr><th>Shift+'+'<br>NumpadPlus</th><td>Increase the split grip width.</td></tr>
-    <tr><th>Shift+Tab</th>              <td>Focus the previous split grip.</td></tr>
-    <tr><th>Tab</th>                    <td>Focus the next split grip.</td></tr>
+    <tr><th>Ctrl+PageUp</th>     <td>Focus the previous pane or the split grip.</td></tr>
+    <tr><th>Ctrl+PageDown</th>   <td>Focus the next pane or the split grip.</td></tr>
+    <tr><th>Alt+Shift+N</th>     <td>Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar.</td></tr>
+    <tr><th>Alt+Shift+A</th>     <td>Select all panes.</td></tr>
+    <tr><th>Alt+'|'</th>         <td>Split active panes horizontally.</td></tr>
+    <tr><th>Alt+Shift+Minus</th> <td>Split active panes vertically.</td></tr>
+    <tr><th>Alt+Shift+R</th>     <td>Change split orientation.</td></tr>
+    <tr><th>Alt+Shift+S</th>     <td>Swap two or more panes.</td></tr>
+    <tr><th>Alt+Shift+E</th>     <td>Equalize split ratio.</td></tr>
+    <tr><th>Alt+Shift+F2</th>    <td>Set tiling window manager title using clipboard data.</td></tr>
+    <tr><th>Alt+Shift+W</th>     <td>Close active application.</td></tr>
+    <tr><th>LeftArrow</th>       <td>Split grip: Move the split grip to the left.</td></tr>
+    <tr><th>RightArrow</th>      <td>Split grip: Move the split grip to the right.</td></tr>
+    <tr><th>UpArrow</th>         <td>Split grip: Move the split grip up.</td></tr>
+    <tr><th>DownArrow</th>       <td>Split grip: Move the split grip down.</td></tr>
+    <tr><th>'-'</th>             <td>Split grip: Decrease the split grip width.</td></tr>
+    <tr><th>'+'<br>'='</th>      <td>Split grip: Increase the split grip width.</td></tr>
+    <tr><th>Shift+Tab</th>       <td>Focus the previous split grip.</td></tr>
+    <tr><th>Tab</th>             <td>Focus the next split grip.</td></tr>
   </tbody>
 </table>
 

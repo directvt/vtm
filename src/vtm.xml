@@ -319,7 +319,7 @@ R"==(
             <script=TileFocusNextPane      on=""               />
             <script=TileRunApplication     on="Alt+Shift+N"    />
             <script=TileSelectAllPanes     on="Alt+Shift+A"    />
-            <script=TileSplitHorizontally  on="Alt+Shift+'|'"  />
+            <script=TileSplitHorizontally  on="Alt+'|'"        />
             <script=TileSplitVertically    on="Alt+Shift+Minus"/>
             <script=TileSplitOrientation   on="Alt+Shift+R"    />
             <script=TileSwapPanes          on="Alt+Shift+S"    />
@@ -327,14 +327,14 @@ R"==(
             <script=TileSetManagerTitle    on="Alt+Shift+F2"   />
             <script=TileClosePane          on="Alt+Shift+W"    />
             <grip script*>
-                <script=TileMoveGripLeft      on="LeftArrow"                         />
-                <script=TileMoveGripRight     on="RightArrow"                        />
-                <script=TileMoveGripUp        on="UpArrow"                           />
-                <script=TileMoveGripDown      on="DownArrow"                         />
-                <script=TileDecreaseGripWidth on="'-'"                               />
-                <script=TileIncreaseGripWidth on="Shift+'+' | '+' | '=' | NumpadPlus"/>
-                <script=TileFocusPrevGrip     on="Shift+Tab"                         />
-                <script=TileFocusNextGrip     on="Tab"                               />
+                <script=TileMoveGripLeft      on="LeftArrow"             />
+                <script=TileMoveGripRight     on="RightArrow"            />
+                <script=TileMoveGripUp        on="UpArrow"               />
+                <script=TileMoveGripDown      on="DownArrow"             />
+                <script=TileDecreaseGripWidth on="'-'"                   />
+                <script=TileIncreaseGripWidth on="'+' | '=' | NumpadPlus"/>
+                <script=TileFocusPrevGrip     on="Shift+Tab"             />
+                <script=TileFocusNextGrip     on="Tab"                   />
             </grip>
         </tile>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
