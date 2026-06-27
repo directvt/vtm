@@ -172,7 +172,7 @@ namespace netxs::input
         //                                    Extended Bit (0 or 1)
         #define key_list \
           /* ID  Input Ex_Vk  Name                 Generic              Literal  Uc  KKPdef KKPsuffix KKPascii wCtl  PhysicalCode */\
-            X(0   , 1, 0    , undef              , "undef"             , ""    , 0     , 0    , 'u', -1    , -1    , "")\
+            X(0   , 1, 0    , undef              , "undef"             , ""    , 0     , 0    , 'u', -1    , -1    , "0000e7")\
             X(1   , 0, 0    , invalid            , "invalid"           , ""    , 0     , 0    , 'u', -1    , -1    , "")\
             X(2   , 0, 0x011, LeftCtrl           , "Ctrl"              , ""    , 0     , 57442, 'u', -1    , -1    , "001d11061d11101d110e1d11141d11161d11021d110a1d110c1d11181d11041d11081d111a1d11121d11201d111e1d111c1d11221d11241d11281d11261d112a1d11301d112e1d112c1d11341d11361d11321d11381d113a1d113e1d113c1d11401d11421d11441d11461d11481d114e1d11501d114a1d114c1d11521d11561d11581d11541d115a1d115c1d115e1d11601d11641d116c1d11621d116a1d11661d11681d116e1d11701d11721d117c1d11741d11761d11781d117a1d117e1d11801d11861d11821d11841d11881d118a1d118c1d118e1d11921d11901d11941d11961d11981d119a1d119c1d11a01d119e1d11a21d11a41d11a61d11a81d11aa1d11ac1d11")\
             X( 3  , 0, 0x111, RightCtrl          , "Ctrl"              , ""    , 0     , 57448, 'u', -1    , -1    , "011d11071d11111d110f1d11151d11171d11031d110b1d110d1d11191d11051d11091d111b1d11131d11211d111f1d111d1d11251d11291d11271d112b1d11311d112f1d112d1d11351d11371d11331d11391d113b1d113f1d113d1d11411d11451d11471d11491d114f1d11511d114b1d114d1d11531d11571d11591d11551d115b1d115d1d115f1d11611d11651d116d1d11631d116b1d11671d11691d116f1d11711d11731d117d1d11751d11771d11791d117b1d117f1d11811d11871d11831d11851d11891d118b1d118d1d118f1d11931d11911d11951d11971d11991d119b1d119d1d11a11d119f1d11a31d11a51d11a71d11a91d11ab1d11ad1d11")\
@@ -487,6 +487,7 @@ namespace netxs::input
 
             // Max 12 bits for KeyId.
             static constexpr auto idbits = 12;
+            static constexpr auto idbits_mask = (1 << key::idbits) - 1;
 
         #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KKPdef, KKPsuffix, KKPascii, wCtl, PhysicalCode) \
             static constexpr auto Name = KeyId;
@@ -2324,10 +2325,10 @@ namespace netxs::input
             }
             static auto _vkey_str(si32 keyid, bool ispressed)
             {
-                keyid &= 0x0FFF; // 12 bit max.
+                keyid &= key::idbits_mask; // 12 bit max.
                 auto keyid_str = text(2, '\0');
-                keyid_str[0] = (byte)((keyid >> 8) | (ispressed ? 0x00 : input::key::unpressed_sign));
-                keyid_str[1] = (byte)(keyid & 0xFF);
+                keyid_str[0] = (byte)((keyid >> 8) | (ispressed ? 0x00 : input::key::unpressed_sign)); // hi_12bit_code + flags
+                keyid_str[1] = (byte)(keyid & 0xFF);                                                   // lo_12bit_code
                 return keyid_str;
             }
             static auto push_keyid(bool ispressed, text& vkchord, si32 keyid)
@@ -2343,11 +2344,11 @@ namespace netxs::input
             }
             static void push_scode(bool ispressed, text& scchord, si32 scode)
             {
-                scode &= 0x0FFF; // 12 bit max.
-                auto hi_12bit_scode = (byte)((scode >> 8) & 0x01);
-                auto lo_12bit_scode = (byte)(scode & 0xFF);
-                scchord.push_back(hi_12bit_scode | (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign));
-                scchord.push_back(lo_12bit_scode);
+                scode &= 0x01FF; // 9 bit max.
+                auto hi_9bit_scode = (byte)((scode >> 8) & 0x01);
+                auto lo_9bit_scode = (byte)(scode & 0xFF);
+                scchord.push_back(hi_9bit_scode | (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign));
+                scchord.push_back(lo_9bit_scode);
             }
             static void push_cluster(bool ispressed, text& chchord, view cluster)
             {

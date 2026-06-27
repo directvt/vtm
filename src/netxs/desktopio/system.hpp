@@ -5893,10 +5893,10 @@ namespace netxs::os
                         if (i & 0b001) { ctlstate |= mods::LShift; ctls_str += 1; }
                         if (i & 0b010) { ctlstate |= mods::LAlt;   ctls_str += 2; }
                         if (i & 0b100) { ctlstate |= mods::LCtrl;  ctls_str += 4; }
-                        for (auto& [key, utf8] : keymask)
+                        for (auto& [k, utf8] : keymask)
                         {
                             *++(utf8.rbegin()) = ctls_str;
-                            m[utf8] = { "", key | (ctlstate << key::idbits) };
+                            m[utf8] = { "", k | (ctlstate << key::idbits) };
                         }
                     }
                     for (auto i = 0; i <= 'Z' - 'A'; i++)
@@ -5946,11 +5946,11 @@ namespace netxs::os
                     if (iter != vt2key.end())
                     {
                         auto keys = iter->second.second;
-                        auto code = keys & 0xff;
+                        auto code = keys & key::idbits_mask;
                         auto& rec = key::map::data(code);
                         k.cluster = iter->second.first;
                         k.keycode = code;
-                        k.ctlstat = keys >> 8;
+                        k.ctlstat = keys >> key::idbits;
                         k.virtcod = rec.vkey;
                         k.scancod = rec.scan;
                     }
@@ -5996,13 +5996,13 @@ namespace netxs::os
                             if (iter != vt2key.end())
                             {
                                 auto keys = iter->second.second;
-                                auto code = keys & 0xff;
+                                auto code = keys & key::idbits_mask;
                                 auto& rec = key::map::data(code);
                                 k.cluster = iter->second.first;
                                 k.keycode = code;
                                 k.virtcod = rec.vkey;
                                 k.scancod = rec.scan;
-                                k.ctlstat = mods::LAlt | (keys >> 8);
+                                k.ctlstat = mods::LAlt | (keys >> key::idbits);
                             }
                             else
                             {
@@ -6180,7 +6180,7 @@ namespace netxs::os
                             }
                             else if (unshift_uc > 0 && unshift_uc < 57358) // Exclude any function keys.
                             {
-                                auto shifted = !(k.ctlstat & mods::CapsLock) != !(k.ctlstat & mods::anyShift);
+                                auto shifted = !!(k.ctlstat & mods::CapsLock) != !!(k.ctlstat & mods::anyShift);
                                 utf::to_utf_from_code(shifted ? shifted_uc : unshift_uc, k.cluster);
                             }
                         }

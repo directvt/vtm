@@ -1550,12 +1550,9 @@ namespace netxs::utf
         return length;
     }
     // utf: Check if the first byte is utf-8.
-    bool firstbyte(char c)
+    bool firstbyte(byte c)
     {
-        return !(c & 0b1'0000000)
-             || (c & 0b111'00000) == 0b110'00000
-             || (c & 0b1111'0000) == 0b1110'0000
-             || (c & 0b11111'000) == 0b11110'000;
+        return c <= 0x7F || (c >= 0xC2 && c <= 0xF4); // 0x0..0x7f (1-byte), 0xC2..0xDF (2-bytes), 0xE0..0xEF (3-bytes), 0xF0..0xF4 (4-bytes).
     }
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     void purify(view& utf8)
