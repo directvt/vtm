@@ -8,24 +8,29 @@ Build-time dependencies
  - `C++20 compiler`: [GCC 12](https://gcc.gnu.org/projects/cxx-status.html) or [Clang 16](https://clang.llvm.org/cxx_status.html)
  - `cmake` (minimum version v3.22)
  - `git`
- - `FreeType` (minimum version v2.13.2, will be fetched automatically via CMake if not found)
- - `HarfBuzz`
+ - `FreeType` (minimum version v2.13.2)
+ - `HarfBuzz` (minimum version v12.2.0)
  - `Lua` (minimum version v5.4)
- - `LunaSVG` (Will be built automatically from source via CMake if not found in the system)
- - `stb` (Will be fetched automatically via CMake if not found)
+ - `LunaSVG`
+ - `stb`
+
+Note:
+- `FreeType`/`HarfBuzz`/`LunaSVG`/`stb` will be fetched automatically via CMake if not found in the system.
 
 Examples of installing dependencies:
 
 OS      | Dependency installation command | Notes
 --------|---------------------------------|------
-Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake` | `stb` and `LunaSVG` are managed automatically during CMake configuration.
+Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake`
 FreeBSD | `pkg install freetype2 harfbuzz lua54 cmake` | Best results with GCC compiler and 6GB of RAM.
-MacOS   | `brew install freetype harfbuzz lua cmake`
+macOS   | `brew install freetype harfbuzz lua cmake`
 
 Use any terminal as a build environment
 
 ```
 git clone https://github.com/directvt/vtm.git
+# Specify required compiler if needed:
+#export CXX=/usr/bin/g++-12
 cd vtm
 cmake . -B bin
 cmake --build bin
