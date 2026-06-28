@@ -31,7 +31,7 @@ endif()
 
 find_package(Lua 5.4         REQUIRED)
 find_package(Freetype 2.13.2 QUIET)
-find_package(harfbuzz        QUIET)
+find_package(harfbuzz 12.2.0 QUIET)
 find_package(lunasvg         QUIET)
 find_package(Stb             QUIET)
 
@@ -40,6 +40,10 @@ if(Freetype_FOUND AND harfbuzz_FOUND)
     message(STATUS "Suitable HarfBuzz found via find_package: ${harfbuzz_VERSION}")
 else()
     message(STATUS "FreeType or HarfBuzz not found/outdated (FT 2.13.2 and HB 12.2.0 required). Downloading both via FetchContent...")
+
+    unset(Freetype_FOUND CACHE)
+    unset(harfbuzz_FOUND CACHE)
+
     set(FT_WITH_ZLIB     OFF CACHE BOOL "" FORCE)
     set(FT_WITH_BZIP2    OFF CACHE BOOL "" FORCE)
     set(FT_WITH_PNG      OFF CACHE BOOL "" FORCE)
@@ -51,6 +55,7 @@ else()
     if(NOT TARGET Freetype::Freetype)
         add_library(Freetype::Freetype ALIAS freetype)
     endif()
+
     set(HB_HAVE_FREETYPE      ON  CACHE BOOL "" FORCE)
     set(HB_BUILD_TESTS        OFF CACHE BOOL "" FORCE)
     set(HB_BUILD_UTILS        OFF CACHE BOOL "" FORCE)
@@ -58,6 +63,9 @@ else()
     set(HB_HAVE_INTROSPECTION OFF CACHE BOOL "" FORCE)
     set(HB_BUILD_DOCS         OFF CACHE BOOL "" FORCE)
     set(HB_BUILD_SUBSET       OFF CACHE BOOL "" FORCE)
+    set(Freetype_DIR                   "${freetype_BINARY_DIR}"         CACHE PATH "" FORCE)
+    set(FREETYPE_INCLUDE_DIR_ft2build  "${freetype_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+    set(FREETYPE_INCLUDE_DIR_freetype2 "${freetype_SOURCE_DIR}/include" CACHE PATH "" FORCE)
     FetchContent_Declare(harfbuzz
                          GIT_REPOSITORY https://github.com/harfbuzz/harfbuzz.git
                          GIT_TAG        12.2.0)
@@ -65,10 +73,9 @@ else()
     if(NOT TARGET harfbuzz::harfbuzz)
         add_library(harfbuzz::harfbuzz ALIAS harfbuzz)
     endif()
-    set(FREETYPE_INCLUDE_DIRS "${freetype_SOURCE_DIR}/include"
-                              "${freetype_BINARY_DIR}/include")
-    set(HARFBUZZ_INCLUDE_DIRS "${harfbuzz_SOURCE_DIR}/src"
-                              "${harfbuzz_BINARY_DIR}/src")
+
+    set(FREETYPE_INCLUDE_DIRS "${freetype_SOURCE_DIR}/include" "${freetype_BINARY_DIR}/include")
+    set(HARFBUZZ_INCLUDE_DIRS "${harfbuzz_SOURCE_DIR}/src"     "${harfbuzz_BINARY_DIR}/src")
 endif()
 
 if(lunasvg_FOUND)
