@@ -30,11 +30,47 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     target_compile_options(vtm PRIVATE -fconstexpr-loop-limit=100000000)
 endif()
 
-find_package(Lua 5.4         REQUIRED)
+find_package(Lua 5.4         QUIET)
 find_package(Freetype 2.13.2 QUIET)
 find_package(harfbuzz 12.2.0 QUIET)
 find_package(lunasvg         QUIET)
 find_package(Stb             QUIET)
+
+if(Lua_FOUND)
+    message(STATUS "Suitable Lua found via find_package: ${LUA_VERSION_STRING}")
+    if(NOT TARGET Lua::Lua)
+        add_library(Lua::Lua INTERFACE IMPORTED)
+        set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
+        set(LUA_INCLUDE_DIR "${LUA_INCLUDE_DIR}")
+    endif()
+else()
+    message(STATUS "Lua 5.4 NOT found in the system. Downloading clean source from lua.org...")
+    if(POLICY CMP0135)
+        cmake_policy(SET CMP0135 NEW)
+    endif()
+    FetchContent_Declare(lua_source
+                         URL           https://www.lua.org/ftp/lua-5.4.8.tar.gz
+                         URL_HASH      SHA256=4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae
+                         SOURCE_SUBDIR "DONOTEXIST")
+    FetchContent_MakeAvailable(lua_source)
+    set(LUA_CUSTOM_CMAKE "${lua_source_BINARY_DIR}/CMakeLists.txt")
+    file(WRITE "${LUA_CUSTOM_CMAKE}" [====[
+        cmake_minimum_required(VERSION 3.22)
+        project(lua C)
+        file(GLOB LUA_CORE_SRC "src/*.c")
+        list(REMOVE_ITEM LUA_CORE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/lua.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/luac.c")
+        add_library(lua STATIC ${LUA_CORE_SRC})
+        target_include_directories(lua PUBLIC src)
+        target_compile_definitions(lua PRIVATE LUA_USE_DLOPEN=0 LUA_DL_DLL=0 LUA_DL_DLOPEN=0)
+    ]====])
+    file(COPY "${LUA_CUSTOM_CMAKE}" DESTINATION "${lua_source_SOURCE_DIR}")
+    add_subdirectory("${lua_source_SOURCE_DIR}" "${lua_source_BINARY_DIR}")
+
+    if(NOT TARGET Lua::Lua)
+        add_library(Lua::Lua ALIAS lua)
+    endif()
+    set(LUA_INCLUDE_DIR "${lua_source_SOURCE_DIR}/src")
+endif()
 
 if(Freetype_FOUND AND harfbuzz_FOUND)
     message(STATUS "Suitable FreeType found via find_package: ${FREETYPE_VERSION_STRING}")
@@ -112,9 +148,6 @@ else()
     target_include_directories(stb_interface INTERFACE ${stb_SOURCE_DIR})
     add_library(stb::stb ALIAS stb_interface)
 endif()
-
-add_library(Lua::Lua INTERFACE IMPORTED)
-set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
 
 target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}

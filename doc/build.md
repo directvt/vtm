@@ -9,7 +9,6 @@
 - `C++20 compiler`: [GCC 12+](https://gcc.gnu.org/projects/cxx-status.html) or [Clang 16+](https://clang.llvm.org/cxx_status.html)
 - `CMake` (minimum version v3.22)
 - `Git`
-- `Lua` (minimum version v5.4)
 
 #### Optional Dependencies
 
@@ -17,15 +16,16 @@ The following libraries are required but will be automatically downloaded and bu
 - `FreeType` (minimum version v2.13.2)
 - `HarfBuzz` (minimum version v12.2.0)
 - `LunaSVG` (minimum version v3.5.0)
+- `Lua` (minimum version v5.4)
 - `stb`
 
 #### Examples of installing system dependencies:
 
-OS                     | Dependency installation command | Notes
------------------------|---------------------------------|---
- Linux (Ubuntu/Debian) | `sudo apt install liblua5.4-dev git cmake build-essential` | Uses FetchContent for FreeType/HarfBuzz on older distros.
- FreeBSD               | `pkg install lua54 cmake git`   | Best results with GCC compiler and 6GB of RAM.
- macOS                 | `brew install lua cmake git`
+OS                     | Dependency installation command              | Notes
+-----------------------|----------------------------------------------|------
+ Linux (Ubuntu/Debian) | `sudo apt install git cmake build-essential` |
+ FreeBSD               | `pkg install lua54 cmake git`                | Best results with GCC compiler and 6GB of RAM.
+ macOS                 | `brew install lua cmake git`                 |
 
 #### Build Steps
 
