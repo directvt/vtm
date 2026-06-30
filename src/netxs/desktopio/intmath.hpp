@@ -201,12 +201,12 @@ namespace netxs
         static constexpr auto RAlt       = 1 <<  3; // Right ⎇ Alt, Right ⌥ Option
         static constexpr auto LShift     = 1 <<  4; // Left  ⇧ Shift
         static constexpr auto RShift     = 1 <<  5; // Right ⇧ Shift
-        static constexpr auto LSuper     = 1 <<  6; // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-        static constexpr auto RSuper     = 1 <<  7; // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+        static constexpr auto LSuper     = 1 <<  6; // Left  ⊞ Win, ⌘ Cmd (Apple key), ❖ Super
+        static constexpr auto RSuper     = 1 <<  7; // Right ⊞ Win, ⌘ Cmd (Apple key), ❖ Super
         static constexpr auto LHyper     = 1 <<  8; // Left  Hyper
         static constexpr auto RHyper     = 1 <<  9; // Right Hyper
-        //                               = 1 << 10;
-        //                               = 1 << 11;
+        static constexpr auto LMeta      = 1 << 10; // Left  ◆ Meta // KKP specific
+        static constexpr auto RMeta      = 1 << 11; // Right ◆ Meta //
         static constexpr auto NumLock    = 1 << 12; // ⇭ Num Lock
         static constexpr auto CapsLock   = 1 << 13; // ⇪ Caps Lock
         static constexpr auto ScrollLock = 1 << 14; // ⇳ Scroll Lock (⤓)
@@ -218,7 +218,8 @@ namespace netxs
         static constexpr auto anyCtrlAlt = anyAlt | anyCtrl;
         static constexpr auto anySuper   = LSuper | RSuper;
         static constexpr auto anyHyper   = LHyper | RHyper;
-        static constexpr auto anyMod     = anyAlt | anyCtrl | anyShift | anySuper | anyHyper;
+        static constexpr auto anyMeta    = LMeta  | RMeta;
+        static constexpr auto anyMod     = anyAlt | anyCtrl | anyShift | anySuper | anyHyper | anyMeta;
     }
 
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }

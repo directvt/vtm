@@ -5595,7 +5595,7 @@ namespace netxs::gui
                         key_matrix[vkey::alt  ] = 0x80;
                         key_matrix[vkey::ralt ] = 0x80;
                     }
-                    key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (IsoLevel5Shift) on Canadian layout.
+                    key_matrix[vkey::grselect] = vkstat[vkey::grselect]; // Respect GroupSelect (Level5Shift) on Canadian layout.
                     key_matrix[vkey::capslock] = vkstat[vkey::capslock];
                 }
                 auto rc = ::ToUnicodeEx(virtcod, scancod, key_matrix.data(), buf.data(), 8, 0, hkl);

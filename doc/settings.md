@@ -462,7 +462,7 @@ Type        | Example                |Description
 Notes:
 - Generic, literal and specific key sequences can be mixed in any order within a key chord list.
 - The required key combination sequence can be generated on the Info page, by clicking the label in the lower right corner of the vtm desktop.
-- "Literal" key combinations automatically filter out keyboard shift modifiers such as Shift/AltGr/IsoLevel5Shift.
+- "Literal" key combinations automatically filter out keyboard shift modifiers such as Shift/AltGr/Level5Shift.
 
 #### Mouse events
 

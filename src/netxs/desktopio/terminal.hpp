@@ -16,6 +16,7 @@ namespace netxs::events::userland
             EVENT_XS( onesht,  si32 ),
             EVENT_XS( selalt,  si32 ),
             EVENT_XS( rawkbd,  si32 ),
+            EVENT_XS( reset ,  si32 ), // release: Scrollback buffer reset.
             GROUP_XS( toggle,  si32 ),
             GROUP_XS( preview, si32 ),
             GROUP_XS( release, si32 ),
@@ -1219,7 +1220,11 @@ namespace netxs::ui
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
 
-                vt.csier.table_quest[csi_qst_kkp] = V{ p->owner.kkp(q); }; // CSI ? ... u  KKP.
+                vt.csier.table_quest[ csi_qst_kkp] = V{ p->kkp_mode_reply();    }; // CSI ? u          Request current KKP mode.
+                vt.csier.table_equals[csi__eq_kkp] = V{ p->kkp_mode_set(q);     }; // CSI = [n;[m]] u  Update current KKP mode to n. Update mode m: 1(default) - SET(n); 2 - ADD(n); 3 - CLEAR(n)
+                vt.csier.table_gt[    csi__gt_kkp] = V{ p->kkp_mode_push(q(0)); }; // CSI > [n] u      Push KKP mode n(0) to the stack.
+                vt.csier.table_lt[    csi__lt_kkp] = V{ p->kkp_mode_pop(q(1));  }; // CSI < [n] u      Pop n(1) KKP modes from stack.
+
                 //vt.csier.table_gt[   csi__gt_rxv] = V{ p->owner.request_xt_version(q); }; // CSI > q  RequestXtVersion. ?Is it safe?
 
                 vt.csier.table_equals[esc_eq_da2] = V{ p->owner.da2(q); }; // CSI = c  DA2 request.
@@ -1321,9 +1326,11 @@ namespace netxs::ui
             line  tail_frag; // bufferbase: IRM cached fragment.
             rich  char_2d; // bufferbase: 2D char image.
 
-            hook image_update_token;
+            hook tokens; // bufferbase: Subscription tokens (for the image remove event and buffer clear).
+            bool autocr; // bufferbase: Auto CR mode flag.
 
-            bool autocr;
+            static constexpr auto kkp_mode_stack_limit = 8; // bufferbase: Maximum size of KKP mode stack (pop_front if limit reached).
+            std::list<si32> kkp_mode_stack; // bufferbase: KKP mode stack.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -1343,15 +1350,20 @@ namespace netxs::ui
                   uirev{ faux   },
                   uifwd{ faux   },
                   alive{ 0      },
-                  autocr{faux   }
+                  autocr{faux   },
+                  kkp_mode_stack{ input::kkp::mode::undef }
             {
                 parser::style = ansi::def_style;
-                owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, image_update_token)
+                owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, tokens)
                 {
                     auto images = cell::images(); // Lock.
                     for (auto image_index : image_indexes) images.touched.set(image_index);
                     wipe_image_index(images.touched);
                     for (auto image_index : image_indexes) images.touched.reset(image_index);
+                };
+                owner.LISTEN(tier::release, terminal::events::reset, unused, tokens)
+                {
+                    clear_all();
                 };
             }
 
@@ -1969,6 +1981,7 @@ namespace netxs::ui
                 rtb();
                 selection_cancel();
                 owner.sixels.clear_state();
+                kkp_mode_reset();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
             // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
@@ -2816,6 +2829,59 @@ namespace netxs::ui
             {
                 autocr = new_autocr;
                 bufferbase::_set_autocr(autocr);
+            }
+            // bufferbase: Set KKP mode.
+            void kkp_mode_set(fifo& q)
+            {
+                parser::flush();
+                auto& current = kkp_mode_stack.back();
+                auto flags = q(0) & 0x1f;
+                auto mode = q(1);
+                switch (mode)
+                {
+                    case 3: current &= ~flags; break;
+                    case 2: current |= flags; break;
+                    case 1:
+                    default: current = flags; break;
+                }
+            }
+            // bufferbase: Push new KKP mode to the stack.
+            void kkp_mode_push(si32 kkp_mode_flags)
+            {
+                parser::flush();
+                if (kkp_mode_stack.size() >= bufferbase::kkp_mode_stack_limit)
+                {
+                    kkp_mode_stack.pop_front();
+                }
+                kkp_mode_stack.push_back(kkp_mode_flags & 0x1f);
+            }
+            // bufferbase: Pop n KKP modes from the stack.
+            void kkp_mode_pop(si32 n)
+            {
+                parser::flush();
+                while (n-- > 0 && kkp_mode_stack.size() > 1)
+                {
+                    kkp_mode_stack.pop_back();
+                }
+            }
+            // bufferbase: Get current KKP mode.
+            auto kkp_mode_get()
+            {
+                return kkp_mode_stack.back();
+            }
+            // bufferbase: Reply current KKP mode.
+            void kkp_mode_reply()
+            {
+                parser::flush();
+                auto current_mode = kkp_mode_stack.back();
+                auto reply = ansi::add("\x1b[?", current_mode, 'u');
+                owner.answer(reply);
+            }
+            // bufferbase: Reset KKP mode stack.
+            void kkp_mode_reset()
+            {
+                parser::flush();
+                kkp_mode_stack = { input::kkp::mode::undef };
             }
         };
 
@@ -8877,14 +8943,6 @@ namespace netxs::ui
             escbuf.add("\x1bP!|00000000\x1b\\"); // VT-compatible, no extensions.
             answer(escbuf);
         }
-        // term: KKP request.
-        void kkp(fifo& /*q*/)
-        {
-            target->parser::flush();
-            //escbuf.add("\x1b[?0u"); // Not supported yet.
-            //answer(escbuf);
-            if (io_log) log("%%KKP not supported", prompt::term);
-        }
         // term: XTSMGRAPHICS request.
         void xtsmgraphics(fifo& q)
         {
@@ -9031,8 +9089,7 @@ namespace netxs::ui
         void decstr()
         {
             target->parser::flush();
-            normal.clear_all();
-            altbuf.clear_all();
+            base::signal(tier::release, terminal::events::reset);
             reset_pockets();
             target = &normal;
             invbit = faux;
@@ -10250,7 +10307,7 @@ namespace netxs::ui
                         {
                             set_deadkey_preview();
                         }
-                        ipccon.keybd(gear, decckm, kbmode);
+                        ipccon.keybd(gear, decckm, kbmode, target->kkp_mode_get());
                     }
                     if (forced_event || !gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;

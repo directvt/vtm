@@ -2705,7 +2705,7 @@ struct impl : consrv
     }
     auto api_process_create_handle           ()
     {
-        log(prompt, "Create console handle");
+        log(prompt, "Create console handle (CreateConsoleScreenBuffer)");
         enum type : ui32
         {
             undefined,
