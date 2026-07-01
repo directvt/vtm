@@ -2840,7 +2840,7 @@ namespace netxs::input
             //todo revise/unify
             if (base409_uc)
             {
-                if (shifted_uc && unshift_uc)
+                if (shifted_uc && unshift_uc && k.ctlstat & mods::anyShift)
                 {
                     yield.add(unshift_uc, ':', shifted_uc, ':', base409_uc);
                 }
@@ -2848,7 +2848,7 @@ namespace netxs::input
                 {
                     yield.add(unshift_uc, "::", base409_uc);
                 }
-                else if (shifted_uc)
+                else if (shifted_uc && k.ctlstat & mods::anyShift)
                 {
                     yield.add(base409_uc, ':', shifted_uc, ':', base409_uc);
                 }
@@ -2859,11 +2859,11 @@ namespace netxs::input
             }
             else
             {
-                if (shifted_uc && unshift_uc)
+                if (shifted_uc && unshift_uc && k.ctlstat & mods::anyShift)
                 {
                     yield.add(unshift_uc, ':', shifted_uc);
                 }
-                else if (shifted_uc)
+                else if (shifted_uc && k.ctlstat & mods::anyShift)
                 {
                     yield.add(0, ':', shifted_uc);
                 }

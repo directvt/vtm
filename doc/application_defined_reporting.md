@@ -4,7 +4,7 @@
 
 ## Overview
 
-Application Defined Reporting (ADR) is a paradigm shift in terminal-to-application communication. Instead of relying on hardcoded keyboard or mouse protocols (like xterm, kitty, or win32-input-mode), ADR allows the application to dynamically define its own event-reporting logic. This is achieved by deploying a lightweight, isolated execution environment (Lua sandbox) on the terminal side.
+Application Defined Reporting (ADR) is a paradigm shift in terminal-to-application communication. Instead of relying on hardcoded keyboard or mouse protocols (like xterm, kkp, or win32-input-mode), ADR allows the application to dynamically define its own event-reporting logic. This is achieved by deploying a lightweight, isolated execution environment (Lua sandbox) on the terminal side.
 
 ## Architecture
 

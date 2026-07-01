@@ -9458,7 +9458,7 @@ namespace netxs::ui
                         break;
                     case 2048: // In-band resize reporting. Not supported.
                     case 69:   // Left/Right Margins. We don't support this mode.
-                    case 2031: // Extended Keys / Kitty Keyboard Protocol.
+                    case 2031: // Extended Keys / KKP?.
                     default:
                         break;
                 }
