@@ -2833,7 +2833,7 @@ namespace netxs::input
         {
             auto& keyrec = input::key::map::data(k.keycode);
             auto csi_suffix = keyrec.KkpSuffix;
-            auto base409_uc = k.keycode != input::key::undef ? keyrec.KkpDef : k.virtcod;
+            auto base409_uc = (ui32)(k.keycode != input::key::undef ? keyrec.KkpDef : k.virtcod);
             auto shifted_uc = utf::to_code(k.shifted);
             auto unshift_uc = utf::to_code(k.unshift);
             auto yield = ansi::add("\x1b[");
@@ -2844,11 +2844,11 @@ namespace netxs::input
                 {
                     yield.add(unshift_uc, ':', shifted_uc, ':', base409_uc);
                 }
-                else if (unshift_uc)
+                else if (unshift_uc && unshift_uc != base409_uc)
                 {
                     yield.add(unshift_uc, "::", base409_uc);
                 }
-                else if (shifted_uc && k.ctlstat & mods::anyShift)
+                else if (shifted_uc && k.ctlstat & mods::anyShift && base409_uc != shifted_uc)
                 {
                     yield.add(base409_uc, ':', shifted_uc, ':', base409_uc);
                 }
@@ -2859,7 +2859,7 @@ namespace netxs::input
             }
             else
             {
-                if (shifted_uc && unshift_uc && k.ctlstat & mods::anyShift)
+                if (shifted_uc && unshift_uc && k.ctlstat & mods::anyShift && unshift_uc != shifted_uc)
                 {
                     yield.add(unshift_uc, ':', shifted_uc);
                 }
@@ -3011,32 +3011,42 @@ namespace netxs::input
         }
         auto interpret(hids const& k, si32 kkp_mode, bool decckm)
         {
+            auto crop = text{};
             auto key_released = k.keystat == input::key::released || k.keystat == input::key::interrupted;
             if (key_released && !(kkp_mode & kkp::mode::report_event_types))
             {
-                return text{};
+                //return text{};
             }
-            if (kkp_mode & kkp::mode::report_all_as_escape)
+            else if (kkp_mode & kkp::mode::report_all_as_escape)
             {
-                return serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
+                crop = serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
             }
-            if (is_functional_key(k.keycode))
+            else if (is_functional_key(k.keycode))
             {
+                //if (k.keycode < input::key::F1) return ""s; // Don't encode modifiers.
                 if (kkp_mode & kkp::mode::disambiguate)
                 {
-                    return serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
+                    crop = serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
                 }
-                //if (!k.mods.ctrl && !k.mods.alt && !k.mods.meta)
-                //{
-                //    return encode_legacy_functional(k, decckm);
-                //}
-                return encode_legacy_functional(k, decckm);
+                else
+                {
+                    //if (!k.mods.ctrl && !k.mods.alt && !k.mods.meta)
+                    //{
+                    //    return encode_legacy_functional(k, decckm);
+                    //}
+                    crop = encode_legacy_functional(k, decckm);
+                }
             }
-            if (kkp_mode & kkp::mode::disambiguate && (k.ctlstat & (mods::anyCtrl | mods::anyAlt | mods::anyMeta)))
+            else if (kkp_mode & kkp::mode::disambiguate && (k.ctlstat & (mods::anyCtrl | mods::anyAlt | mods::anyMeta)))
             {
-                return serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
+                crop = serialize_kkp_event(k, kkp_mode & kkp::mode::embed_text);
             }
-            return encode_printable(k);
+            else
+            {
+                crop = encode_printable(k);
+            }
+            if constexpr (debugmode) log("KKP out: ", ansi::hi(utf::debase437(crop)));
+            return crop;
         }
     }
     namespace bindings
