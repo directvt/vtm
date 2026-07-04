@@ -4835,21 +4835,21 @@ namespace netxs::os
                     }
                 }
             }
-            void keybd(input::hids& gear, bool decckm, input::keybd::prot encod, si32 kkp_mode = input::kkp::mode::undef)
+            void keybd(input::hids& gear, bool decckm, input::keybd::prot encod, si32 kkp_mode = input::kkp::report::undef)
             {
                 using prot = input::keybd::prot;
 
                 if (attached)
                 {
-                    auto kkp_enabled = kkp_mode != input::kkp::mode::undef;
+                    auto kkp_enabled = kkp_mode != input::kkp::report::undef;
                     if (encod == prot::w32 && !kkp_enabled)
                     {
                         termlink->keybd(gear, decckm);
                     }
                     else
                     {
-                        auto utf8 = kkp_enabled ? input::kkp::interpret(gear, kkp_mode, decckm)
-                                                : gear.interpret(decckm);
+                        auto utf8 = kkp_enabled ? input::kkp::interpret(gear, kkp_mode)
+                                                : input::key::interpret(gear, decckm);
                         auto guard = std::lock_guard{ writemtx };
                         writebuf += utf8;
                         writesyn.notify_one();

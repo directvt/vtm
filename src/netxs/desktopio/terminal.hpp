@@ -1351,7 +1351,7 @@ namespace netxs::ui
                   uifwd{ faux   },
                   alive{ 0      },
                   autocr{faux   },
-                  kkp_mode_stack{ input::kkp::mode::undef }
+                  kkp_mode_stack{ input::kkp::report::undef }
             {
                 parser::style = ansi::def_style;
                 owner.LISTEN(tier::release, e2::data::image::remove, image_indexes, tokens)
@@ -2881,7 +2881,7 @@ namespace netxs::ui
             void kkp_mode_reset()
             {
                 parser::flush();
-                kkp_mode_stack = { input::kkp::mode::undef };
+                kkp_mode_stack = { input::kkp::report::undef };
             }
         };
 
@@ -10139,7 +10139,7 @@ namespace netxs::ui
                     {
                         if (gear.keystat)
                         {
-                            switch (gear.keybd::generic())
+                            switch (input::key::generic(gear.keycode))
                             {
                                 //todo key
                                 case key::Esc:      close(); onerun.reset(); break;
@@ -10468,6 +10468,8 @@ namespace netxs::ui
                                                                     else if (key == "scancod") gear.scancod = xml::take_or(val, 0);
                                                                     else if (key == "keycode") gear.keycode = xml::take_or(val, 0);
                                                                     else if (key == "extflag") gear.extflag = xml::take_or(val, 0);
+                                                                    else if (key == "shifted") gear.shifted = val;
+                                                                    else if (key == "unshift") gear.unshift = val;
                                                                     else if (key == "cluster") gear.cluster = val;
                                                                     else log("%%Unknown key event parameters %%=%%", prompt::lua, key, utf::debase437(val));
                                                                     //log("  %%=%%", key, utf::debase437(val));

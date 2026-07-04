@@ -4701,7 +4701,7 @@ namespace netxs::gui
             gear.keycode = keycode;
             gear.xlayout = xlayout;
             gear.cluster = cluster;
-            if constexpr (debugmode) log("shifted='%%' unshift='%%'", gear.shifted, gear.unshift);
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lsuper   || virtcod == vkey::rsuper);

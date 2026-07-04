@@ -1123,7 +1123,7 @@ struct impl : consrv
             {
                 if (server.inpmod & nt::console::inmode::vt)
                 {
-                    auto yield = gear.interpret(decckm);
+                    auto yield = input::key::interpret(gear, decckm);
                     if (yield.size()) generate(yield);
                 }
                 else
