@@ -197,8 +197,8 @@ namespace netxs
     {
         static constexpr auto LCtrl      = 1 <<  0; // Left  ⌃ Ctrl
         static constexpr auto RCtrl      = 1 <<  1; // Right ⌃ Ctrl
-        static constexpr auto LAlt       = 1 <<  2; // Left  ⎇ Alt, Left  ⌥ Option
-        static constexpr auto RAlt       = 1 <<  3; // Right ⎇ Alt, Right ⌥ Option
+        static constexpr auto LAlt       = 1 <<  2; // Left  ⎇ Alt, ⌥ Option
+        static constexpr auto RAlt       = 1 <<  3; // Right ⎇ Alt, ⌥ Option
         static constexpr auto LShift     = 1 <<  4; // Left  ⇧ Shift
         static constexpr auto RShift     = 1 <<  5; // Right ⇧ Shift
         static constexpr auto LSuper     = 1 <<  6; // Left  ⊞ Win, ⌘ Cmd (Apple key), ❖ Super

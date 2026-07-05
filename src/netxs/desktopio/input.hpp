@@ -670,14 +670,17 @@ namespace netxs::input
             };
         };
 
-        static const auto _init = []
+        static const auto kkp_minFx = []
         {
+            auto minFx = 50000;
+            auto maxFx = 60000;
             //todo reimplement, move it to std::array
             #define X(KeyId, Input, Vk, Name, Generic, Literal, Uc, KkpDef, KkpSuffix, KkpIsFx, KkpAscii, KkpCtl, PhysicalCode) \
                 map::set(KeyId, Input, #Name, Generic, KkpDef, KkpSuffix, KkpIsFx, KkpAscii, KkpCtl, PhysicalCode); \
+                if (KkpDef > minFx && KkpDef < maxFx) maxFx = KkpDef;
                 key_list
             #undef X
-            return true;
+            return maxFx;
         }();
         static constexpr auto kkpmap = []
         {
@@ -2822,7 +2825,7 @@ namespace netxs::input
         }
         auto is_modifier(si32 keycode)
         {
-            return keycode < input::key::Apps;
+            return keycode > input::key::invalid && keycode < input::key::Apps;
         }
         auto is_control(char c)
         {
