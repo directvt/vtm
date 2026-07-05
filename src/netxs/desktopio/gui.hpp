@@ -4628,29 +4628,39 @@ namespace netxs::gui
                 }
                 else if (scancod == input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/ && !extflag) // Filter fake LeftCtrl messages when AltGr pressed/repeated/released (non-US kb layouts).
                 {
-                    //auto read = keybd_read_pressed(vkey::ralt);
-                    std::this_thread::yield(); // Wait for RAlt, but it is not guaranteed (tested).
-                    //todo Make it more reliable than std::this_thread::yield();
-                    //if (is_right_alt && ctrl_was_sent_proactively && msg.time == last_sent_ctrl_time)
-                    //{
-                    //    ctrl_was_sent_proactively = faux;
-                    //    send(input::key::LeftCtrl, input::keystate::released);
-                    //    send(input::key::AltGr, input::keystate::pressed);
-                    //}
-                    //auto read2 = keybd_read_pressed(vkey::ralt);
-                    //if (read2 != read) log(ansi::err("UNSYNC! read=%% read2=%%"), read, read2);
-
+                    // Note: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
+                    //       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt
+                    //       on the immediate next cycle.
+                    //std::this_thread::sleep_for(2ms);
+                    //auto ralt = keybd_read_pressed(vkey::ralt);
+                    //if (ralt != !fake_ralt) log(ansi::err("UNSYNC! ralt=%% test=%%"), ralt);
                     //auto altgr_pressed = input::key::kmap::pressed(gear, input::key::AltGr);
                     //if constexpr (debugmode) log("Check LeftCtrl status (fake_ralt=%%, keybd_read_pressed(vkey::ralt)=%%):", fake_ralt, keybd_read_pressed(vkey::ralt));
-                    if (keystat == input::key::pressed)
+                    if (keystat == input::key::pressed && !fake_ralt)
                     {
-                        fake_ralt = !fake_ralt && keybd_read_pressed(vkey::ralt); // Actually AltGr is pressed.
+                        auto ralt = keybd_read_pressed(vkey::ralt);
+                        if (!ralt)
+                        {
+                            std::this_thread::sleep_for(2ms); //todo it isn't enough
+                            ralt = keybd_read_pressed(vkey::ralt);
+                            //auto test = std::exchange(ralt, keybd_read_pressed(vkey::ralt));
+                            //if (!ralt) log(ansi::err("UNSYNC pressed! ralt=%% test=%%"), ralt, test);
+                        }
+                        fake_ralt = ralt; // Actually AltGr is pressed.
                         //if constexpr (debugmode) fake_ralt ? log(" - AltGr pressed") : log(" - LeftCtrl pressed");
                         //if (!fake_ralt) log(ansi::err("UNSYNC PRESS!"));
                     }
-                    else if (keystat == input::key::released)
+                    else if (keystat == input::key::released && fake_ralt)
                     {
-                        fake_ralt = fake_ralt && !keybd_read_pressed(vkey::ralt); // Actually AltGr is released.
+                        auto ralt = keybd_read_pressed(vkey::ralt);
+                        if (ralt)
+                        {
+                            std::this_thread::sleep_for(2ms);
+                            ralt = keybd_read_pressed(vkey::ralt);
+                            //auto test = std::exchange(ralt, keybd_read_pressed(vkey::ralt));
+                            //if (ralt) log(ansi::err("UNSYNC released! ralt=%% test=%%"), ralt, test);
+                        }
+                        fake_ralt = !ralt; // Actually AltGr is released.
                         //if constexpr (debugmode) fake_ralt ? log(" - AltGr released") : log(" - LeftCtrl released");
                         //if (!fake_ralt) log(ansi::err("UNSYNC RELEASE!"));
                     }
@@ -5733,6 +5743,9 @@ namespace netxs::gui
             //                 The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
             //if (virtcod == vkey::ctrl && !extflag)//lctrl)
             //{
+            //    //auto extra = ::GetMessageExtraInfo();
+            //    //log("left ctrl scancod=%% reserved=%% context=%% winmsg.lParam=%% extra=%%", scancod, (ui32)(param.v.reserved), (ui32)param.v.context, winmsg.lParam, extra);
+            //    std::this_thread::sleep_for(2ms);
             //    auto next_msg = MSG{};
             //    if (::PeekMessageW(&next_msg, {}, WM_KEYDOWN, WM_KEYUP, PM_NOREMOVE))
             //    {
