@@ -72,6 +72,7 @@ namespace netxs::input
         static constexpr auto shift    = 0x10; // VK_SHIFT
         static constexpr auto ctrl     = 0x11; // VK_CONTROL
         static constexpr auto alt      = 0x12; // VK_MENU
+        static constexpr auto altgr    = 0x5E; // Use unassigned VK_ for AltGr.
         static constexpr auto lshift   = 0xA0; // VK_LSHIFT
         static constexpr auto rshift   = 0xA1; // VK_RSHIFT
         static constexpr auto lctrl    = 0xA2; // VK_LCONTROL
@@ -2696,14 +2697,9 @@ namespace netxs::input
             }
             return keyid;
         }
-        void fix_altgr_and_right_shift(si32& vk, si32 sc, bool& extflag, bool fake_ralt) // Set extflag for right shift.
+        void fix_altgr_and_right_shift(si32& vk, si32 sc, bool& extflag) // Set extflag for right shift.
         {
-            if (fake_ralt && sc == input::key::map::data(input::key::RightAlt).scan)
-            {
-                vk = 0x5E; // Use unassigned VK_ for AltGr.
-                extflag = faux;
-            }
-            else if (vk == input::vkey::shift && sc == input::key::map::data(input::key::RightShift).scan)
+            if (vk == input::vkey::shift && sc == input::key::map::data(input::key::RightShift).scan)
             {
                 extflag = true;
             }
@@ -2740,7 +2736,7 @@ namespace netxs::input
         auto xlat(si32 vk, si32 sc, bool extflag, si32& layout_hint)
         {
             auto keyid = key::undef;
-            fix_altgr_and_right_shift(vk, sc, extflag, faux);
+            fix_altgr_and_right_shift(vk, sc, extflag);
             auto vk_ex = (vk & 0xFF) | (extflag << 8);
             if (auto keycode = input::key::fx_map[vk_ex]) // Fast detection of function keys.
             {
@@ -2753,10 +2749,10 @@ namespace netxs::input
             }
             return keyid;
         }
-        auto xlat_direct(si32 vk, si32 sc, bool extflag, bool fake_ralt, si32& layout_hint, auto get_shifted_unshifted_char_pair)
+        auto xlat_direct(si32 vk, si32 sc, bool extflag, si32& layout_hint, auto get_shifted_unshifted_char_pair)
         {
             auto keyid = key::undef;
-            fix_altgr_and_right_shift(vk, sc, extflag, fake_ralt);
+            fix_altgr_and_right_shift(vk, sc, extflag);
             auto vk_ex = (vk & 0xFF) | (extflag << 8);
             if (auto keycode = input::key::fx_map[vk_ex]) // Function keys fast detection.
             {

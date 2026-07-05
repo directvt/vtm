@@ -3467,7 +3467,8 @@ namespace netxs::gui
         link  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
         bool  fake_ralt; // winbase: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
-        bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
+        ui32  fake_time; // winbase: Fake alt/ctrl event time stamp.
+        si32  fake_scan; // winbase: Fake LeftCtrl scancode.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
         ui32  xlayout; // winbase: Current keyboard layout (HKL).
         arch  hkl_latin; // winbase: User's latin-based keyboard layout.
@@ -3504,7 +3505,8 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
               fake_ralt{ faux },
-              wait_ralt{ faux },
+              fake_time{},
+              fake_scan{},
               xlayout{},
               hkl_latin{},
               layout_hint{ -1 }
@@ -4547,16 +4549,6 @@ namespace netxs::gui
             }
             else
             {
-                if (fake_ralt && wait_ralt) // RAlt is expected right after the fake LCtrl when AltGr is pressed.
-                {
-                    wait_ralt = faux;
-                    auto is_ralt = scancod == input::key::map::data(input::key::RightAlt).scan/*0x38*/ && extflag; // RAlt.
-                    if (!is_ralt) // If something else comes instead of RAlt, it means that the LCtrl key was actually pressed.
-                    {
-                        fake_ralt = faux;
-                        keybd_send_state(vkey::ctrl, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
-                    }
-                }
                 if (keybd_test_toggled(vkey::numlock )              ) state |= mods::NumLock;
                 if (keybd_test_toggled(vkey::capslock)              ) state |= mods::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)              ) state |= mods::ScrollLock;
@@ -4626,55 +4618,6 @@ namespace netxs::gui
                     if (virtcod == vkey::shift) return;
                     state = keymod;
                 }
-                else if (scancod == input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/ && !extflag) // Filter fake LeftCtrl messages when AltGr pressed/repeated/released (non-US kb layouts).
-                {
-                    // Note: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
-                    //       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt
-                    //       on the immediate next cycle.
-                    //std::this_thread::sleep_for(2ms);
-                    //auto ralt = keybd_read_pressed(vkey::ralt);
-                    //if (ralt != !fake_ralt) log(ansi::err("UNSYNC! ralt=%% test=%%"), ralt);
-                    //auto altgr_pressed = input::key::kmap::pressed(gear, input::key::AltGr);
-                    //if constexpr (debugmode) log("Check LeftCtrl status (fake_ralt=%%, keybd_read_pressed(vkey::ralt)=%%):", fake_ralt, keybd_read_pressed(vkey::ralt));
-                    if (keystat == input::key::pressed && !fake_ralt)
-                    {
-                        auto ralt = keybd_read_pressed(vkey::ralt);
-                        if (!ralt)
-                        {
-                            std::this_thread::sleep_for(2ms); //todo it isn't enough
-                            ralt = keybd_read_pressed(vkey::ralt);
-                            //auto test = std::exchange(ralt, keybd_read_pressed(vkey::ralt));
-                            //if (!ralt) log(ansi::err("UNSYNC pressed! ralt=%% test=%%"), ralt, test);
-                        }
-                        fake_ralt = ralt; // Actually AltGr is pressed.
-                        //if constexpr (debugmode) fake_ralt ? log(" - AltGr pressed") : log(" - LeftCtrl pressed");
-                        //if (!fake_ralt) log(ansi::err("UNSYNC PRESS!"));
-                    }
-                    else if (keystat == input::key::released && fake_ralt)
-                    {
-                        auto ralt = keybd_read_pressed(vkey::ralt);
-                        if (ralt)
-                        {
-                            std::this_thread::sleep_for(2ms);
-                            ralt = keybd_read_pressed(vkey::ralt);
-                            //auto test = std::exchange(ralt, keybd_read_pressed(vkey::ralt));
-                            //if (ralt) log(ansi::err("UNSYNC released! ralt=%% test=%%"), ralt, test);
-                        }
-                        fake_ralt = !ralt; // Actually AltGr is released.
-                        //if constexpr (debugmode) fake_ralt ? log(" - AltGr released") : log(" - LeftCtrl released");
-                        //if (!fake_ralt) log(ansi::err("UNSYNC RELEASE!"));
-                    }
-                    else // Actually AltGr is repeated if fake_ralt==true.
-                    {
-                        //if constexpr (debugmode) fake_ralt ? log(" - AltGr repeated") : log(" - LeftCtrl repeated");
-                    }
-                    if (fake_ralt) // Filter input::key::repeated events as well.
-                    {
-                        //if constexpr (debugmode) log(" - Fake LeftCtrl '%%' event filtered", keystat == input::key::pressed ? "pressed" : keystat == input::key::released ? "released" : "repeated");
-                        wait_ralt = keystat != input::key::released; // Zeroize flag on release.
-                        return;
-                    }
-                }
                 if (virtcod == vkey::ctrl && keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
                 {
                     auto& break_key = input::key::map::data(input::key::Break);
@@ -4715,7 +4658,7 @@ namespace netxs::gui
             gear.virtcod = virtcod;
             gear.scancod = scancod;
             keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
-            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, fake_ralt, layout_hint, [&]
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
             {
                 auto latin_shifted = text{};
                 auto latin_unshift = text{};
@@ -4737,10 +4680,6 @@ namespace netxs::gui
                 synth ? chords.build(gear)
                       : chords.build(gear, [&](auto index){ return !keybd_test_pressed(index); });
                 stream_keybd(gear);
-            }
-            if (fake_ralt && keystat == input::key::released && scancod == input::key::map::data(input::key::RightAlt).scan) // Clear the AltGr state.
-            {
-                fake_ralt = faux;
             }
         }
         void keybd_send_input(view utf8, byte payload_type)
@@ -5739,23 +5678,53 @@ namespace netxs::gui
                 if (toWIDE.size()) keytype = 2;
             }
 
-            //AltGr detection: There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
-            //                 The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
-            //if (virtcod == vkey::ctrl && !extflag)//lctrl)
-            //{
-            //    //auto extra = ::GetMessageExtraInfo();
-            //    //log("left ctrl scancod=%% reserved=%% context=%% winmsg.lParam=%% extra=%%", scancod, (ui32)(param.v.reserved), (ui32)param.v.context, winmsg.lParam, extra);
-            //    std::this_thread::sleep_for(2ms);
-            //    auto next_msg = MSG{};
-            //    if (::PeekMessageW(&next_msg, {}, WM_KEYDOWN, WM_KEYUP, PM_NOREMOVE))
-            //    {
-            //        if (next_msg.wParam == vkey::alt && next_msg.lParam & (1 << 24)) // with extflag.
-            //        {
-            //            log(ansi::hi("AltGr detected"));
-            //        }
-            //    }
-            //    else  log(ansi::err("No AltGr"));
-            //}
+            //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
+            //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
+            //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
+            //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
+            if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
+            {
+                if (fake_ralt) // Drop any LeftCtrl activity if AlgGr pressed.
+                {
+                    fake_time = {};
+                    return faux;
+                }
+                else if (!extflag && keystat == input::key::pressed)
+                {
+                    if constexpr (debugmode) log("left ctrl scancod=%% reserved=%% context=%% winmsg.lParam=%%", scancod, (ui32)(param.v.reserved), (ui32)param.v.context, winmsg.lParam);
+                    std::this_thread::yield();
+                    //std::this_thread::sleep_for(2ms);
+                    if (::PeekMessageW(&m, {}, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && m.wParam == vkey::alt && m.lParam & (1 << 24)) // RightAlt with VK_MENU+extflag.
+                    {
+                        fake_ralt = true;
+                        if constexpr (debugmode) log(ansi::hi("AltGr detected"));
+                        return faux; // Don't send the fake LeftCtrl event.
+                    }
+                    else // Allow to send this LeftCtrl and keep waiting for the fake RightAlt with the same timestamp.
+                    {
+                        if constexpr (debugmode) log(ansi::err("No AltGr in the queue"));
+                        fake_time = m.time;
+                        fake_scan = scancod;
+                    }
+                }
+            }
+            else
+            {
+                if (virtcod == vkey::alt && extflag) // Detect if the AltGr is active (pressed/repeated/released).
+                {
+                    if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
+                    {
+                        fake_ralt = true;
+                        keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
+                    }
+                    if (fake_ralt) // Simulate AltGr.
+                    {
+                        virtcod = vkey::altgr; // Use unassigned VK_ for AltGr.
+                        extflag = faux;        // with extflag=0
+                    }
+                }
+                fake_time = {};
+            }
 
             //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
             //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
@@ -5807,6 +5776,10 @@ namespace netxs::gui
                 keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
             //print_vkstat("keybd_read_input");
+            if (fake_ralt && keystat == input::key::released && virtcod == vkey::altgr) // Clear the AltGr state if released.
+            {
+                fake_ralt = faux;
+            }
             return true;
         }
         void window_message_pump()
