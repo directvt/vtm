@@ -3533,7 +3533,7 @@ namespace netxs::gui
         virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
-        virtual bool keybd_test_pressed(si32 virtcod) = 0;
+        virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
         virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
         virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
@@ -4672,7 +4672,7 @@ namespace netxs::gui
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
                 synth ? chords.build(gear)
-                      : chords.build(gear, [&](auto index){ return !keybd_test_pressed(index); });
+                      : chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
                 stream_keybd(gear);
             }
         }
@@ -5628,13 +5628,15 @@ namespace netxs::gui
             s.sync.clear();
         }
         void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
-        bool keybd_test_pressed(si32 virtcod)
+        bool keybd_test_pressed(si32 virtcod, si32 keycode = 0)
         {
-            if (fake_ralt)
+            if (keycode == input::key::AltGr) return fake_ralt;
+            else if (fake_ralt)
             {
-                     if (virtcod == vkey::altgr) return true;
-                else if (virtcod == vkey::lctrl) return faux;
+                     if (virtcod == vkey::lctrl) return faux;
                 else if (virtcod == vkey::ralt ) return faux;
+                else if (virtcod == vkey::ctrl ) return !!(vkstat[vkey::rctrl] & 0x80);
+                else if (virtcod == vkey::alt  ) return !!(vkstat[vkey::lalt ] & 0x80);
             }
             return !!(vkstat[virtcod] & 0x80);
         }
@@ -5642,8 +5644,7 @@ namespace netxs::gui
         {
             if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
             {
-                     if (virtcod == vkey::altgr) return true;
-                else if (virtcod == vkey::lctrl) return faux;
+                     if (virtcod == vkey::lctrl) return faux;
                 else if (virtcod == vkey::ralt ) return faux;
             }
             return !!(::GetAsyncKeyState(virtcod) & 0x8000);
@@ -5731,8 +5732,7 @@ namespace netxs::gui
                     }
                     if (fake_ralt) // Simulate AltGr.
                     {
-                        virtcod = vkey::altgr; // Use unassigned VK_ for AltGr.
-                        extflag = faux;        // with extflag=0
+                        input::vkey::set_altgr(virtcod, extflag);
                         if (keystat == input::key::released) // Clear the AltGr state if released.
                         {
                             fake_ralt = faux;
@@ -6310,7 +6310,7 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
-        bool keybd_test_pressed(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }

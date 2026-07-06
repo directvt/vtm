@@ -800,13 +800,7 @@ namespace netxs::app::shared
                 auto& luafx = boss.bell::indexer.luafx;
                 app::shared::base_kb_navigation(config, scroll, boss);
                 input::bindings::keybind(boss, "Any", "vtm.infopage.UpdateChordPreview()");
-                input::bindings::keybind(boss,
-                    #if defined(_WIN32)
-                    "preview:Ctrl-Alt | Alt-Ctrl",
-                    #else
-                    "preview:Alt+Shift+B",
-                    #endif
-                    "vtm.infopage.ExclusiveKeyboardMode()");
+                input::bindings::keybind(boss, "preview:Ctrl-Alt | Alt-Ctrl", "vtm.infopage.ExclusiveKeyboardMode()");
                 boss.base::add_methods(basename::infopage,
                 {
                     { "UpdateChordPreview",     [&]

@@ -72,7 +72,12 @@ namespace netxs::input
         static constexpr auto shift    = 0x10; // VK_SHIFT
         static constexpr auto ctrl     = 0x11; // VK_CONTROL
         static constexpr auto alt      = 0x12; // VK_MENU
-        static constexpr auto altgr    = 0x5E; // Use unassigned VK_ for AltGr.
+        static constexpr auto altgr    = 0xFC; // VK_NONAME+extflag (! Always sync with Ex_Vk if changing !) // We cant use 0xA5 because PSReadline don't accept it // VK_RMENU+!extflag (PSReadLine prints "@" for unknown keys, including VK_RMENU(0xA5)).
+        void set_altgr(si32& virtcod, bool& extflag)
+        {
+            virtcod = vkey::altgr;
+            extflag = true;
+        }
         static constexpr auto lshift   = 0xA0; // VK_LSHIFT
         static constexpr auto rshift   = 0xA1; // VK_RSHIFT
         static constexpr auto lctrl    = 0xA2; // VK_LCONTROL
@@ -176,7 +181,7 @@ namespace netxs::input
             X(14  , 0, 0x190, NumLock            , "NumLock"           , ""    , 0     , 57360, 'u', 1, -1    , -1    , "0145900745901145900f45901545901745900345900b45900d45901945900545900945901b45901345902145901f45901d45902345902545902945902745902b45903145902f45902d45903545903745903345903945903b45903f45903d45904145904345904545904745904945904f45905145904b45904d45905345905745905945905545905b45905d45905f45906145906545906d45906345906b45906745906945906f45907145907345907d45907545907745907945907b45907f45908145908745908345908545908945908b45908d45908f45909345909145909545909745909945909b45909d4590a145909f4590a34590a54590a74590a94590ab4590ad4590")\
             X(16  , 0, 0x014, CapsLock           , "CapsLock"          , ""    , 0     , 57358, 'u', 1, -1    , -1    , "003a14063a14103a140e3a14143a14163a14023a140a3a140c3a14183a14043a14083a141a3a14123a14203a141e3a141c3a14223a14243a14283a14263a142a3a14303a142e3a142c3a14343a14363a14323a14383a143a3a143e3a143c3a14403a14423a14443a14463a14483a144e3a14503a144a3a144c3a14523a14563a14583a14543a145a3a145c3a145e3a14603a14643a146c3a14623a146a3a14663a14683a146e3a14703a14723a147c3a14743a14763a14783a147a3a147e3a14803a14863a14823a14843a14883a148a3a148c3a148e3a14923a14903a14943a14963a14983a149a3a149c3a14a03a149e3a14a23a14a43a14a63a14a83a14aa3a14ac3a14")\
             X(18  , 0, 0x091, ScrollLock         , "ScrollLock"        , ""    , 0     , 57359, 'u', 1, -1    , -1    , "0046910646911046910e46911446911646910246910a46910c46911846910446910846911a46911246912046911e46911c46912246912446912846912646912a46913046912e46912c46913446913646913246913846913a46913e46913c46914046914246914446914646914846914e46915046914a46914c46915246915646915846915446915a46915c46915e46916046916446916c46916246916a46916646916846916e46917046917246917c46917446917646917846917a46917e46918046918646918246918446918846918a46918c46918e46919246919046919446919646919846919a46919c4691a046919e4691a24691a44691a64691a84691aa4691ac4691")\
-            X(20  , 0, 0x05E, AltGr              , "AltGr"             , ""    , 0     , 57453, 'u', 1, -1    , -1    , "00385e")\
+            X(20  , 0, 0x1FC, AltGr              , "AltGr"             , ""    , 0     , 57453, 'u', 1, -1    , -1    , "0138FC")\
             X(22  , 0, 0x1DF, Level5Shift        , "Level5Shift"       , ""    , 0     , 57454, 'u', 1, -1    , -1    , "431ddf")\
             X(24  , 0, 0    , Kana               , "Kana"              , ""    , 0     , 0    , 'u', 0, -1    , -1    , "0270f2")\
             X(26  , 0, 0    , Henkan             , "Henkan"            , ""    , 0     , 0    , 'u', 0, -1    , -1    , "02791c")\
@@ -2373,7 +2378,7 @@ namespace netxs::input
                         {
                             auto& [keyid, val] = rec;
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
-                            auto is_released = test_if_key_released(val.vcode); // Check if it is still pressed.
+                            auto is_released = test_if_key_released(val.vcode, keyid); // Check if it is still pressed.
                             auto same = k.keycode == keyid
                                      && k.scancod == val.scode
                                      && k.virtcod == val.vcode;
