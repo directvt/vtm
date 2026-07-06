@@ -3466,9 +3466,6 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         link  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
-        bool  fake_ralt; // winbase: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
-        ui32  fake_time; // winbase: Fake alt/ctrl event time stamp.
-        si32  fake_scan; // winbase: Fake LeftCtrl scancode.
         si32  last_deadkey_vkey = {}; // winbase: Virtual code for deadkey tracking.
         ui32  xlayout; // winbase: Current keyboard layout (HKL).
         arch  hkl_latin; // winbase: User's latin-based keyboard layout.
@@ -3504,9 +3501,6 @@ namespace netxs::gui
               whlacc{ 0.f },
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
-              fake_ralt{ faux },
-              fake_time{},
-              fake_scan{},
               xlayout{},
               hkl_latin{},
               layout_hint{ -1 }
@@ -4549,17 +4543,17 @@ namespace netxs::gui
             }
             else
             {
-                if (keybd_test_toggled(vkey::numlock )              ) state |= mods::NumLock;
-                if (keybd_test_toggled(vkey::capslock)              ) state |= mods::CapsLock;
-                if (keybd_test_toggled(vkey::scrllock)              ) state |= mods::ScrollLock;
-                if (keybd_test_pressed(vkey::lctrl   ) && !fake_ralt) state |= mods::LCtrl;
-                if (keybd_test_pressed(vkey::rctrl   )              ) state |= mods::RCtrl;
-                if (keybd_test_pressed(vkey::lalt    )              ) state |= mods::LAlt;
-                if (keybd_test_pressed(vkey::ralt    ) && !fake_ralt) state |= mods::RAlt; // We never equate AltGr with RAlt.
-                if (keybd_test_pressed(vkey::lsuper  )              ) state |= mods::LSuper;
-                if (keybd_test_pressed(vkey::rsuper  )              ) state |= mods::RSuper;
-                if (keybd_test_pressed(vkey::ctrl    )              ) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-                else                                                  mouse_release(by::keybd);
+                if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+                if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
+                if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+                if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+                if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+                if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
+                if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
+                if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
+                if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+                if (keybd_test_pressed(vkey::ctrl    )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+                else                                    mouse_release(by::keybd);
                 auto old_ls = keymod & mods::LShift;
                 auto old_rs = keymod & mods::RShift;
                 auto new_ls = keybd_test_pressed(vkey::lshift);
@@ -4673,7 +4667,7 @@ namespace netxs::gui
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper);
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
             //print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
@@ -5432,14 +5426,15 @@ namespace netxs::gui
             #undef log
         };
 
-        tsfl tslink; // window: TSF link.
-        MSG  winmsg; // window: Last OS window message.
-        wide toWIDE; // window: UTF-16 conversion buffer.
+        tsfl tslink{ *this }; // window: TSF link.
+        MSG  winmsg{};        // window: Last OS window message.
+        wide toWIDE{};        // window: UTF-16 conversion buffer.
+        bool fake_ralt{};     // window: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
+        ui32 fake_time{};     // window: Fake alt/ctrl event time stamp.
+        si32 fake_scan{};     // window: Fake LeftCtrl scancode.
 
         window(auto&& ...Args)
-            : winbase{ Args... },
-              tslink{ *this },
-              winmsg{}
+            : winbase{ Args... }
         {
             auto proc = (LONG(_stdcall*)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
@@ -5633,10 +5628,27 @@ namespace netxs::gui
             s.sync.clear();
         }
         void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
-        bool keybd_test_pressed(si32 virtcod) { return !!(vkstat[virtcod] & 0x80); }
+        bool keybd_test_pressed(si32 virtcod)
+        {
+            if (fake_ralt)
+            {
+                     if (virtcod == vkey::altgr) return true;
+                else if (virtcod == vkey::lctrl) return faux;
+                else if (virtcod == vkey::ralt ) return faux;
+            }
+            return !!(vkstat[virtcod] & 0x80);
+        }
+        bool keybd_read_pressed(si32 virtcod)
+        {
+            if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
+            {
+                     if (virtcod == vkey::altgr) return true;
+                else if (virtcod == vkey::lctrl) return faux;
+                else if (virtcod == vkey::ralt ) return faux;
+            }
+            return !!(::GetAsyncKeyState(virtcod) & 0x8000);
+        }
         bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
-        //todo static
-        bool keybd_read_pressed(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x8000); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
         bool keybd_read_input()
         {
@@ -5646,8 +5658,8 @@ namespace netxs::gui
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
-                    si32 scancode : 8; // 16-23
-                    si32 extended : 1; // 24
+                    ui32 scancode : 8; // 16-23
+                    ui32 extended : 1; // 24
                     ui32 reserved : 4; // 25-28 (reserved)
                     ui32 context  : 1; // 29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
@@ -5660,10 +5672,10 @@ namespace netxs::gui
             auto keystat = param.v.state == 0 ? input::key::pressed
                          : param.v.state == 1 ? input::key::repeated
                          /*param.v.state ==3*/: input::key::released;
-            auto extflag = param.v.extended;
-            auto scancod = param.v.scancode;
+            auto extflag = !!param.v.extended;
+            auto scancod = (si32)param.v.scancode;
             auto keytype = 0;
-            //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
+            //log("Vkey=%% extflag=%% scancod=%% keystat=%%", utf::to_hex(virtcod), extflag, utf::to_hex(scancod), keystat);
             //todo process Alt+Numpads on our side: use TSF message pump.
             //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
             ::TranslateMessage(&winmsg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
@@ -5682,9 +5694,9 @@ namespace netxs::gui
             //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
             //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
             //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
-            if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
+            if (virtcod == vkey::ctrl && !extflag) // Detect if the pressed LeftCtrl is fake or not.
             {
-                if (fake_ralt) // Drop any LeftCtrl activity if AlgGr pressed.
+                if (fake_ralt) // Drop any LeftCtrl activity if AltGr pressed.
                 {
                     fake_time = {};
                     return faux;
@@ -5721,6 +5733,10 @@ namespace netxs::gui
                     {
                         virtcod = vkey::altgr; // Use unassigned VK_ for AltGr.
                         extflag = faux;        // with extflag=0
+                        if (keystat == input::key::released) // Clear the AltGr state if released.
+                        {
+                            fake_ralt = faux;
+                        }
                     }
                 }
                 fake_time = {};
@@ -5776,10 +5792,6 @@ namespace netxs::gui
                 keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
             //print_vkstat("keybd_read_input");
-            if (fake_ralt && keystat == input::key::released && virtcod == vkey::altgr) // Clear the AltGr state if released.
-            {
-                fake_ralt = faux;
-            }
             return true;
         }
         void window_message_pump()
