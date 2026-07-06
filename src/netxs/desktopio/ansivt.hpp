@@ -86,7 +86,10 @@ namespace netxs::ansi
     static const auto csi_dsr     = 'n'; // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
     static const auto csi_scp     = 's'; // CSI        s  — Save cursor Position.
     static const auto csi_rcp     = 'u'; // CSI        u  — Restore cursor Position.
-    static const auto csi_qst_kkp = 'u'; // CSI ?      u  — KKP.
+    static const auto csi_qst_kkp = 'u'; // CSI ?      u  — Request current KKP mode.
+    static const auto csi__eq_kkp = 'u'; // CSI = [n[;m]] u  — Update current KKP mode to n. Update mode m: 1(default) - SET(n); 2 - ADD(n); 3 - CLEAR(n)
+    static const auto csi__gt_kkp = 'u'; // CSI > [n]  u  — Push KKP mode n(0) to the stack.
+    static const auto csi__lt_kkp = 'u'; // CSI < [n]  u  — Pop n(1) KKP modes from stack.
     static const auto csi__el     = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line.
     static const auto csi__il     = 'L'; // CSI n      L  — Insert n blank lines.
     static const auto csi__ed     = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen.

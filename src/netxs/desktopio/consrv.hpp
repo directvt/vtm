@@ -1104,10 +1104,10 @@ struct impl : consrv
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
-            auto altgr_pressed = input::key::kmap::pressed(gear, input::key::AltGr);
+            //auto altgr_pressed = input::key::kmap::pressed(gear, input::key::AltGr);
             auto ctrls = os::nt::ms_kbstate(gear.ctlstat)
-                       | (gear.extflag ? ENHANCED_KEY : 0)
-                       | (altgr_pressed ? LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED : 0);
+                       | (gear.extflag ? ENHANCED_KEY : 0);
+                       //| (altgr_pressed ? LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.keystat)
@@ -1123,19 +1123,20 @@ struct impl : consrv
             {
                 if (server.inpmod & nt::console::inmode::vt)
                 {
-                    auto yield = gear.interpret(decckm);
+                    auto yield = input::key::interpret(gear, decckm);
                     if (yield.size()) generate(yield);
                 }
                 else
                 {
-                    if (gear.keycode == input::key::AltGr) // Generate fake LeftCtrl events on AltGr activity.
-                    {
-                        auto lctrl = input::key::map::data(input::key::LeftCtrl);
-                        auto pre_ctrls = ctrls;
-                        if (gear.keystat == input::key::pressed) pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY | RIGHT_ALT_PRESSED)) | LEFT_CTRL_PRESSED; // AltGr is not pressed yet.
-                        else                                     pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY                    )) | RIGHT_ALT_PRESSED; // AltGr is still pressed.
-                        generate(c, pre_ctrls, lctrl.vkey, gear.keystat, lctrl.scan); // Restore the LeftCtrl+RightAlt state for AltGr.
-                    }
+                    // We don't simulate win32's AltGr behavior.
+                    //if (gear.keycode == input::key::AltGr) // Generate fake LeftCtrl events on AltGr activity.
+                    //{
+                    //    auto lctrl = input::key::map::data(input::key::LeftCtrl);
+                    //    auto pre_ctrls = ctrls;
+                    //    if (gear.keystat == input::key::pressed) pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY | RIGHT_ALT_PRESSED)) | LEFT_CTRL_PRESSED; // AltGr is not pressed yet.
+                    //    else                                     pre_ctrls = (pre_ctrls & ~(ENHANCED_KEY                    )) | RIGHT_ALT_PRESSED; // AltGr is still pressed.
+                    //    generate(c, pre_ctrls, lctrl.vkey, gear.keystat, lctrl.scan); // Restore the LeftCtrl+RightAlt state for AltGr.
+                    //}
                     generate(c, ctrls, gear.virtcod, gear.keystat, gear.scancod);
                 }
             }
@@ -2705,7 +2706,7 @@ struct impl : consrv
     }
     auto api_process_create_handle           ()
     {
-        log(prompt, "Create console handle");
+        log(prompt, "Create console handle (CreateConsoleScreenBuffer)");
         enum type : ui32
         {
             undefined,

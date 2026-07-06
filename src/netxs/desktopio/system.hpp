@@ -4835,16 +4835,21 @@ namespace netxs::os
                     }
                 }
             }
-            void keybd(input::hids& gear, bool decckm, input::keybd::prot encod)
+            void keybd(input::hids& gear, bool decckm, input::keybd::prot encod, si32 kkp_mode = input::kkp::report::undef)
             {
                 using prot = input::keybd::prot;
 
                 if (attached)
                 {
-                    if (encod == prot::w32) termlink->keybd(gear, decckm);
+                    auto kkp_enabled = kkp_mode != input::kkp::report::undef;
+                    if (encod == prot::w32 && !kkp_enabled)
+                    {
+                        termlink->keybd(gear, decckm);
+                    }
                     else
                     {
-                        auto utf8 = gear.interpret(decckm);
+                        auto utf8 = kkp_enabled ? input::kkp::interpret(gear, kkp_mode)
+                                                : input::key::interpret(gear, decckm);
                         auto guard = std::lock_guard{ writemtx };
                         writebuf += utf8;
                         writesyn.notify_one();
@@ -6124,14 +6129,14 @@ namespace netxs::os
                     if (ctlstat)
                     {
                         ctlstat--;
-                        if (ctlstat & input::kkp::shift    ) k.ctlstat |= mods::LShift;
-                        if (ctlstat & input::kkp::alt      ) k.ctlstat |= mods::LAlt;
-                        if (ctlstat & input::kkp::ctrl     ) k.ctlstat |= mods::LCtrl;
-                        if (ctlstat & input::kkp::super    ) k.ctlstat |= mods::LSuper;
-                        if (ctlstat & input::kkp::hyper    ) k.ctlstat |= mods::LHyper;
-                        if (ctlstat & input::kkp::meta     ) k.ctlstat |= mods::LAlt;
-                        if (ctlstat & input::kkp::caps_lock) k.ctlstat |= mods::CapsLock;
-                        if (ctlstat & input::kkp::num_lock ) k.ctlstat |= mods::NumLock;
+                        if (ctlstat & kkp::mod::shift    ) k.ctlstat |= mods::LShift;
+                        if (ctlstat & kkp::mod::alt      ) k.ctlstat |= mods::LAlt;
+                        if (ctlstat & kkp::mod::ctrl     ) k.ctlstat |= mods::LCtrl;
+                        if (ctlstat & kkp::mod::super    ) k.ctlstat |= mods::LSuper;
+                        if (ctlstat & kkp::mod::hyper    ) k.ctlstat |= mods::LHyper;
+                        if (ctlstat & kkp::mod::meta     ) k.ctlstat |= mods::LMeta;
+                        if (ctlstat & kkp::mod::caps_lock) k.ctlstat |= mods::CapsLock;
+                        if (ctlstat & kkp::mod::num_lock ) k.ctlstat |= mods::NumLock;
                     }
 
                     k.keycode = input::key::find_abstract_uc(shifted_uc, unshift_uc); // Try to lookup using uc.
@@ -6170,15 +6175,15 @@ namespace netxs::os
                         else
                         {
                             auto& rec = input::key::map::data(k.keycode);
-                            if (k.ctlstat & mods::anyCtrl && rec.KKPCtl != -1)
+                            if (k.ctlstat & mods::anyCtrl && rec.KkpCtl != -1)
                             {
-                                k.cluster = text(1, (char)rec.KKPCtl);
+                                k.cluster = text(1, (char)rec.KkpCtl);
                             }
                             else if (k.ctlstat & mods::anyCtrl && unshift_uc > 0 && unshift_uc < 128)
                             {
                                 k.cluster = text(1, (char)(unshift_uc & 31));
                             }
-                            else if (unshift_uc > 0 && unshift_uc < 57358) // Exclude any function keys.
+                            else if (unshift_uc > 0 && unshift_uc < input::key::kkp_minFx) // Exclude any function keys.
                             {
                                 auto shifted = !!(k.ctlstat & mods::CapsLock) != !!(k.ctlstat & mods::anyShift);
                                 utf::to_utf_from_code(shifted ? shifted_uc : unshift_uc, k.cluster);
