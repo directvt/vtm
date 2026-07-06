@@ -2886,7 +2886,7 @@ namespace netxs::input
                         report_upevents = report_upevents && key_status != kkp::keystate::pressed;
                         report_cdpoints = report_cdpoints && k.cluster.size() && k.cluster.front();
                         auto mods_or_upevent = mods_state || report_upevents;
-                        if (report_latinkey && !shift_pressed && !keyrec.KkpIsFx) // Don't report shifted uc if no shift pressed.
+                        if ((report_latinkey && !shift_pressed && !keyrec.KkpIsFx) || shifted_uc == unshift_uc) // Don't report shifted uc if no shift pressed.
                         {
                             shifted_uc = {};
                         }
