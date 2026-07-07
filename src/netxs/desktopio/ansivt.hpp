@@ -1719,14 +1719,10 @@ namespace netxs::ansi
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
             // n: si32
-            // ST: ESC \  (0x9C, ST = String Terminator)
-            // BEL: 0x07
+            // ST: BEL or ESC\  (ST = String Terminator)
+            //     BEL: 0x07
             //
-            // ESC ] n ; _text_ BEL
-            //      [--------------]
-            // or
             // ESC ] n ; _text_ ST
-            // ESC ] n ; _text_ ESC \ ...
             //      [--------------]
             //
             // ESC ] I ; _text_ ST  Set icon to file.
@@ -1735,7 +1731,7 @@ namespace netxs::ansi
             //
             // ESC ] P Nrrggbb  Set N (hex) of 16color palette to rrggbb (hex).
 
-            // Find ST and ';', if no ST or no ';' when drop
+            // Find ST/P/R or ';', if no ST when drop.
             if (ascii)
             {
                 auto& oscer = ansi::get_parser<T>().oscer;

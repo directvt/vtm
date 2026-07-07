@@ -2668,7 +2668,7 @@ namespace netxs::utf
         return str;
     }
     template<bool Lazy = faux, class ...ViewList>
-    auto take_binary_front(view& utf8, std::tuple<ViewList...> const& delims)
+    std::optional<qiew> take_binary_front(view& utf8, std::tuple<ViewList...> const& delims)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
@@ -2678,7 +2678,7 @@ namespace netxs::utf
         {
             if constexpr (Lazy) // Return empty.
             {
-                return qiew{};
+                return std::nullopt;
             }
             else // Return whole utf8.
             {
