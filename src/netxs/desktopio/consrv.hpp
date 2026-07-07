@@ -5143,6 +5143,7 @@ struct consrv : ipc::stdcon
         if (stdinput.joinable())
         {
             if (io_log) log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            stdcon::abort(stdinput);  // On Linux: thread::join sometimes dead waits on recv() call (repro: Create multiuser session, run term with bash, run vim inside, refocus, close window by 'x').
             stdinput.join();
         }
         stdcon::cleanup();
