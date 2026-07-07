@@ -4722,6 +4722,7 @@ namespace netxs::os
                     //{
                     //    writesyn.notify_one(); // Interrupt writing thread.
                     //    termlink->abort(termlink->stdinput); // Interrupt reading thread.
+                    //    // implemented in termlink->cleanup (on posix)
                     //}
                     attached.exchange(faux);
                     writesyn.notify_one();
