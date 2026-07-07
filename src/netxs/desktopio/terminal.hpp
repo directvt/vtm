@@ -49,8 +49,9 @@ namespace netxs::events::userland
             };
             SUBSET_XS( colors )
             {
-                EVENT_XS( bg, argb ),
-                EVENT_XS( fg, argb ),
+                EVENT_XS( bg   , argb ),
+                EVENT_XS( fg   , argb ),
+                EVENT_XS( reset, si32 ),
             };
         };
     }
@@ -1027,8 +1028,9 @@ namespace netxs::ui
                 if (proc != procs.end())
                 {
                     auto copy = data;
-                    if (auto crop = owner.read_until_st_or_giveup(data))
+                    if (auto v = owner.read_until_st_or_giveup(data))
                     {
+                        auto crop = v.value();
                         auto st_esc = copy[crop.size()] == '\x1b';
                         auto st = copy.substr(crop.size(), st_esc + 1);
                         proc->second(crop, st);
@@ -1364,6 +1366,10 @@ namespace netxs::ui
                 owner.LISTEN(tier::release, terminal::events::reset, unused, tokens)
                 {
                     clear_all();
+                };
+                owner.LISTEN(tier::release, terminal::events::colors::reset, unused, tokens)
+                {
+                    parser::brush.reset();
                 };
             }
 
@@ -1823,8 +1829,9 @@ namespace netxs::ui
                     q.remove_prefix(SIXEL_str.size());
                     owner.sixels.parse(q, params);
                 }
-                else if (auto data = term::read_until_st_or_giveup(q))
+                else if (auto v = term::read_until_st_or_giveup(q))
                 {
+                    auto data = v.value();
                     auto reply = flux{};
                     if (data.starts_with(XTGETTCAP_str))
                     {
@@ -1958,17 +1965,19 @@ namespace netxs::ui
             }
             void sos(qiew& q)
             {
-                if (auto data = term::read_until_st_or_giveup(q))
+                if (auto v = term::read_until_st_or_giveup(q))
                 {
                     //todo
+                    auto data = v.value();
                     if (owner.io_log) log("%%SOS sequences are not supported: %%", prompt::term, ansi::hi(utf::debase<faux>(data)));
                 }
             }
             void _pm(qiew& q)
             {
-                if (auto data = term::read_until_st_or_giveup(q))
+                if (auto v = term::read_until_st_or_giveup(q))
                 {
                     //todo
+                    auto data = v.value();
                     if (owner.io_log) log("%%PM sequences are not supported: ", prompt::term, ansi::hi(utf::debase<faux>(data)));
                 }
             }
@@ -7813,7 +7822,7 @@ namespace netxs::ui
             image_removed_indexes.clear();
         }
         // term: Take data until ST. Don't touch q if sequence is broken.
-        static qiew read_until_st_or_giveup(qiew& q)
+        static std::optional<qiew> read_until_st_or_giveup(qiew& q)
         {
             auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
             if (data)
@@ -9997,10 +10006,9 @@ namespace netxs::ui
         }
         void set_color(cell brush)
         {
-            auto& console = *target;
             brush.link(base::id);
             defclr = brush;
-            console.brush.reset();
+            base::signal(tier::release, terminal::events::colors::reset);
         }
         void set_bg_color(argb bg)
         {
