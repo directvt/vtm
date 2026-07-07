@@ -3515,6 +3515,7 @@ namespace netxs::gui
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
+        virtual void keybd_turn_layout(ui32 hkl) = 0;
         virtual void keybd_sync_layout()
         {
             auto& gear = *stream.gears;
@@ -4819,6 +4820,10 @@ namespace netxs::gui
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
                         gear.touched = {};
+                        if (xlayout != keybd.xlayout) // Forcibly switch keyboard layout.
+                        {
+                            keybd_turn_layout(keybd.xlayout);
+                        }
                         stream.keybd(gear);
                     }
                 }
@@ -5900,6 +5905,13 @@ namespace netxs::gui
             }
             return (arch)latin_hkl;
         }
+        void keybd_turn_layout(ui32 hkl32)
+        {
+            auto hkl = (HKL)(arch)(si32)hkl32; // Restore negative bits if it is.
+            if constexpr (debugmode) log("The keyboard layout was forced to switch to hkl=%%", utf::to_hex(hkl));
+            ::ActivateKeyboardLayout(hkl, 0);
+            keybd_sync_layout();
+        }
         void keybd_sync_layout()
         {
             keybd_sync_state();
@@ -6319,6 +6331,7 @@ namespace netxs::gui
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
+        void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
