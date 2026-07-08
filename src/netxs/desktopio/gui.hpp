@@ -4553,8 +4553,8 @@ namespace netxs::gui
                 if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
                 if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
                 if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-                if (keybd_test_pressed(vkey::ctrl    )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-                else                                    mouse_release(by::keybd);
+
+                //todo move it to win32 ()
                 auto old_ls = keymod & mods::LShift;
                 auto old_rs = keymod & mods::RShift;
                 auto new_ls = keybd_test_pressed(vkey::lshift);
@@ -4613,29 +4613,12 @@ namespace netxs::gui
                     if (virtcod == vkey::shift) return;
                     state = keymod;
                 }
-                if (virtcod == vkey::ctrl && keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
-                {
-                    auto& break_key = input::key::map::data(input::key::Break);
-                    keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
-                    if constexpr (debugmode) log("Fake Pause 'release' key event generated");
-                }
-                if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
-                {
-                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
-                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
-                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
-                    {
-                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
-                    }
-                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
-                    {
-                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
-                    }
-                }
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
             auto& gear = *stream.gears;
             if ((changed || gear.ctlstat != keymod))
             {
@@ -4660,7 +4643,7 @@ namespace netxs::gui
                 keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
                 return std::pair{ latin_shifted, latin_unshift };
             });
-            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.xlayout = xlayout;
@@ -5674,7 +5657,7 @@ namespace netxs::gui
             auto param = key_state_t{ .token = (ui32)winmsg.lParam };
             if (param.v.state == 2/*unknown*/) return faux;
             auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
-            // When RightMod is pressed while the LeftMod is pressed it is treated as repeating.
+            // If the RightMod key is pressed simultaneously with the LeftMod key, the operating system will mistakenly report this as a repeat.
             auto keystat = param.v.state == 0 ? input::key::pressed
                          : param.v.state == 1 ? input::key::repeated
                          /*param.v.state ==3*/: input::key::released;
@@ -5695,19 +5678,27 @@ namespace netxs::gui
                 while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
                 if (toWIDE.size()) keytype = 2;
             }
+            ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
+            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+            if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
+            {
+                toWIDE.clear();
+                return faux;
+            }
 
             //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
             //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
             //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
             //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
-            if (virtcod == vkey::ctrl && !extflag) // Detect if the pressed LeftCtrl is fake or not.
+            if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
             {
-                if (fake_ralt) // Drop any LeftCtrl activity if AltGr pressed.
+                if (fake_ralt && !extflag) // Drop any LeftCtrl activity if AltGr pressed.
                 {
                     fake_time = {};
                     return faux;
                 }
-                else if (!extflag && keystat == input::key::pressed)
+                else if (!extflag && keystat == input::key::pressed) // Some LeftCtrl pressed.
                 {
                     if constexpr (debugmode) log("left ctrl scancod=%% reserved=%% context=%% winmsg.lParam=%%", scancod, (ui32)(param.v.reserved), (ui32)param.v.context, winmsg.lParam);
                     std::this_thread::yield();
@@ -5725,6 +5716,16 @@ namespace netxs::gui
                         fake_scan = scancod;
                     }
                 }
+                else
+                {
+                    if (keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
+                    {
+                        auto& break_key = input::key::map::data(input::key::Break);
+                        keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake Pause 'release' key event generated");
+                    }
+                    fake_time = {};
+                }
             }
             else
             {
@@ -5733,6 +5734,7 @@ namespace netxs::gui
                     if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
                     {
                         fake_ralt = true;
+                        keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
                         keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
                     }
                     if (fake_ralt) // Simulate AltGr.
@@ -5744,25 +5746,33 @@ namespace netxs::gui
                         }
                     }
                 }
+                else if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
+                {
+                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
+                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
+                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
+                    }
+                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
+                    {
+                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
+                    }
+                }
+                else if (virtcod == vkey::packet && toWIDE.size())
+                {
+                    auto c = toWIDE.back();
+                    if (c >= 0xd800 && c <= 0xdbff)
+                    {
+                        fake_time = {};
+                        return faux; // Incomplete surrogate pair in VT_PACKET stream.
+                    }
+                }
                 fake_time = {};
             }
 
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
-            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
-            if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
-            {
-                toWIDE.clear();
-                return faux;
-            }
-            if (virtcod == vkey::packet && toWIDE.size())
-            {
-                auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff)
-                {
-                    return faux; // Incomplete surrogate pair in VT_PACKET stream.
-                }
-            }
-            ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
             auto cluster = utf::to_utf(toWIDE);
             toWIDE.clear();
