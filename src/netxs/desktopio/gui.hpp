@@ -5729,45 +5729,54 @@ namespace netxs::gui
             }
             else
             {
-                if (virtcod == vkey::alt && extflag) // Detect if the AltGr is active (pressed/repeated/released).
+                if (virtcod == vkey::alt) // Detect if the AltGr is active (pressed/repeated/released).
                 {
-                    if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
+                    if (extflag) // RightAlt.
                     {
-                        fake_ralt = true;
-                        keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
-                        keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
-                    }
-                    if (fake_ralt) // Simulate AltGr.
-                    {
-                        input::vkey::set_altgr(virtcod, extflag);
-                        if (keystat == input::key::released) // Clear the AltGr state if released.
+                        if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
                         {
-                            fake_ralt = faux;
+                            fake_ralt = true;
+                            keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
+                            keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
+                        }
+                        if (fake_ralt) // Simulate AltGr.
+                        {
+                            input::vkey::set_altgr(virtcod, extflag);
+                            if (keystat == input::key::released) // Clear the AltGr state if released.
+                            {
+                                fake_ralt = faux;
+                            }
                         }
                     }
                 }
-                else if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
+                else if (virtcod == vkey::prntscrn) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
                 {
-                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
-                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
-                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                    if (keystat == input::key::released)
                     {
-                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
-                    }
-                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
-                    {
-                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
+                        auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
+                        auto& sysreq_key = input::key::map::data(input::key::SysReq);
+                        if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                        {
+                            keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                            if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
+                        }
+                        else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
+                        {
+                            keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                            if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
+                        }
                     }
                 }
-                else if (virtcod == vkey::packet && toWIDE.size())
+                else if (virtcod == vkey::packet)
                 {
-                    auto c = toWIDE.back();
-                    if (c >= 0xd800 && c <= 0xdbff)
+                    if (toWIDE.size())
                     {
-                        fake_time = {};
-                        return faux; // Incomplete surrogate pair in VT_PACKET stream.
+                        auto c = toWIDE.back();
+                        if (c >= 0xd800 && c <= 0xdbff)
+                        {
+                            fake_time = {};
+                            return faux; // Incomplete surrogate pair in VT_PACKET stream.
+                        }
                     }
                 }
                 fake_time = {};
