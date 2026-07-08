@@ -5952,74 +5952,92 @@ namespace netxs::gui
         si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
         {
             if constexpr (debugmode) log("%%Media key pressed: cmd=%% uDevice=%%, dwKeys=%%", prompt::gui, utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys));
-            //todo use lut
             switch (uDevice)
             {
                 case FAPPCOMMAND_KEY:   // 0 User pressed a key.
-                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
                     //todo we only need to forward these events back into the system when they return untouched
                     //return TRUE;
                     break;
+                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
                 case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
                     return FALSE;
             }
+            auto keycode = input::key::undef;
             switch (cmd)
             {
-                case APPCOMMAND_BROWSER_BACKWARD:                  // 1 Navigate backward.
-                case APPCOMMAND_BROWSER_FORWARD:                   // 2 Navigate forward.
-                case APPCOMMAND_BROWSER_REFRESH:                   // 3 Refresh page.
-                case APPCOMMAND_BROWSER_STOP:                      // 4 Stop download.
-                case APPCOMMAND_BROWSER_SEARCH:                    // 5 Open search.
-                case APPCOMMAND_BROWSER_FAVORITES:                 // 6 Open favorites.
-                case APPCOMMAND_BROWSER_HOME:                      // 7 Navigate home.
-                case APPCOMMAND_VOLUME_MUTE:                       // 8 Mute the volume.
-                case APPCOMMAND_VOLUME_DOWN:                       // 9 Lower the volume.
-                case APPCOMMAND_VOLUME_UP:                         // 10 Raise the volume.
-                case APPCOMMAND_MEDIA_NEXTTRACK:                   // 11 Go to next track.
-                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               // 12 Go to previous track.
-                case APPCOMMAND_MEDIA_STOP:                        // 13 Stop playback.
-                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
-                case APPCOMMAND_LAUNCH_MAIL:                       // 15 Open mail.
-                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               // 16 Go to Media Select mode.
-                case APPCOMMAND_LAUNCH_APP1:                       // 17 Start App1.
-                case APPCOMMAND_LAUNCH_APP2:                       // 18 Start App2.
-                case APPCOMMAND_BASS_DOWN:                         // 19 Decrease the bass.
-                case APPCOMMAND_BASS_BOOST:                        // 20 Toggle the bass boost on and off.
-                case APPCOMMAND_BASS_UP:                           // 21 Increase the bass.
-                case APPCOMMAND_TREBLE_DOWN:                       // 22 Decrease the treble.
-                case APPCOMMAND_TREBLE_UP:                         // 23 Increase the treble.
-                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            // 24 Mute the microphone.
-                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            // 25 Decrease microphone volume.
-                case APPCOMMAND_MICROPHONE_VOLUME_UP:              // 26 Increase microphone volume.
-                case APPCOMMAND_HELP:                              // 27 Open the Help dialog.
-                case APPCOMMAND_FIND:                              // 28 Open the Find dialog.
-                case APPCOMMAND_NEW:                               // 29 Create a new window.
-                case APPCOMMAND_OPEN:                              // 30 Open a window.
-                case APPCOMMAND_CLOSE:                             // 31 Close the window (not the application).
-                case APPCOMMAND_SAVE:                              // 32 Save current document.
-                case APPCOMMAND_PRINT:                             // 33 Print current document.
-                case APPCOMMAND_UNDO:                              // 34 Undo last action.
-                case APPCOMMAND_REDO:                              // 35 Redo last action.
-                case APPCOMMAND_COPY:                              // 36 Copy the selection.
-                case APPCOMMAND_CUT:                               // 37 Cut the selection.
-                case APPCOMMAND_PASTE:                             // 38 Paste
-                case APPCOMMAND_REPLY_TO_MAIL:                     // 39 Reply to a mail message.
-                case APPCOMMAND_FORWARD_MAIL:                      // 40 Forward a mail message.
-                case APPCOMMAND_SEND_MAIL:                         // 41 Send a mail message.
-                case APPCOMMAND_SPELL_CHECK:                       // 42 Initiate a spell check.
-                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
-                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 // 44 Toggle the microphone.
-                case APPCOMMAND_CORRECTION_LIST:                   // 45 Brings up the correction list when a word is incorrectly identified during speech input.
-                case APPCOMMAND_MEDIA_PLAY:                        // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_PAUSE:                       // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_RECORD:                      // 48 Begin recording the current stream.
-                case APPCOMMAND_MEDIA_FAST_FORWARD:                // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_REWIND:                      // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_CHANNEL_UP:                  // 51 Increment the channel value, for example, for a TV or radio tuner.
-                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                // 52 Decrement the channel value, for example, for a TV or radio tuner.
+                case APPCOMMAND_BROWSER_BACKWARD:                  keycode = input::key::BrowserBackward;     break; // 1 Navigate backward.
+                case APPCOMMAND_BROWSER_FORWARD:                   keycode = input::key::BrowserForward;      break; // 2 Navigate forward.
+                case APPCOMMAND_BROWSER_REFRESH:                   keycode = input::key::BrowserRefresh;      break; // 3 Refresh page.
+                case APPCOMMAND_BROWSER_STOP:                      keycode = input::key::BrowserStop;         break; // 4 Stop download.
+                case APPCOMMAND_BROWSER_SEARCH:                    keycode = input::key::BrowserSearch;       break; // 5 Open search.
+                case APPCOMMAND_BROWSER_FAVORITES:                 keycode = input::key::BrowserFavorites;    break; // 6 Open favorites.
+                case APPCOMMAND_BROWSER_HOME:                      keycode = input::key::BrowserHome;         break; // 7 Navigate home.
+                case APPCOMMAND_VOLUME_MUTE:                       keycode = input::key::MediaVolMute;        break; // 8 Mute the volume.
+                case APPCOMMAND_VOLUME_DOWN:                       keycode = input::key::MediaVolDown;        break; // 9 Lower the volume.
+                case APPCOMMAND_VOLUME_UP:                         keycode = input::key::MediaVolUp;          break; // 10 Raise the volume.
+                case APPCOMMAND_MEDIA_NEXTTRACK:                   keycode = input::key::MediaNext;           break; // 11 Go to next track.
+                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               keycode = input::key::MediaPrev;           break; // 12 Go to previous track.
+                case APPCOMMAND_MEDIA_STOP:                        keycode = input::key::MediaStop;           break; // 13 Stop playback.
+                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  keycode = input::key::MediaPlayPause;      break; // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
+                case APPCOMMAND_LAUNCH_MAIL:                       keycode = input::key::Mail;                break; // 15 Open mail.
+                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               keycode = input::key::MediaSelectMode;     break; // 16 Go to Media Select mode.
+                case APPCOMMAND_LAUNCH_APP1:                       keycode = input::key::AppStart1;           break; // 17 Start App1.
+                case APPCOMMAND_LAUNCH_APP2:                       keycode = input::key::AppStart2;           break; // 18 Start App2.
+                case APPCOMMAND_BASS_DOWN:                         keycode = input::key::MediaBassDown;       break; // 19 Decrease the bass.
+                case APPCOMMAND_BASS_BOOST:                        keycode = input::key::MediaBassBoost;      break; // 20 Toggle the bass boost on and off.
+                case APPCOMMAND_BASS_UP:                           keycode = input::key::MediaBassUp;         break; // 21 Increase the bass.
+                case APPCOMMAND_TREBLE_DOWN:                       keycode = input::key::MediaTrebleDown;     break; // 22 Decrease the treble.
+                case APPCOMMAND_TREBLE_UP:                         keycode = input::key::MediaTrebleUp;       break; // 23 Increase the treble.
+                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            keycode = input::key::MicMute;             break; // 24 Mute the microphone.
+                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            keycode = input::key::MicVolDown;          break; // 25 Decrease microphone volume.
+                case APPCOMMAND_MICROPHONE_VOLUME_UP:              keycode = input::key::MicVolUp;            break; // 26 Increase microphone volume.
+                case APPCOMMAND_HELP:                              keycode = input::key::AppHelp;             break; // 27 Open the Help dialog.
+                case APPCOMMAND_FIND:                              keycode = input::key::AppFind;             break; // 28 Open the Find dialog.
+                case APPCOMMAND_NEW:                               keycode = input::key::AppNewWindow;        break; // 29 Create a new window.
+                case APPCOMMAND_OPEN:                              keycode = input::key::AppOpenWindow;       break; // 30 Open a window.
+                case APPCOMMAND_CLOSE:                             keycode = input::key::AppClose;            break; // 31 Close the window (not the application).
+                case APPCOMMAND_SAVE:                              keycode = input::key::AppSave;             break; // 32 Save current document.
+                case APPCOMMAND_PRINT:                             keycode = input::key::AppPrint;            break; // 33 Print current document.
+                case APPCOMMAND_UNDO:                              keycode = input::key::AppUndo;             break; // 34 Undo last action.
+                case APPCOMMAND_REDO:                              keycode = input::key::AppRedo;             break; // 35 Redo last action.
+                case APPCOMMAND_COPY:                              keycode = input::key::AppCopy;             break; // 36 Copy the selection.
+                case APPCOMMAND_CUT:                               keycode = input::key::AppCut;              break; // 37 Cut the selection.
+                case APPCOMMAND_PASTE:                             keycode = input::key::AppPaste;            break; // 38 Paste
+                case APPCOMMAND_REPLY_TO_MAIL:                     keycode = input::key::MailReply;           break; // 39 Reply to a mail message.
+                case APPCOMMAND_FORWARD_MAIL:                      keycode = input::key::MailForward;         break; // 40 Forward a mail message.
+                case APPCOMMAND_SEND_MAIL:                         keycode = input::key::MailSend;            break; // 41 Send a mail message.
+                case APPCOMMAND_SPELL_CHECK:                       keycode = input::key::AppSpellCheck;       break; // 42 Initiate a spell check.
+                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: keycode = input::key::AppSpeechMode;       break; // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
+                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 keycode = input::key::MicAirToggle;        break; // 44 Toggle the microphone.
+                case APPCOMMAND_CORRECTION_LIST:                   keycode = input::key::AppSpeechCorrection; break; // 45 Brings up the correction list when a word is incorrectly identified during speech input.
+                case APPCOMMAND_MEDIA_PLAY:                        keycode = input::key::MediaPlay;           break; // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_PAUSE:                       keycode = input::key::MediaPause;          break; // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                case APPCOMMAND_MEDIA_RECORD:                      keycode = input::key::MediaRecord;         break; // 48 Begin recording the current stream.
+                case APPCOMMAND_MEDIA_FAST_FORWARD:                keycode = input::key::MediaFastForward;    break; // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_REWIND:                      keycode = input::key::MediaRewind;         break; // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                case APPCOMMAND_MEDIA_CHANNEL_UP:                  keycode = input::key::MediaChanUp;         break; // 51 Increment the channel value, for example, for a TV or radio tuner.
+                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                keycode = input::key::MediaChanDown;       break; // 52 Decrement the channel value, for example, for a TV or radio tuner.
                     break;
             }
-            return FALSE; // The event is not processed.
+            //if (keycode != input::key::undef)
+            //{
+            //    auto& gear = *stream.gears;
+            //    gear.keycode = keycode;
+            //    gear.keystat = input::key::pressed;
+            //    gear.payload = input::keybd::type::keypress;
+            //    gear.extflag = {};
+            //    gear.virtcod = vkey::packet;
+            //    gear.scancod = 0;
+            //    gear.xlayout = xlayout;
+            //    gear.cluster = {};
+            //    chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+            //    stream_keybd(gear);
+            //    return TRUE; // TRUE: The event is processed.
+            //}
+            //else
+            {
+                return FALSE; // FALSE: The event is not processed.
+            }
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }

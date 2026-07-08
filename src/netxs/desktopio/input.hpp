@@ -468,8 +468,8 @@ namespace netxs::input
             X(530 , 0, 0    , MediaRewind        , "MediaRewind"       , ""    , 0     , 57434, 'u', 1, -1    , -1    , "")\
             X(532 , 0, 0    , MicAirToggle       , "MicAirToggle"      , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
             X(534 , 0, 0    , MicMute            , "MicMute"           , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
-            X(536 , 0, 0    , MicVolUp           , "MicVolUp"          , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
-            X(538 , 0, 0    , MicVolDown         , "MicVolDown"        , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
+            X(536 , 0, 0    , MicVolDown         , "MicVolDown"        , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
+            X(538 , 0, 0    , MicVolUp           , "MicVolUp"          , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
             X(540 , 0, 0x1A6, BrowserBackward    , "BrowserBackward"   , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
             X(542 , 0, 0x1A7, BrowserForward     , "BrowserForward"    , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\
             X(544 , 0, 0x1A8, BrowserRefresh     , "BrowserRefresh"    , ""    , 0     , 0    , 'u', 1, -1    , -1    , "")\

@@ -513,8 +513,8 @@ Key ID | Name               | Generic Name       | Literal Code | Unicode Code |
  530   | MediaRewind        | "MediaRewind"      | ""           | 0
  532   | MicAirToggle       | "MicAirToggle"     | ""           | 0
  534   | MicMute            | "MicMute"          | ""           | 0
- 536   | MicVolUp           | "MicVolUp"         | ""           | 0
- 538   | MicVolDown         | "MicVolDown"       | ""           | 0
+ 536   | MicVolDown         | "MicVolDown"       | ""           | 0
+ 538   | MicVolUp           | "MicVolUp"         | ""           | 0
  540   | BrowserBackward    | "BrowserBackward"  | ""           | 0
  542   | BrowserForward     | "BrowserForward"   | ""           | 0
  544   | BrowserRefresh     | "BrowserRefresh"   | ""           | 0
