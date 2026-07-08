@@ -2971,7 +2971,7 @@ namespace netxs::gui
             static constexpr auto none       = __COUNTER__ - _counter;
             static constexpr auto blink      = __COUNTER__ - _counter;
             static constexpr auto clipboard  = __COUNTER__ - _counter;
-            static constexpr auto rightshift = __COUNTER__ - _counter;
+            static constexpr auto shiftkeys  = __COUNTER__ - _counter;
         };
         struct ipc
         {
@@ -3530,6 +3530,7 @@ namespace netxs::gui
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
+        virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
@@ -4547,72 +4548,14 @@ namespace netxs::gui
                 if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
                 if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+                if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+                if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
                 if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
                 if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
                 if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
                 if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
                 if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
                 if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-
-                //todo move it to win32 ()
-                auto old_ls = keymod & mods::LShift;
-                auto old_rs = keymod & mods::RShift;
-                auto new_ls = keybd_test_pressed(vkey::lshift);
-                auto new_rs = keybd_test_pressed(vkey::rshift);
-                //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
-                state |= old_ls | old_rs;
-                if (new_ls != !!old_ls || new_rs != !!old_rs) // MS Windows Shift+Shift bug workaround.
-                {
-                    auto& rshift = input::key::map::data(input::key::RightShift);
-                    auto& lshift = input::key::map::data(input::key::LeftShift);
-                    keymod = state;
-                    //todo unify
-                    if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
-                    {
-                        //if (old_rs && !new_rs) // RightShift released.
-                        {
-                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
-                        }
-                        //if (old_ls && !new_ls) // LeftShift released.
-                        {
-                            keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
-                        }
-                    }
-                    else
-                    {
-                        if (old_ls && !new_ls) // LeftShift released.
-                        {
-                            keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
-                        }
-                        if (old_rs && !new_rs) // RightShift released.
-                        {
-                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
-                        }
-                    }
-                    if (!old_ls && new_ls) // LeftShift pressed.
-                    {
-                        keymod |= mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
-                    }
-                    if (!old_rs && new_rs) // RightShift pressed.
-                    {
-                        keymod |= mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
-                    }
-                    if (new_ls && new_rs) // Two Shifts pressed.
-                    {
-                        layer_timer_start(master, 33ms, timers::rightshift); // Try to catch RightShift release.
-                    }
-                    //log(" keymod=%%", utf::to_hex(keymod));
-                    if (virtcod == vkey::shift) return;
-                    state = keymod;
-                }
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
 
@@ -4901,19 +4844,12 @@ namespace netxs::gui
                 layer_timer_stop(master, timers::clipboard);
                 sync_clipboard();
             }
-            else if (eventid == timers::rightshift)
+            else if (eventid == timers::shiftkeys)
             {
-                auto new_rs = keybd_read_pressed(vkey::rshift);
-                if (!new_rs)
+                keybd_sync_shift(true);
+                if (!(keymod & mods::anyShift)) // All shifts are released.
                 {
-                    layer_timer_stop(master, timers::rightshift);
-                    keybd_sync_state();
-                    //::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-                    //if (keymod & mods::RShift)
-                    //{
-                    //    keymod &= ~mods::RShift;
-                    //    keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
-                    //}
+                    layer_timer_stop(master, timers::shiftkeys);
                 }
             }
             else if (eventid == timers::blink) base::enqueue([&](auto& /*boss*/)
@@ -5639,6 +5575,62 @@ namespace netxs::gui
         }
         bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        void keybd_sync_shift(bool async)
+        {
+            //Left/RightShift detection notes: The event of releasing any Shift key while both Shift keys are pressed
+            //                                 may be completely lost on Windows (LeftShift on physical host or RightShift in RDP sesssion).
+            auto old_ls = keymod & mods::LShift;
+            auto old_rs = keymod & mods::RShift;
+            auto new_ls = async ? keybd_test_pressed(vkey::lshift) : keybd_read_pressed(vkey::lshift);
+            auto new_rs = async ? keybd_test_pressed(vkey::rshift) : keybd_test_pressed(vkey::rshift);
+            auto changed = new_ls != !!old_ls || new_rs != !!old_rs;
+            //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%% async=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod), async);
+            if (changed) // MS Windows Shift+Shift bug workaround.
+            {
+                auto& rshift = input::key::map::data(input::key::RightShift);
+                auto& lshift = input::key::map::data(input::key::LeftShift);
+                if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
+                {
+                    //if (old_rs && !new_rs) // RightShift released.
+                    {
+                        keymod &= ~mods::RShift;
+                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                    }
+                    //if (old_ls && !new_ls) // LeftShift released.
+                    {
+                        keymod &= ~mods::LShift;
+                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                    }
+                }
+                else
+                {
+                    if (old_ls && !new_ls) // LeftShift released.
+                    {
+                        keymod &= ~mods::LShift;
+                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                    }
+                    if (old_rs && !new_rs) // RightShift released.
+                    {
+                        keymod &= ~mods::RShift;
+                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                    }
+                }
+                if (!old_ls && new_ls) // LeftShift pressed.
+                {
+                    keymod |= mods::LShift;
+                    keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
+                }
+                if (!old_rs && new_rs) // RightShift pressed.
+                {
+                    keymod |= mods::RShift;
+                    keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
+                }
+                if (new_ls && new_rs) // Two Shifts pressed.
+                {
+                    layer_timer_start(master, 33ms, timers::shiftkeys); // Try to catch AnyShift release.
+                }
+            }
+        }
         bool keybd_read_input()
         {
             union key_state_t
@@ -5687,12 +5679,18 @@ namespace netxs::gui
                 return faux;
             }
 
-            //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
-            //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
-            //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
-            //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
-            if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
+            keybd_sync_shift(faux); // Shift must be checked on any key event.
+            if (virtcod == vkey::shift)
             {
+                fake_time = {};
+                return faux; // Handled by keybd_sync_shift(faux).
+            }
+            else if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
+            {
+                //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
+                //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
+                //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
+                //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
                 if (fake_ralt && !extflag) // Drop any LeftCtrl activity if AltGr pressed.
                 {
                     fake_time = {};
@@ -6346,6 +6344,7 @@ namespace netxs::gui
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
+        void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
