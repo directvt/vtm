@@ -3536,7 +3536,9 @@ namespace netxs::gui
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
-        virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
+        virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
+        virtual si32 keybd_conv_media2keyid(si32 mediakey) = 0;
+        virtual bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
         virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
@@ -4958,6 +4960,31 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
+                //todo it doesn't work on win32 (deferred mediakey)
+                //LISTEN(tier::release, input::events::keybd::any, gear)
+                //{
+                //    if (bell::protos(input::events::keybd::post))
+                //    {
+                //        if constexpr (debugmode) log("%% key: %% %%", gear.handled ? "Handled":"Unhandled", input::key::map::data(gear.keycode).name, gear.keystat == input::key::released ? "released" : "pressed");
+                //        auto unhandled_key = !gear.handled
+                //                            && gear.keystat != input::key::interrupted
+                //                            && gear.payload == input::keybd::type::keypress
+                //                            && gear.keystat == input::key::pressed;
+                //        if (unhandled_key)
+                //        {
+                //            if (auto media_cmd = keybd_conv_keyid2media(gear.keycode))
+                //            {
+                //                auto dwKeys = ui16{};
+                //                auto wParam = (WPARAM)master.hWnd;
+                //                auto lParam = (LPARAM)MAKELONG(dwKeys, 0x0F000 | media_cmd);
+                //                if constexpr (debugmode) log("  Media key is forwarded out: wParam=%% lParam=%% cmd=%%", utf::to_hex(wParam), utf::to_hex(lParam), utf::to_hex(media_cmd));
+                //                //::PostMessageW((HWND)master.hWnd, WM_APPCOMMAND, wParam, lParam);
+                //                //::SendMessageW((HWND)master.hWnd, WM_APPCOMMAND, wParam, lParam);
+                //                //gear.set_handled();
+                //            }
+                //        }
+                //    }
+                //};
                 on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
                 {
                     if (fsmode != winstate::normal) return;
@@ -5949,94 +5976,130 @@ namespace netxs::gui
                 winbase::keybd_sync_layout();
             }
         }
-        si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
+        static constexpr auto mediakey_map = []
+        {
+            auto key_list = std::to_array<std::pair<si32, si32>>(
+            {
+                { APPCOMMAND_BROWSER_BACKWARD                 , input::key::BrowserBackward     }, // 1 Navigate backward.
+                { APPCOMMAND_BROWSER_FORWARD                  , input::key::BrowserForward      }, // 2 Navigate forward.
+                { APPCOMMAND_BROWSER_REFRESH                  , input::key::BrowserRefresh      }, // 3 Refresh page.
+                { APPCOMMAND_BROWSER_STOP                     , input::key::BrowserStop         }, // 4 Stop download.
+                { APPCOMMAND_BROWSER_SEARCH                   , input::key::BrowserSearch       }, // 5 Open search.
+                { APPCOMMAND_BROWSER_FAVORITES                , input::key::BrowserFavorites    }, // 6 Open favorites.
+                { APPCOMMAND_BROWSER_HOME                     , input::key::BrowserHome         }, // 7 Navigate home.
+                { APPCOMMAND_VOLUME_MUTE                      , input::key::MediaVolMute        }, // 8 Mute the volume.
+                { APPCOMMAND_VOLUME_DOWN                      , input::key::MediaVolDown        }, // 9 Lower the volume.
+                { APPCOMMAND_VOLUME_UP                        , input::key::MediaVolUp          }, // 10 Raise the volume.
+                { APPCOMMAND_MEDIA_NEXTTRACK                  , input::key::MediaNext           }, // 11 Go to next track.
+                { APPCOMMAND_MEDIA_PREVIOUSTRACK              , input::key::MediaPrev           }, // 12 Go to previous track.
+                { APPCOMMAND_MEDIA_STOP                       , input::key::MediaStop           }, // 13 Stop playback.
+                { APPCOMMAND_MEDIA_PLAY_PAUSE                 , input::key::MediaPlayPause      }, // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
+                { APPCOMMAND_LAUNCH_MAIL                      , input::key::Mail                }, // 15 Open mail.
+                { APPCOMMAND_LAUNCH_MEDIA_SELECT              , input::key::MediaSelectMode     }, // 16 Go to Media Select mode.
+                { APPCOMMAND_LAUNCH_APP1                      , input::key::AppStart1           }, // 17 Start App1.
+                { APPCOMMAND_LAUNCH_APP2                      , input::key::AppStart2           }, // 18 Start App2.
+                { APPCOMMAND_BASS_DOWN                        , input::key::MediaBassDown       }, // 19 Decrease the bass.
+                { APPCOMMAND_BASS_BOOST                       , input::key::MediaBassBoost      }, // 20 Toggle the bass boost on and off.
+                { APPCOMMAND_BASS_UP                          , input::key::MediaBassUp         }, // 21 Increase the bass.
+                { APPCOMMAND_TREBLE_DOWN                      , input::key::MediaTrebleDown     }, // 22 Decrease the treble.
+                { APPCOMMAND_TREBLE_UP                        , input::key::MediaTrebleUp       }, // 23 Increase the treble.
+                { APPCOMMAND_MICROPHONE_VOLUME_MUTE           , input::key::MicMute             }, // 24 Mute the microphone.
+                { APPCOMMAND_MICROPHONE_VOLUME_DOWN           , input::key::MicVolDown          }, // 25 Decrease microphone volume.
+                { APPCOMMAND_MICROPHONE_VOLUME_UP             , input::key::MicVolUp            }, // 26 Increase microphone volume.
+                { APPCOMMAND_HELP                             , input::key::AppHelp             }, // 27 Open the Help dialog.
+                { APPCOMMAND_FIND                             , input::key::AppFind             }, // 28 Open the Find dialog.
+                { APPCOMMAND_NEW                              , input::key::AppNewWindow        }, // 29 Create a new window.
+                { APPCOMMAND_OPEN                             , input::key::AppOpenWindow       }, // 30 Open a window.
+                { APPCOMMAND_CLOSE                            , input::key::AppClose            }, // 31 Close the window (not the application).
+                { APPCOMMAND_SAVE                             , input::key::AppSave             }, // 32 Save current document.
+                { APPCOMMAND_PRINT                            , input::key::AppPrint            }, // 33 Print current document.
+                { APPCOMMAND_UNDO                             , input::key::AppUndo             }, // 34 Undo last action.
+                { APPCOMMAND_REDO                             , input::key::AppRedo             }, // 35 Redo last action.
+                { APPCOMMAND_COPY                             , input::key::AppCopy             }, // 36 Copy the selection.
+                { APPCOMMAND_CUT                              , input::key::AppCut              }, // 37 Cut the selection.
+                { APPCOMMAND_PASTE                            , input::key::AppPaste            }, // 38 Paste
+                { APPCOMMAND_REPLY_TO_MAIL                    , input::key::MailReply           }, // 39 Reply to a mail message.
+                { APPCOMMAND_FORWARD_MAIL                     , input::key::MailForward         }, // 40 Forward a mail message.
+                { APPCOMMAND_SEND_MAIL                        , input::key::MailSend            }, // 41 Send a mail message.
+                { APPCOMMAND_SPELL_CHECK                      , input::key::AppSpellCheck       }, // 42 Initiate a spell check.
+                { APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE, input::key::AppSpeechMode       }, // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
+                { APPCOMMAND_MIC_ON_OFF_TOGGLE                , input::key::MicAirToggle        }, // 44 Toggle the microphone.
+                { APPCOMMAND_CORRECTION_LIST                  , input::key::AppSpeechCorrection }, // 45 Brings up the correction list when a word is incorrectly identified during speech input.
+                { APPCOMMAND_MEDIA_PLAY                       , input::key::MediaPlay           }, // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                { APPCOMMAND_MEDIA_PAUSE                      , input::key::MediaPause          }, // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                { APPCOMMAND_MEDIA_RECORD                     , input::key::MediaRecord         }, // 48 Begin recording the current stream.
+                { APPCOMMAND_MEDIA_FAST_FORWARD               , input::key::MediaFastForward    }, // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                { APPCOMMAND_MEDIA_REWIND                     , input::key::MediaRewind         }, // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                { APPCOMMAND_MEDIA_CHANNEL_UP                 , input::key::MediaChanUp         }, // 51 Increment the channel value, for example, for a TV or radio tuner.
+                { APPCOMMAND_MEDIA_CHANNEL_DOWN               , input::key::MediaChanDown       }, // 52 Decrement the channel value, for example, for a TV or radio tuner.
+                { APPCOMMAND_DELETE                           , input::key::AppDelete           }, // 53 Delete selected fragment.
+                { APPCOMMAND_DWM_FLIP3D                       , input::key::DwmFlip3D           }, // 54 Trigger the Flip 3D window-switching interface.
+            });
+            auto fwd_map = std::array<si32, input::key::lastKey>{};
+            auto rev_map = std::array<si32, key_list.size() + 1>{};
+            for (auto [mediakey, keyid] : key_list)
+            {
+                fwd_map[keyid] = mediakey;
+                rev_map[mediakey] = keyid;
+            }
+            return std::pair{ fwd_map, rev_map };
+        }();
+        si32 keybd_conv_keyid2media(si32 keyid)
+        {
+            auto valid = keyid > 0 && keyid < gui::window::mediakey_map.first.size();
+            return valid ? mediakey_map.first[keyid] : 0;
+        }
+        si32 keybd_conv_media2keyid(si32 mediakey)
+        {
+            auto valid = mediakey > 0 && mediakey < gui::window::mediakey_map.second.size();
+            return valid ? mediakey_map.second[mediakey] : input::key::undef;
+        }
+        bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
         {
             if constexpr (debugmode) log("%%Media key pressed: cmd=%% uDevice=%%, dwKeys=%%", prompt::gui, utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys));
             switch (uDevice)
             {
                 case FAPPCOMMAND_KEY:   // 0 User pressed a key.
                     //todo we only need to forward these events back into the system when they return untouched
-                    //return TRUE;
+                    //return true;
                     break;
                 case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
                 case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
-                    return FALSE;
+                    return faux;
             }
-            auto keycode = input::key::undef;
-            switch (cmd)
+            auto keycode = gui::window::keybd_conv_media2keyid(cmd);
+            if (keycode != input::key::undef)
             {
-                case APPCOMMAND_BROWSER_BACKWARD:                  keycode = input::key::BrowserBackward;     break; // 1 Navigate backward.
-                case APPCOMMAND_BROWSER_FORWARD:                   keycode = input::key::BrowserForward;      break; // 2 Navigate forward.
-                case APPCOMMAND_BROWSER_REFRESH:                   keycode = input::key::BrowserRefresh;      break; // 3 Refresh page.
-                case APPCOMMAND_BROWSER_STOP:                      keycode = input::key::BrowserStop;         break; // 4 Stop download.
-                case APPCOMMAND_BROWSER_SEARCH:                    keycode = input::key::BrowserSearch;       break; // 5 Open search.
-                case APPCOMMAND_BROWSER_FAVORITES:                 keycode = input::key::BrowserFavorites;    break; // 6 Open favorites.
-                case APPCOMMAND_BROWSER_HOME:                      keycode = input::key::BrowserHome;         break; // 7 Navigate home.
-                case APPCOMMAND_VOLUME_MUTE:                       keycode = input::key::MediaVolMute;        break; // 8 Mute the volume.
-                case APPCOMMAND_VOLUME_DOWN:                       keycode = input::key::MediaVolDown;        break; // 9 Lower the volume.
-                case APPCOMMAND_VOLUME_UP:                         keycode = input::key::MediaVolUp;          break; // 10 Raise the volume.
-                case APPCOMMAND_MEDIA_NEXTTRACK:                   keycode = input::key::MediaNext;           break; // 11 Go to next track.
-                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               keycode = input::key::MediaPrev;           break; // 12 Go to previous track.
-                case APPCOMMAND_MEDIA_STOP:                        keycode = input::key::MediaStop;           break; // 13 Stop playback.
-                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  keycode = input::key::MediaPlayPause;      break; // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
-                case APPCOMMAND_LAUNCH_MAIL:                       keycode = input::key::Mail;                break; // 15 Open mail.
-                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               keycode = input::key::MediaSelectMode;     break; // 16 Go to Media Select mode.
-                case APPCOMMAND_LAUNCH_APP1:                       keycode = input::key::AppStart1;           break; // 17 Start App1.
-                case APPCOMMAND_LAUNCH_APP2:                       keycode = input::key::AppStart2;           break; // 18 Start App2.
-                case APPCOMMAND_BASS_DOWN:                         keycode = input::key::MediaBassDown;       break; // 19 Decrease the bass.
-                case APPCOMMAND_BASS_BOOST:                        keycode = input::key::MediaBassBoost;      break; // 20 Toggle the bass boost on and off.
-                case APPCOMMAND_BASS_UP:                           keycode = input::key::MediaBassUp;         break; // 21 Increase the bass.
-                case APPCOMMAND_TREBLE_DOWN:                       keycode = input::key::MediaTrebleDown;     break; // 22 Decrease the treble.
-                case APPCOMMAND_TREBLE_UP:                         keycode = input::key::MediaTrebleUp;       break; // 23 Increase the treble.
-                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            keycode = input::key::MicMute;             break; // 24 Mute the microphone.
-                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            keycode = input::key::MicVolDown;          break; // 25 Decrease microphone volume.
-                case APPCOMMAND_MICROPHONE_VOLUME_UP:              keycode = input::key::MicVolUp;            break; // 26 Increase microphone volume.
-                case APPCOMMAND_HELP:                              keycode = input::key::AppHelp;             break; // 27 Open the Help dialog.
-                case APPCOMMAND_FIND:                              keycode = input::key::AppFind;             break; // 28 Open the Find dialog.
-                case APPCOMMAND_NEW:                               keycode = input::key::AppNewWindow;        break; // 29 Create a new window.
-                case APPCOMMAND_OPEN:                              keycode = input::key::AppOpenWindow;       break; // 30 Open a window.
-                case APPCOMMAND_CLOSE:                             keycode = input::key::AppClose;            break; // 31 Close the window (not the application).
-                case APPCOMMAND_SAVE:                              keycode = input::key::AppSave;             break; // 32 Save current document.
-                case APPCOMMAND_PRINT:                             keycode = input::key::AppPrint;            break; // 33 Print current document.
-                case APPCOMMAND_UNDO:                              keycode = input::key::AppUndo;             break; // 34 Undo last action.
-                case APPCOMMAND_REDO:                              keycode = input::key::AppRedo;             break; // 35 Redo last action.
-                case APPCOMMAND_COPY:                              keycode = input::key::AppCopy;             break; // 36 Copy the selection.
-                case APPCOMMAND_CUT:                               keycode = input::key::AppCut;              break; // 37 Cut the selection.
-                case APPCOMMAND_PASTE:                             keycode = input::key::AppPaste;            break; // 38 Paste
-                case APPCOMMAND_REPLY_TO_MAIL:                     keycode = input::key::MailReply;           break; // 39 Reply to a mail message.
-                case APPCOMMAND_FORWARD_MAIL:                      keycode = input::key::MailForward;         break; // 40 Forward a mail message.
-                case APPCOMMAND_SEND_MAIL:                         keycode = input::key::MailSend;            break; // 41 Send a mail message.
-                case APPCOMMAND_SPELL_CHECK:                       keycode = input::key::AppSpellCheck;       break; // 42 Initiate a spell check.
-                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: keycode = input::key::AppSpeechMode;       break; // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
-                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 keycode = input::key::MicAirToggle;        break; // 44 Toggle the microphone.
-                case APPCOMMAND_CORRECTION_LIST:                   keycode = input::key::AppSpeechCorrection; break; // 45 Brings up the correction list when a word is incorrectly identified during speech input.
-                case APPCOMMAND_MEDIA_PLAY:                        keycode = input::key::MediaPlay;           break; // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_PAUSE:                       keycode = input::key::MediaPause;          break; // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_RECORD:                      keycode = input::key::MediaRecord;         break; // 48 Begin recording the current stream.
-                case APPCOMMAND_MEDIA_FAST_FORWARD:                keycode = input::key::MediaFastForward;    break; // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_REWIND:                      keycode = input::key::MediaRewind;         break; // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_CHANNEL_UP:                  keycode = input::key::MediaChanUp;         break; // 51 Increment the channel value, for example, for a TV or radio tuner.
-                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                keycode = input::key::MediaChanDown;       break; // 52 Decrement the channel value, for example, for a TV or radio tuner.
-                    break;
+                auto& keyrec = input::key::map::data(keycode);
+                auto aheadMsg = MSG{};
+                if (::PeekMessageW(&aheadMsg, (HWND)master.hWnd, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && aheadMsg.wParam == keyrec.vkey)
+                {
+                    if constexpr (debugmode) log("Suppress keypress duplication for '%%'", keyrec.name);
+                }
+                else
+                {
+                    auto& gear = *stream.gears;
+                    gear.payload = input::keybd::type::keypress;
+                    gear.keycode = keycode;
+                    gear.virtcod = keyrec.vkey ? keyrec.vkey : vkey::packet;
+                    gear.scancod = keyrec.scan;
+                    gear.extflag = keyrec.extflag;
+                    gear.xlayout = xlayout;
+                    gear.cluster = {};
+                    auto gen_event = [&](auto keystat)
+                    {
+                        gear.keystat = keystat;
+                        chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                        stream_keybd(gear);
+                    };
+                    gen_event(input::key::pressed);
+                    gen_event(input::key::released);
+                }
+                return true; // The event is processed.
             }
-            //if (keycode != input::key::undef)
-            //{
-            //    auto& gear = *stream.gears;
-            //    gear.keycode = keycode;
-            //    gear.keystat = input::key::pressed;
-            //    gear.payload = input::keybd::type::keypress;
-            //    gear.extflag = {};
-            //    gear.virtcod = vkey::packet;
-            //    gear.scancod = 0;
-            //    gear.xlayout = xlayout;
-            //    gear.cluster = {};
-            //    chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
-            //    stream_keybd(gear);
-            //    return TRUE; // TRUE: The event is processed.
-            //}
-            //else
+            else
             {
-                return FALSE; // FALSE: The event is not processed.
+                return faux; // The event is not processed.
             }
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
@@ -6258,7 +6321,27 @@ namespace netxs::gui
                         auto cmd     = GET_APPCOMMAND_LPARAM(lParam);
                         auto uDevice = GET_DEVICE_LPARAM(lParam);
                         auto dwKeys  = GET_KEYSTATE_LPARAM(lParam);
-                        stat = w->keybd_read_media(cmd, uDevice, dwKeys);                        break; // Media key pressed.
+                        if constexpr (debugmode) log("WM_APPCOMMAND: cmd=%% uDevice=%% dwKeys=%% wParam=%% lParam=%%", utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys), utf::to_hex(wParam), utf::to_hex(lParam));
+                        if (!w->keybd_read_media(cmd, uDevice, dwKeys))
+                        {
+                            stat = ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                        }
+                        else
+                        {
+                            stat = TRUE;
+                        }
+                        //todo it doesn't work in any way
+                        //if (uDevice == 0xF000 || !w->keybd_read_media(cmd, uDevice, dwKeys)) // Forward media keys to outside if unhandled or unknown. We mark the uDevice with 0xF000 if the mediakey event is unhandled.
+                        //{
+                        //    if (uDevice == 0xF000) lParam = (LPARAM)MAKELONG(dwKeys, cmd); // Reset uDevice to 0x0000.
+                        //    if constexpr (debugmode) log("  returned mediakey sent outside.... wParam=%% lParam=%%", utf::to_hex(wParam), utf::to_hex(lParam));
+                        //    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                        //}
+                        //else
+                        //{
+                        //    stat = TRUE;
+                        //}
+                        break;
                     }
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
@@ -6363,7 +6446,9 @@ namespace netxs::gui
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
-        si32 keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
+        si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
+        bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}
