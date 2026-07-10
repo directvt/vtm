@@ -2971,7 +2971,7 @@ namespace netxs::gui
             static constexpr auto none       = __COUNTER__ - _counter;
             static constexpr auto blink      = __COUNTER__ - _counter;
             static constexpr auto clipboard  = __COUNTER__ - _counter;
-            static constexpr auto rightshift = __COUNTER__ - _counter;
+            static constexpr auto shiftkeys  = __COUNTER__ - _counter;
         };
         struct ipc
         {
@@ -3530,12 +3530,15 @@ namespace netxs::gui
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual bool keybd_read_input() = 0;
+        virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
-        virtual si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
+        virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
+        virtual si32 keybd_conv_media2keyid(si32 mediakey) = 0;
+        virtual bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
         virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
         virtual void mouse_capture(si32 captured_by) = 0;
@@ -4547,95 +4550,20 @@ namespace netxs::gui
                 if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
                 if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+                if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+                if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
                 if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
                 if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
                 if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
                 if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
                 if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
                 if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-                if (keybd_test_pressed(vkey::ctrl    )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-                else                                    mouse_release(by::keybd);
-                auto old_ls = keymod & mods::LShift;
-                auto old_rs = keymod & mods::RShift;
-                auto new_ls = keybd_test_pressed(vkey::lshift);
-                auto new_rs = keybd_test_pressed(vkey::rshift);
-                //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
-                state |= old_ls | old_rs;
-                if (new_ls != !!old_ls || new_rs != !!old_rs) // MS Windows Shift+Shift bug workaround.
-                {
-                    auto& rshift = input::key::map::data(input::key::RightShift);
-                    auto& lshift = input::key::map::data(input::key::LeftShift);
-                    keymod = state;
-                    //todo unify
-                    if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
-                    {
-                        //if (old_rs && !new_rs) // RightShift released.
-                        {
-                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
-                        }
-                        //if (old_ls && !new_ls) // LeftShift released.
-                        {
-                            keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
-                        }
-                    }
-                    else
-                    {
-                        if (old_ls && !new_ls) // LeftShift released.
-                        {
-                            keymod &= ~mods::LShift;
-                            keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
-                        }
-                        if (old_rs && !new_rs) // RightShift released.
-                        {
-                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
-                            keymod &= ~mods::RShift;
-                            keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
-                        }
-                    }
-                    if (!old_ls && new_ls) // LeftShift pressed.
-                    {
-                        keymod |= mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
-                    }
-                    if (!old_rs && new_rs) // RightShift pressed.
-                    {
-                        keymod |= mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
-                    }
-                    if (new_ls && new_rs) // Two Shifts pressed.
-                    {
-                        layer_timer_start(master, 33ms, timers::rightshift); // Try to catch RightShift release.
-                    }
-                    //log(" keymod=%%", utf::to_hex(keymod));
-                    if (virtcod == vkey::shift) return;
-                    state = keymod;
-                }
-                if (virtcod == vkey::ctrl && keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
-                {
-                    auto& break_key = input::key::map::data(input::key::Break);
-                    keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
-                    if constexpr (debugmode) log("Fake Pause 'release' key event generated");
-                }
-                if (virtcod == vkey::prntscrn && keystat == input::key::released) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
-                {
-                    auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
-                    auto& sysreq_key = input::key::map::data(input::key::SysReq);
-                    if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
-                    {
-                        keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
-                    }
-                    else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
-                    {
-                        keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
-                        if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
-                    }
-                }
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
             auto& gear = *stream.gears;
             if ((changed || gear.ctlstat != keymod))
             {
@@ -4660,7 +4588,7 @@ namespace netxs::gui
                 keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
                 return std::pair{ latin_shifted, latin_unshift };
             });
-            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.xlayout = xlayout;
@@ -4918,19 +4846,12 @@ namespace netxs::gui
                 layer_timer_stop(master, timers::clipboard);
                 sync_clipboard();
             }
-            else if (eventid == timers::rightshift)
+            else if (eventid == timers::shiftkeys)
             {
-                auto new_rs = keybd_read_pressed(vkey::rshift);
-                if (!new_rs)
+                keybd_sync_shift(true);
+                if (!(keymod & mods::anyShift)) // All shifts are released.
                 {
-                    layer_timer_stop(master, timers::rightshift);
-                    keybd_sync_state();
-                    //::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
-                    //if (keymod & mods::RShift)
-                    //{
-                    //    keymod &= ~mods::RShift;
-                    //    keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
-                    //}
+                    layer_timer_stop(master, timers::shiftkeys);
                 }
             }
             else if (eventid == timers::blink) base::enqueue([&](auto& /*boss*/)
@@ -5039,6 +4960,31 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
+                //todo it doesn't work on win32 (deferred mediakey)
+                //LISTEN(tier::release, input::events::keybd::any, gear)
+                //{
+                //    if (bell::protos(input::events::keybd::post))
+                //    {
+                //        if constexpr (debugmode) log("%% key: %% %%", gear.handled ? "Handled":"Unhandled", input::key::map::data(gear.keycode).name, gear.keystat == input::key::released ? "released" : "pressed");
+                //        auto unhandled_key = !gear.handled
+                //                            && gear.keystat != input::key::interrupted
+                //                            && gear.payload == input::keybd::type::keypress
+                //                            && gear.keystat == input::key::pressed;
+                //        if (unhandled_key)
+                //        {
+                //            if (auto media_cmd = keybd_conv_keyid2media(gear.keycode))
+                //            {
+                //                auto dwKeys = ui16{};
+                //                auto wParam = (WPARAM)master.hWnd;
+                //                auto lParam = (LPARAM)MAKELONG(dwKeys, 0x0F000 | media_cmd);
+                //                if constexpr (debugmode) log("  Media key is forwarded out: wParam=%% lParam=%% cmd=%%", utf::to_hex(wParam), utf::to_hex(lParam), utf::to_hex(media_cmd));
+                //                //::PostMessageW((HWND)master.hWnd, WM_APPCOMMAND, wParam, lParam);
+                //                //::SendMessageW((HWND)master.hWnd, WM_APPCOMMAND, wParam, lParam);
+                //                //gear.set_handled();
+                //            }
+                //        }
+                //    }
+                //};
                 on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
                 {
                     if (fsmode != winstate::normal) return;
@@ -5656,6 +5602,62 @@ namespace netxs::gui
         }
         bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        void keybd_sync_shift(bool async)
+        {
+            //Left/RightShift detection notes: The event of releasing any Shift key while both Shift keys are pressed
+            //                                 may be completely lost on Windows (LeftShift on physical host or RightShift in RDP sesssion).
+            auto old_ls = keymod & mods::LShift;
+            auto old_rs = keymod & mods::RShift;
+            auto new_ls = async ? keybd_test_pressed(vkey::lshift) : keybd_read_pressed(vkey::lshift);
+            auto new_rs = async ? keybd_test_pressed(vkey::rshift) : keybd_test_pressed(vkey::rshift);
+            auto changed = new_ls != !!old_ls || new_rs != !!old_rs;
+            //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%% async=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod), async);
+            if (changed) // MS Windows Shift+Shift bug workaround.
+            {
+                auto& rshift = input::key::map::data(input::key::RightShift);
+                auto& lshift = input::key::map::data(input::key::LeftShift);
+                if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
+                {
+                    //if (old_rs && !new_rs) // RightShift released.
+                    {
+                        keymod &= ~mods::RShift;
+                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                    }
+                    //if (old_ls && !new_ls) // LeftShift released.
+                    {
+                        keymod &= ~mods::LShift;
+                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                    }
+                }
+                else
+                {
+                    if (old_ls && !new_ls) // LeftShift released.
+                    {
+                        keymod &= ~mods::LShift;
+                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                    }
+                    if (old_rs && !new_rs) // RightShift released.
+                    {
+                        keymod &= ~mods::RShift;
+                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                    }
+                }
+                if (!old_ls && new_ls) // LeftShift pressed.
+                {
+                    keymod |= mods::LShift;
+                    keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
+                }
+                if (!old_rs && new_rs) // RightShift pressed.
+                {
+                    keymod |= mods::RShift;
+                    keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
+                }
+                if (new_ls && new_rs) // Two Shifts pressed.
+                {
+                    layer_timer_start(master, 33ms, timers::shiftkeys); // Try to catch AnyShift release.
+                }
+            }
+        }
         bool keybd_read_input()
         {
             union key_state_t
@@ -5674,7 +5676,7 @@ namespace netxs::gui
             auto param = key_state_t{ .token = (ui32)winmsg.lParam };
             if (param.v.state == 2/*unknown*/) return faux;
             auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
-            // When RightMod is pressed while the LeftMod is pressed it is treated as repeating.
+            // If the RightMod key is pressed simultaneously with the LeftMod key, the operating system will mistakenly report this as a repeat.
             auto keystat = param.v.state == 0 ? input::key::pressed
                          : param.v.state == 1 ? input::key::repeated
                          /*param.v.state ==3*/: input::key::released;
@@ -5695,19 +5697,33 @@ namespace netxs::gui
                 while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
                 if (toWIDE.size()) keytype = 2;
             }
-
-            //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
-            //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
-            //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
-            //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
-            if (virtcod == vkey::ctrl && !extflag) // Detect if the pressed LeftCtrl is fake or not.
+            ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
+            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+            if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
-                if (fake_ralt) // Drop any LeftCtrl activity if AltGr pressed.
+                toWIDE.clear();
+                return faux;
+            }
+
+            keybd_sync_shift(faux); // Shift must be checked on any key event.
+            if (virtcod == vkey::shift)
+            {
+                fake_time = {};
+                return faux; // Handled by keybd_sync_shift(faux).
+            }
+            else if (virtcod == vkey::ctrl) // Detect if the pressed LeftCtrl is fake or not.
+            {
+                //AltGr detection notes: When AltGr is pressed, Windows maps it to Ctrl+Alt but injects them sequentially.
+                //                       There's no guarantee that pressing AltGr will simultaneously trigger LCtrl+Ralt.
+                //                       Under heavy thread/CPU load, PeekMessage/GetAsyncKeyState can miss the pending Alt on the immediate next cycle.
+                //                       The right alt key is not present in the queue at exactly the same time as GetAsyncKeyState(VK_RMENU) does not see it.
+                if (fake_ralt && !extflag) // Drop any LeftCtrl activity if AltGr pressed.
                 {
                     fake_time = {};
                     return faux;
                 }
-                else if (!extflag && keystat == input::key::pressed)
+                else if (!extflag && keystat == input::key::pressed) // Some LeftCtrl pressed.
                 {
                     if constexpr (debugmode) log("left ctrl scancod=%% reserved=%% context=%% winmsg.lParam=%%", scancod, (ui32)(param.v.reserved), (ui32)param.v.context, winmsg.lParam);
                     std::this_thread::yield();
@@ -5725,44 +5741,72 @@ namespace netxs::gui
                         fake_scan = scancod;
                     }
                 }
+                else
+                {
+                    if (keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
+                    {
+                        auto& break_key = input::key::map::data(input::key::Break);
+                        keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                        if constexpr (debugmode) log("Fake Pause 'release' key event generated");
+                    }
+                    fake_time = {};
+                }
             }
             else
             {
-                if (virtcod == vkey::alt && extflag) // Detect if the AltGr is active (pressed/repeated/released).
+                if (virtcod == vkey::alt) // Detect if the AltGr is active (pressed/repeated/released).
                 {
-                    if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
+                    if (extflag) // RightAlt.
                     {
-                        fake_ralt = true;
-                        keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
-                    }
-                    if (fake_ralt) // Simulate AltGr.
-                    {
-                        input::vkey::set_altgr(virtcod, extflag);
-                        if (keystat == input::key::released) // Clear the AltGr state if released.
+                        if (!fake_ralt && fake_time && fake_time == m.time) // Fake Alt is arrived. So we must send a fake LeftCtrl release to compensate for sending a fake press.
                         {
-                            fake_ralt = faux;
+                            fake_ralt = true;
+                            keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
+                            keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
+                        }
+                        if (fake_ralt) // Simulate AltGr.
+                        {
+                            input::vkey::set_altgr(virtcod, extflag);
+                            if (keystat == input::key::released) // Clear the AltGr state if released.
+                            {
+                                fake_ralt = faux;
+                            }
+                        }
+                    }
+                }
+                else if (virtcod == vkey::prntscrn) // Simulates a PrintScreen/SysReq key press if the os suppresses it.
+                {
+                    if (keystat == input::key::released)
+                    {
+                        auto& prntscrn_key = input::key::map::data(input::key::PrintScreen);
+                        auto& sysreq_key = input::key::map::data(input::key::SysReq);
+                        if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
+                        {
+                            keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                            if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
+                        }
+                        else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
+                        {
+                            keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                            if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
+                        }
+                    }
+                }
+                else if (virtcod == vkey::packet)
+                {
+                    if (toWIDE.size())
+                    {
+                        auto c = toWIDE.back();
+                        if (c >= 0xd800 && c <= 0xdbff)
+                        {
+                            fake_time = {};
+                            return faux; // Incomplete surrogate pair in VT_PACKET stream.
                         }
                     }
                 }
                 fake_time = {};
             }
 
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
-            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
-            if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
-            {
-                toWIDE.clear();
-                return faux;
-            }
-            if (virtcod == vkey::packet && toWIDE.size())
-            {
-                auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff)
-                {
-                    return faux; // Incomplete surrogate pair in VT_PACKET stream.
-                }
-            }
-            ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             auto is_deadkey_released = last_deadkey_vkey && (keystat == input::key::released) && (virtcod == last_deadkey_vkey);
             auto cluster = utf::to_utf(toWIDE);
             toWIDE.clear();
@@ -5932,77 +5976,131 @@ namespace netxs::gui
                 winbase::keybd_sync_layout();
             }
         }
-        si32 keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
+        static constexpr auto mediakey_map = []
+        {
+            auto key_list = std::to_array<std::pair<si32, si32>>(
+            {
+                { APPCOMMAND_BROWSER_BACKWARD                 , input::key::BrowserBackward     }, // 1 Navigate backward.
+                { APPCOMMAND_BROWSER_FORWARD                  , input::key::BrowserForward      }, // 2 Navigate forward.
+                { APPCOMMAND_BROWSER_REFRESH                  , input::key::BrowserRefresh      }, // 3 Refresh page.
+                { APPCOMMAND_BROWSER_STOP                     , input::key::BrowserStop         }, // 4 Stop download.
+                { APPCOMMAND_BROWSER_SEARCH                   , input::key::BrowserSearch       }, // 5 Open search.
+                { APPCOMMAND_BROWSER_FAVORITES                , input::key::BrowserFavorites    }, // 6 Open favorites.
+                { APPCOMMAND_BROWSER_HOME                     , input::key::BrowserHome         }, // 7 Navigate home.
+                { APPCOMMAND_VOLUME_MUTE                      , input::key::MediaVolMute        }, // 8 Mute the volume.
+                { APPCOMMAND_VOLUME_DOWN                      , input::key::MediaVolDown        }, // 9 Lower the volume.
+                { APPCOMMAND_VOLUME_UP                        , input::key::MediaVolUp          }, // 10 Raise the volume.
+                { APPCOMMAND_MEDIA_NEXTTRACK                  , input::key::MediaNext           }, // 11 Go to next track.
+                { APPCOMMAND_MEDIA_PREVIOUSTRACK              , input::key::MediaPrev           }, // 12 Go to previous track.
+                { APPCOMMAND_MEDIA_STOP                       , input::key::MediaStop           }, // 13 Stop playback.
+                { APPCOMMAND_MEDIA_PLAY_PAUSE                 , input::key::MediaPlayPause      }, // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
+                { APPCOMMAND_LAUNCH_MAIL                      , input::key::Mail                }, // 15 Open mail.
+                { APPCOMMAND_LAUNCH_MEDIA_SELECT              , input::key::MediaSelectMode     }, // 16 Go to Media Select mode.
+                { APPCOMMAND_LAUNCH_APP1                      , input::key::AppStart1           }, // 17 Start App1.
+                { APPCOMMAND_LAUNCH_APP2                      , input::key::AppStart2           }, // 18 Start App2.
+                { APPCOMMAND_BASS_DOWN                        , input::key::MediaBassDown       }, // 19 Decrease the bass.
+                { APPCOMMAND_BASS_BOOST                       , input::key::MediaBassBoost      }, // 20 Toggle the bass boost on and off.
+                { APPCOMMAND_BASS_UP                          , input::key::MediaBassUp         }, // 21 Increase the bass.
+                { APPCOMMAND_TREBLE_DOWN                      , input::key::MediaTrebleDown     }, // 22 Decrease the treble.
+                { APPCOMMAND_TREBLE_UP                        , input::key::MediaTrebleUp       }, // 23 Increase the treble.
+                { APPCOMMAND_MICROPHONE_VOLUME_MUTE           , input::key::MicMute             }, // 24 Mute the microphone.
+                { APPCOMMAND_MICROPHONE_VOLUME_DOWN           , input::key::MicVolDown          }, // 25 Decrease microphone volume.
+                { APPCOMMAND_MICROPHONE_VOLUME_UP             , input::key::MicVolUp            }, // 26 Increase microphone volume.
+                { APPCOMMAND_HELP                             , input::key::AppHelp             }, // 27 Open the Help dialog.
+                { APPCOMMAND_FIND                             , input::key::AppFind             }, // 28 Open the Find dialog.
+                { APPCOMMAND_NEW                              , input::key::AppNewWindow        }, // 29 Create a new window.
+                { APPCOMMAND_OPEN                             , input::key::AppOpenWindow       }, // 30 Open a window.
+                { APPCOMMAND_CLOSE                            , input::key::AppClose            }, // 31 Close the window (not the application).
+                { APPCOMMAND_SAVE                             , input::key::AppSave             }, // 32 Save current document.
+                { APPCOMMAND_PRINT                            , input::key::AppPrint            }, // 33 Print current document.
+                { APPCOMMAND_UNDO                             , input::key::AppUndo             }, // 34 Undo last action.
+                { APPCOMMAND_REDO                             , input::key::AppRedo             }, // 35 Redo last action.
+                { APPCOMMAND_COPY                             , input::key::AppCopy             }, // 36 Copy the selection.
+                { APPCOMMAND_CUT                              , input::key::AppCut              }, // 37 Cut the selection.
+                { APPCOMMAND_PASTE                            , input::key::AppPaste            }, // 38 Paste
+                { APPCOMMAND_REPLY_TO_MAIL                    , input::key::MailReply           }, // 39 Reply to a mail message.
+                { APPCOMMAND_FORWARD_MAIL                     , input::key::MailForward         }, // 40 Forward a mail message.
+                { APPCOMMAND_SEND_MAIL                        , input::key::MailSend            }, // 41 Send a mail message.
+                { APPCOMMAND_SPELL_CHECK                      , input::key::AppSpellCheck       }, // 42 Initiate a spell check.
+                { APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE, input::key::AppSpeechMode       }, // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
+                { APPCOMMAND_MIC_ON_OFF_TOGGLE                , input::key::MicAirToggle        }, // 44 Toggle the microphone.
+                { APPCOMMAND_CORRECTION_LIST                  , input::key::AppSpeechCorrection }, // 45 Brings up the correction list when a word is incorrectly identified during speech input.
+                { APPCOMMAND_MEDIA_PLAY                       , input::key::MediaPlay           }, // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                { APPCOMMAND_MEDIA_PAUSE                      , input::key::MediaPause          }, // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
+                { APPCOMMAND_MEDIA_RECORD                     , input::key::MediaRecord         }, // 48 Begin recording the current stream.
+                { APPCOMMAND_MEDIA_FAST_FORWARD               , input::key::MediaFastForward    }, // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                { APPCOMMAND_MEDIA_REWIND                     , input::key::MediaRewind         }, // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
+                { APPCOMMAND_MEDIA_CHANNEL_UP                 , input::key::MediaChanUp         }, // 51 Increment the channel value, for example, for a TV or radio tuner.
+                { APPCOMMAND_MEDIA_CHANNEL_DOWN               , input::key::MediaChanDown       }, // 52 Decrement the channel value, for example, for a TV or radio tuner.
+                { APPCOMMAND_DELETE                           , input::key::AppDelete           }, // 53 Delete selected fragment.
+                { APPCOMMAND_DWM_FLIP3D                       , input::key::DwmFlip3D           }, // 54 Trigger the Flip 3D window-switching interface.
+            });
+            auto fwd_map = std::array<si32, input::key::lastKey>{};
+            auto rev_map = std::array<si32, key_list.size() + 1>{};
+            for (auto [mediakey, keyid] : key_list)
+            {
+                fwd_map[keyid] = mediakey;
+                rev_map[mediakey] = keyid;
+            }
+            return std::pair{ fwd_map, rev_map };
+        }();
+        si32 keybd_conv_keyid2media(si32 keyid)
+        {
+            auto valid = keyid > 0 && keyid < gui::window::mediakey_map.first.size();
+            return valid ? mediakey_map.first[keyid] : 0;
+        }
+        si32 keybd_conv_media2keyid(si32 mediakey)
+        {
+            auto valid = mediakey > 0 && mediakey < gui::window::mediakey_map.second.size();
+            return valid ? mediakey_map.second[mediakey] : input::key::undef;
+        }
+        bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
         {
             if constexpr (debugmode) log("%%Media key pressed: cmd=%% uDevice=%%, dwKeys=%%", prompt::gui, utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys));
-            //todo use lut
             switch (uDevice)
             {
                 case FAPPCOMMAND_KEY:   // 0 User pressed a key.
-                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
                     //todo we only need to forward these events back into the system when they return untouched
-                    //return TRUE;
+                    //return true;
                     break;
+                case FAPPCOMMAND_OEM:   // 0x1000 An unidentified hardware source generated the event. It could be a mouse or a keyboard event.
                 case FAPPCOMMAND_MOUSE: // 0x8000 User clicked a mouse button.
-                    return FALSE;
+                    return faux;
             }
-            switch (cmd)
+            auto keycode = gui::window::keybd_conv_media2keyid(cmd);
+            if (keycode != input::key::undef)
             {
-                case APPCOMMAND_BROWSER_BACKWARD:                  // 1 Navigate backward.
-                case APPCOMMAND_BROWSER_FORWARD:                   // 2 Navigate forward.
-                case APPCOMMAND_BROWSER_REFRESH:                   // 3 Refresh page.
-                case APPCOMMAND_BROWSER_STOP:                      // 4 Stop download.
-                case APPCOMMAND_BROWSER_SEARCH:                    // 5 Open search.
-                case APPCOMMAND_BROWSER_FAVORITES:                 // 6 Open favorites.
-                case APPCOMMAND_BROWSER_HOME:                      // 7 Navigate home.
-                case APPCOMMAND_VOLUME_MUTE:                       // 8 Mute the volume.
-                case APPCOMMAND_VOLUME_DOWN:                       // 9 Lower the volume.
-                case APPCOMMAND_VOLUME_UP:                         // 10 Raise the volume.
-                case APPCOMMAND_MEDIA_NEXTTRACK:                   // 11 Go to next track.
-                case APPCOMMAND_MEDIA_PREVIOUSTRACK:               // 12 Go to previous track.
-                case APPCOMMAND_MEDIA_STOP:                        // 13 Stop playback.
-                case APPCOMMAND_MEDIA_PLAY_PAUSE:                  // 14 Play or pause playback. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY and APPCOMMAND_MEDIA_PAUSE.
-                case APPCOMMAND_LAUNCH_MAIL:                       // 15 Open mail.
-                case APPCOMMAND_LAUNCH_MEDIA_SELECT:               // 16 Go to Media Select mode.
-                case APPCOMMAND_LAUNCH_APP1:                       // 17 Start App1.
-                case APPCOMMAND_LAUNCH_APP2:                       // 18 Start App2.
-                case APPCOMMAND_BASS_DOWN:                         // 19 Decrease the bass.
-                case APPCOMMAND_BASS_BOOST:                        // 20 Toggle the bass boost on and off.
-                case APPCOMMAND_BASS_UP:                           // 21 Increase the bass.
-                case APPCOMMAND_TREBLE_DOWN:                       // 22 Decrease the treble.
-                case APPCOMMAND_TREBLE_UP:                         // 23 Increase the treble.
-                case APPCOMMAND_MICROPHONE_VOLUME_MUTE:            // 24 Mute the microphone.
-                case APPCOMMAND_MICROPHONE_VOLUME_DOWN:            // 25 Decrease microphone volume.
-                case APPCOMMAND_MICROPHONE_VOLUME_UP:              // 26 Increase microphone volume.
-                case APPCOMMAND_HELP:                              // 27 Open the Help dialog.
-                case APPCOMMAND_FIND:                              // 28 Open the Find dialog.
-                case APPCOMMAND_NEW:                               // 29 Create a new window.
-                case APPCOMMAND_OPEN:                              // 30 Open a window.
-                case APPCOMMAND_CLOSE:                             // 31 Close the window (not the application).
-                case APPCOMMAND_SAVE:                              // 32 Save current document.
-                case APPCOMMAND_PRINT:                             // 33 Print current document.
-                case APPCOMMAND_UNDO:                              // 34 Undo last action.
-                case APPCOMMAND_REDO:                              // 35 Redo last action.
-                case APPCOMMAND_COPY:                              // 36 Copy the selection.
-                case APPCOMMAND_CUT:                               // 37 Cut the selection.
-                case APPCOMMAND_PASTE:                             // 38 Paste
-                case APPCOMMAND_REPLY_TO_MAIL:                     // 39 Reply to a mail message.
-                case APPCOMMAND_FORWARD_MAIL:                      // 40 Forward a mail message.
-                case APPCOMMAND_SEND_MAIL:                         // 41 Send a mail message.
-                case APPCOMMAND_SPELL_CHECK:                       // 42 Initiate a spell check.
-                case APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: // 43 Toggles between two modes of speech input: dictation and command/control (giving commands to an application or accessing menus).
-                case APPCOMMAND_MIC_ON_OFF_TOGGLE:                 // 44 Toggle the microphone.
-                case APPCOMMAND_CORRECTION_LIST:                   // 45 Brings up the correction list when a word is incorrectly identified during speech input.
-                case APPCOMMAND_MEDIA_PLAY:                        // 46 Begin playing at the current position. If already paused, it will resume. This is a direct PLAY command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_PAUSE:                       // 47 Pause. If already paused, take no further action. This is a direct PAUSE command that has no state. If there are discrete Play and Pause buttons, applications should take action on this command as well as APPCOMMAND_MEDIA_PLAY_PAUSE.
-                case APPCOMMAND_MEDIA_RECORD:                      // 48 Begin recording the current stream.
-                case APPCOMMAND_MEDIA_FAST_FORWARD:                // 49 Increase the speed of stream playback. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_REWIND:                      // 50 Go backward in a stream at a higher rate of speed. This can be implemented in many ways, for example, using a fixed speed or toggling through a series of increasing speeds.
-                case APPCOMMAND_MEDIA_CHANNEL_UP:                  // 51 Increment the channel value, for example, for a TV or radio tuner.
-                case APPCOMMAND_MEDIA_CHANNEL_DOWN:                // 52 Decrement the channel value, for example, for a TV or radio tuner.
-                    break;
+                auto& keyrec = input::key::map::data(keycode);
+                auto aheadMsg = MSG{};
+                if (::PeekMessageW(&aheadMsg, (HWND)master.hWnd, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && aheadMsg.wParam == keyrec.vkey)
+                {
+                    if constexpr (debugmode) log("Suppress keypress duplication for '%%'", keyrec.name);
+                }
+                else
+                {
+                    auto& gear = *stream.gears;
+                    gear.payload = input::keybd::type::keypress;
+                    gear.keycode = keycode;
+                    gear.virtcod = keyrec.vkey ? keyrec.vkey : vkey::packet;
+                    gear.scancod = keyrec.scan;
+                    gear.extflag = keyrec.extflag;
+                    gear.xlayout = xlayout;
+                    gear.cluster = {};
+                    auto gen_event = [&](auto keystat)
+                    {
+                        gear.keystat = keystat;
+                        chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                        stream_keybd(gear);
+                    };
+                    gen_event(input::key::pressed);
+                    gen_event(input::key::released);
+                }
+                return true; // The event is processed.
             }
-            return FALSE; // The event is not processed.
+            else
+            {
+                return faux; // The event is not processed.
+            }
         }
         void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
@@ -6223,7 +6321,27 @@ namespace netxs::gui
                         auto cmd     = GET_APPCOMMAND_LPARAM(lParam);
                         auto uDevice = GET_DEVICE_LPARAM(lParam);
                         auto dwKeys  = GET_KEYSTATE_LPARAM(lParam);
-                        stat = w->keybd_read_media(cmd, uDevice, dwKeys);                        break; // Media key pressed.
+                        if constexpr (debugmode) log("WM_APPCOMMAND: cmd=%% uDevice=%% dwKeys=%% wParam=%% lParam=%%", utf::to_hex(cmd), utf::to_hex(uDevice), utf::to_hex(dwKeys), utf::to_hex(wParam), utf::to_hex(lParam));
+                        if (!w->keybd_read_media(cmd, uDevice, dwKeys))
+                        {
+                            stat = ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                        }
+                        else
+                        {
+                            stat = TRUE;
+                        }
+                        //todo it doesn't work in any way
+                        //if (uDevice == 0xF000 || !w->keybd_read_media(cmd, uDevice, dwKeys)) // Forward media keys to outside if unhandled or unknown. We mark the uDevice with 0xF000 if the mediakey event is unhandled.
+                        //{
+                        //    if (uDevice == 0xF000) lParam = (LPARAM)MAKELONG(dwKeys, cmd); // Reset uDevice to 0x0000.
+                        //    if constexpr (debugmode) log("  returned mediakey sent outside.... wParam=%% lParam=%%", utf::to_hex(wParam), utf::to_hex(lParam));
+                        //    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                        //}
+                        //else
+                        //{
+                        //    stat = TRUE;
+                        //}
+                        break;
                     }
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
@@ -6327,7 +6445,10 @@ namespace netxs::gui
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
-        si32 keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        void keybd_sync_shift(bool /*async*/) {}
+        si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
+        si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
+        bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}

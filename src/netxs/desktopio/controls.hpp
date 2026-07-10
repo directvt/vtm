@@ -1844,42 +1844,67 @@ namespace netxs::ui
             };
             struct chain_t
             {
-                struct dest_t
-                {
-                    wptr next_wptr; // next hop wptr.
-                    si32 status{}; // dead, live or idle.
-                };
+                using list = std::list<netxs::sptr<auth::next_focused_t>>;
 
-                si32              active{}; // focus: The endpoint focus state.
-                hook              token;    // focus: Cleanup token.
-                std::list<dest_t> next;     // focus: Focus next hop list.
+                si32 active; // focus: The endpoint focus state.
+                hook token;  // focus: Cleanup token.
+                list next;   // focus: Focus next hop list.
+
+                chain_t()
+                    : active{ state::dead }
+                { }
+                chain_t(chain_t&&) = default;
+                chain_t(chain_t const& other)
+                    : active{ other.active },
+                       token{ other.token }
+                {
+                    for (auto& n : other.next) // Make a deep copy of the next hop list.
+                    {
+                        next.push_back(ptr::shared(*n));
+                    }
+                }
+                chain_t& operator = (chain_t&&) = default;
 
                 template<class P>
-                auto foreach(P proc)
+                auto foreach(auth& indexer, P proc)
                 {
-                    static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(proc), base&, si32&>>;
-                    auto head = next.begin();
-                    while (head != next.end())
+                    static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(proc), base&, netxs::sptr<auth::next_focused_t>&>>;
+
+                    auto& next_copy = indexer.focus_tree_copy;
+                    auto cached_head = next_copy.size();
+                    next_copy.reserve(cached_head + next.size());
+                    next.remove_if([&](auto& item_sptr)
                     {
-                        if (auto nexthop_ptr = head->next_wptr.lock())
+                        auto expired = item_sptr->next_wptr.expired();
+                        if (!expired)
+                        {
+                            next_copy.push_back(item_sptr);
+                        }
+                        return expired;
+                    });
+                    auto cached_tail = next_copy.size();
+
+                    auto head = cached_head;
+                    while (head != cached_tail)
+                    {
+                        auto& next_rec_wptr = next_copy[head++]; // Use index because next_copy could be reallocated.
+                        if (auto next_rec_sptr = next_rec_wptr.lock())
+                        if (auto nexthop_ptr = next_rec_sptr->next_wptr.lock())
                         {
                             auto& nexthop = *nexthop_ptr;
-                            auto& status = head->status;
-                            head++;
                             if constexpr (Plain)
                             {
-                                proc(nexthop, status);
+                                proc(nexthop, next_rec_sptr);
                             }
                             else
                             {
-                                if (!proc(nexthop, status)) break;
+                                if (!proc(nexthop, next_rec_sptr)) break;
                             }
                         }
-                        else
-                        {
-                            head = next.erase(head);
-                        }
                     }
+
+                    //next.remove_if([&](auto& item_sptr){ return item_sptr->next_wptr.expired(); });
+                    next_copy.resize(cached_head);
                 }
             };
 
@@ -1895,7 +1920,7 @@ namespace netxs::ui
             ui64 digest;    // focus: .
             si32 weight;    // focus: Focusable object weight.
 
-            auto add_chain(id_t gear_id, chain_t new_chain = { .active = state::dead })
+            auto add_chain(id_t gear_id, chain_t new_chain = {})
             {
                 auto iter = gears.emplace(gear_id, std::move(new_chain)).first;
                 if (gear_id)
@@ -2080,8 +2105,9 @@ namespace netxs::ui
                     if (chain.active == state::live)
                     {
                         auto is_leaf = true;
-                        chain.foreach([&](auto& nexthop, auto& status)
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                         {
+                            auto& status = next_rec_sptr->status;
                             if (status == state::live)
                             {
                                 is_leaf = faux;
@@ -2206,8 +2232,9 @@ namespace netxs::ui
                     auto ou_keystat = gear.keystat;
                     auto in_handled = gear.handled;
                     auto ou_handled = gear.handled;
-                    chain.foreach([&](auto& nexthop, auto& status)
+                    chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                     {
+                        auto& status = next_rec_sptr->status;
                         if (status == state::live)
                         {
                             sent = true;
@@ -2244,8 +2271,9 @@ namespace netxs::ui
                     auto& chain = get_chain(seed.gear_id);
                     if (notify_focus_state(state::idle, chain, seed.gear_id))
                     {
-                        chain.foreach([&](auto& nexthop, auto& status)
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                         {
+                            auto& status = next_rec_sptr->status;
                             if (status == state::live)
                             {
                                 status = state::idle;
@@ -2272,7 +2300,7 @@ namespace netxs::ui
                                 boss.base::signal(tier::release, input::events::focus::set::on, seed);
                             }
                         }
-                        chain.foreach([&](auto& nexthop, auto& /*status*/)
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& /*next_rec_sptr*/)
                         {
                             nexthop.base::signal(tier::request, input::events::focus::dup, seed);
                         });
@@ -2304,8 +2332,9 @@ namespace netxs::ui
                     if (node_type != mode::relay)
                     {
                         auto allow_focusize = node_type == mode::focused || node_type == mode::focusable;
-                        chain.foreach([&](auto& nexthop, auto& status)
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                         {
+                            auto& status = next_rec_sptr->status;
                             if (status != state::dead || (!allow_focusize && prev_state == state::dead)) // Focusing a dead item activates a whole dead branch upto a focusable item.
                             {
                                 status = state::live;
@@ -2334,8 +2363,9 @@ namespace netxs::ui
                             auto& chain = get_chain(seed.gear_id);
                             if (allow_focusize && seed.focus_type == solo::on) // Cut a downstream focus branch.
                             {
-                                chain.foreach([&](auto& nexthop, auto& status)
+                                chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                                 {
+                                    auto& status = next_rec_sptr->status;
                                     if (status == state::live)
                                     {
                                         status = state::dead;
@@ -2352,8 +2382,9 @@ namespace netxs::ui
                         if (seed.focus_type == solo::on)
                         {
                             auto exists = faux;
-                            chain.foreach([&](auto& nexthop, auto& status)
+                            chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                             {
+                                auto& status = next_rec_sptr->status;
                                 if (&nexthop == seed.item.get())
                                 {
                                     status = state::live;
@@ -2367,23 +2398,24 @@ namespace netxs::ui
                             });
                             if (!exists)
                             {
-                                chain.next.push_back({ wptr{ seed.item }, state::live });
+                                chain.next.push_back(ptr::shared(auth::next_focused_t{ wptr{ seed.item }, state::live }));
                             }
                         }
                         else // Group focus.
                         {
-                            auto iter = std::find_if(chain.next.begin(), chain.next.end(), [&](auto& n){ return n.next_wptr.lock() == seed.item; });
+                            auto iter = std::find_if(chain.next.begin(), chain.next.end(), [&](auto& n){ return n->next_wptr.lock() == seed.item; });
                             if (iter == chain.next.end())
                             {
-                                chain.next.push_back({ wptr{ seed.item }, state::live });
+                                chain.next.push_back(ptr::shared(auth::next_focused_t{ wptr{ seed.item }, state::live }));
                             }
                             else
                             {
-                                iter->status = state::live;
+                                (*iter)->status = state::live;
                                 if (seed.gear_id) // Seal the || branches.
                                 {
-                                    chain.foreach([&](auto& /*nexthop*/, auto& status)
+                                    chain.foreach(boss.bell::indexer, [&](auto& /*nexthop*/, auto& next_rec_sptr)
                                     {
+                                        auto& status = next_rec_sptr->status;
                                         if (status == state::idle)
                                         {
                                             status = state::dead;
@@ -2422,10 +2454,11 @@ namespace netxs::ui
                     {
                         auto focusable = node_type == mode::focused || node_type == mode::focusable;
                         auto last_step = chain.next.size() > 1 || focusable;
-                        chain.foreach([&](auto& nexthop, auto& status)
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                         {
                             if (&nexthop == seed.item.get())
                             {
+                                auto& status = next_rec_sptr->status;
                                 status = last_step ? state::dead : state::idle;
                             }
                         });
@@ -2476,8 +2509,8 @@ namespace netxs::ui
                     {
                         chain.next.remove_if([&](auto& next) // Drop all downlinks (toward inside) from the boss.
                         {
-                            auto match = next.next_wptr.lock() == seed.item;
-                            if (match && gear_id && next.status == state::live)
+                            auto match = next->next_wptr.lock() == seed.item;
+                            if (match && gear_id && next->status == state::live)
                             {
                                 seed.gear_id = gear_id;
                                 seed.item->base::signal(tier::release, input::events::focus::set::off, seed);
@@ -2493,17 +2526,15 @@ namespace netxs::ui
                     auto next_ptr = seed.next;
                     for (auto& [gear_id, chain] : gears)
                     {
-                        auto iter = chain.next.begin();
-                        while (iter != chain.next.end())
+                        chain.foreach(boss.bell::indexer, [&](auto& nexthop, auto& next_rec_sptr)
                         {
-                            auto& r = *iter++;
-                            auto item_ptr = r.next_wptr.lock();
-                            if (!item_ptr || item_ptr == next_ptr)
+                            if (nexthop.id == next_ptr->id)
                             {
-                                iter = chain.next.erase(iter);
+                                chain.next.remove_if([&](auto& chain_rec_sptr){ return next_rec_sptr == chain_rec_sptr; });
                             }
-                            else if (item_ptr == prev_ptr)
+                            else if (nexthop.id == prev_ptr->id)
                             {
+                                auto& r = *next_rec_sptr;
                                 r.next_wptr = next_ptr;
                                 if (gear_id && r.status == state::live)
                                 {
@@ -2511,7 +2542,7 @@ namespace netxs::ui
                                     next_ptr->base::signal(tier::release, input::events::focus::set::on,  { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
                                 }
                             }
-                        }
+                        });
                     }
                 };
                 // pro::focus: .
@@ -2548,8 +2579,9 @@ namespace netxs::ui
                         auto& chain = iter->second;
                         if (chain.active == state::live)
                         {
-                            chain.foreach([&](auto& /*nexthop*/, auto& status)
+                            chain.foreach(boss.bell::indexer, [&](auto& /*nexthop*/, auto& next_rec_sptr)
                             {
+                                auto& status = next_rec_sptr->status;
                                 if (status == state::live)
                                 {
                                     gear_test.second++;
