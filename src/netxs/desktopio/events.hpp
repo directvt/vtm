@@ -6,7 +6,6 @@
 #include "geometry.hpp"
 #include "xml.hpp"
 
-
 namespace netxs::events
 {
     struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order 0: Forward, 1: Reverse.
@@ -228,6 +227,11 @@ namespace netxs::events
             static constexpr auto fullstop    = __COUNTER__ - _counter;
             static constexpr auto not_handled = __COUNTER__ - _counter;
         };
+        struct next_focused_t
+        {
+            wptr<ui::base> next_wptr; // Next hop to the focused wptr.
+            si32           status{};  // Hop state: dead, live or idle.
+        };
 
         generics::indexer_fifo<id_t>              id_pool;
         std::recursive_mutex                      mutex;
@@ -254,6 +258,7 @@ namespace netxs::events
         hint                                      chord_index{}; // auth: Next available keybd chord index.
         hint                                      anykey_event{};
         settings                                  config; // auth: Global settings.
+        std::vector<wptr<next_focused_t>>         focus_tree_copy; // auth: Runtime stack for the focus tree (to avoid allocations when traversing).
 
         auto get_kbchord_hint(qiew chord)
         {
