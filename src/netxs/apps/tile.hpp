@@ -308,7 +308,7 @@ namespace netxs::app::tile
                             auto hit = true;
                             if (gui_cmd.cmd_id == syscmd::accesslock)
                             {
-                                if (auto args_count = gui_cmd.args.size())
+                                if (gui_cmd.args.size())
                                 {
                                     auto accesslock_state = netxs::any_get_or(gui_cmd.args[0], 0);
                                     app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state, gui_cmd.gear_id);
@@ -316,7 +316,7 @@ namespace netxs::app::tile
                             }
                             else if (gui_cmd.cmd_id == syscmd::zorder) // Update vtm.applet["applet.zorder"] and do nothing: there is no z-order state in the window manager.
                             {
-                                if (auto args_count = gui_cmd.args.size())
+                                if (gui_cmd.args.size())
                                 {
                                     zorder = netxs::any_get_or(gui_cmd.args[0], zpos::plain);
                                 }
