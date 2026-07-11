@@ -26,16 +26,16 @@ jobs:
             platform: macos
             cpu: arm64
             arch: arm64
-            cxx: g++-13
-            cc: gcc-13
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
+            cxx: clang++
+            cc: clang
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas"'
           - os: macos-15-intel
             platform: macos
             cpu: x64
             arch: x86_64
-            cxx: g++-13
-            cc: gcc-13
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
+            cxx: clang++
+            cc: clang
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas"'
           - os: windows-2022
             platform: windows
             cpu: Win32
