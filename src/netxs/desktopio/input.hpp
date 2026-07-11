@@ -739,7 +739,7 @@ namespace netxs::input
         static constexpr auto ctrl_lut = [] // Ctrl+Key lookup table.
         {
             auto lut = std::array<si32, 128>{ -1 };
-            auto pairs = std::to_array<std::pair<byte, byte>>(
+            auto pairs = std::to_array<std::pair<si32, si32>>(
             {
                 { 127, 8 }, { 8, 127 },
                 { 9, 9 }, { 13, 10 }, { 27, 27 },

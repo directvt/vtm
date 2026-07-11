@@ -11477,7 +11477,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::gui_command         lock)
             {
-                owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/)
+                owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/) mutable
                 {
                     if (auto gear_ptr = owner.base::getref<hids>(gui_cmd.gear_id))
                     {
@@ -11682,7 +11682,7 @@ namespace netxs::ui
         ~dtvt()
         {
             // Signal to wipe all image references.
-            auto is_remote = std::exchange(stream.s11n::nat[0], 0);
+            auto is_remote = std::exchange(stream.s11n::nat[0], ui16{});
             if (is_remote) // Is remote.
             {
                 auto images = cell::images(); // Lock.

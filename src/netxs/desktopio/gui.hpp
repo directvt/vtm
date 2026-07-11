@@ -6046,12 +6046,12 @@ namespace netxs::gui
         }();
         si32 keybd_conv_keyid2media(si32 keyid)
         {
-            auto valid = keyid > 0 && keyid < gui::window::mediakey_map.first.size();
+            auto valid = keyid > 0 && keyid < (si32)gui::window::mediakey_map.first.size();
             return valid ? mediakey_map.first[keyid] : 0;
         }
         si32 keybd_conv_media2keyid(si32 mediakey)
         {
-            auto valid = mediakey > 0 && mediakey < gui::window::mediakey_map.second.size();
+            auto valid = mediakey > 0 && mediakey < (si32)gui::window::mediakey_map.second.size();
             return valid ? mediakey_map.second[mediakey] : input::key::undef;
         }
         bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys)
@@ -6072,7 +6072,7 @@ namespace netxs::gui
             {
                 auto& keyrec = input::key::map::data(keycode);
                 auto aheadMsg = MSG{};
-                if (::PeekMessageW(&aheadMsg, (HWND)master.hWnd, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && aheadMsg.wParam == keyrec.vkey)
+                if (::PeekMessageW(&aheadMsg, (HWND)master.hWnd, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && (si32)aheadMsg.wParam == keyrec.vkey)
                 {
                     if constexpr (debugmode) log("Suppress keypress duplication for '%%'", keyrec.name);
                 }

@@ -2121,7 +2121,7 @@ namespace netxs::directvt
                     for (auto& image_index : image_indexes)
                     {
                         if constexpr (debugmode) log("Remote: Remove image index: remote=%% local=%%", image_index, s11n::nat[image_index]);
-                        image_index = std::exchange(s11n::nat[image_index], 0);
+                        image_index = std::exchange(s11n::nat[image_index], ui16{});
                         if (image_index)
                         {
                             images.remove(image_index);
