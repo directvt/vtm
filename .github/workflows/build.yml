@@ -28,14 +28,14 @@ jobs:
             arch: arm64
             cxx: clang++
             cc: clang
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas"'
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-x"'
           - os: macos-15-intel
             platform: macos
             cpu: x64
             arch: x86_64
             cxx: clang++
             cc: clang
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas"'
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-unknown-pragmas" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-x"'
           - os: windows-2022
             platform: windows
             cpu: Win32
