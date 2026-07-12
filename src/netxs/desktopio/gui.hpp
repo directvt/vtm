@@ -3132,6 +3132,7 @@ namespace netxs::gui
                 }
                 else
                 {
+                    owner.sync_blinky_mask();
                     auto update = [&](auto head, auto iter, auto tail)
                     {
                         if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
@@ -3790,6 +3791,8 @@ namespace netxs::gui
         bool ontop_state = faux;
         void restore_if_minimized() // Restore focused window.
         {
+            // Sync with dtvt-reader stream. WM_ACTIVATEAPP:->window_make_focused()->restore_if_minimized().
+            //auto lock = bell::sync(); // Deadlock on WM_WINDOWPOSCHANGED:->check_window()->restore_if_minimized().
             if (fsmode == winstate::minimized) // We are restoring from an implicit minimized state.
             {
                 auto restored_state = std::exchange(prev_window_state, winstate::normal);
@@ -4050,12 +4053,20 @@ namespace netxs::gui
                 }
             }
         }
+        void sync_blinky_mask()
+        {
+            auto grid_volume = gridsz.x * gridsz.y;
+            if (blinks.mask.size() != grid_volume)
+            {
+                blinks.mask.resize(grid_volume);
+            }
+        }
+        // Note: Always do sync_blinky_mask() before calling fill_stripe.
         void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
         {
             auto prime_canvas = layer_get_bits(master);
             auto blink_canvas = layer_get_bits(blinky);
             auto origin = blink_canvas.coor();
-            //todo blinks.mask size is out of sync on intensive resize
             auto iter = blinks.mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
             auto m = origin + blink_canvas.size();
@@ -4129,6 +4140,7 @@ namespace netxs::gui
             auto head = bitmap.begin();
             auto iter = head;
             auto tail = bitmap.end();
+            sync_blinky_mask();
             while (iter != tail) // Scan the bitmap_dtvt grid and mark all dirty regions.
             {
                 auto& c = *iter;
