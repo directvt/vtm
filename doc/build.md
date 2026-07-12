@@ -60,13 +60,6 @@ vtm
    - Desktop Development with C++
    - C++ CMake tools for Windows
    - Git for Windows
-   - vcpkg package manager
- - Dependencies managed by vcpkg:
-   - `FreeType`
-   - `HarfBuzz`
-   - `Lua`
-   - `LunaSVG`
-   - `stb`
 
 #### Build Steps
 

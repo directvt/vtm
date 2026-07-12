@@ -38,9 +38,6 @@
       // -Wno-psabi  Disable warnings related to the Platform Application Binary Interface (PSABI) when using GCC.
       "LINUX_CXX_FLAGS_DEBUG":   "-O0 -g -DDEBUG",
       "LINUX_CXX_FLAGS_RELEASE": "-O2 -s -DNDEBUG -Wno-psabi",
-      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      // Disable dynamic loading support (dlopen) in Lua.
-      "VCPKG_CMAKE_CONFIGURE_OPTIONS": "-ULUA_USE_DLOPEN"
     }
   ],
   "configurations": [
@@ -53,8 +50,7 @@
       "intelliSenseMode":    "windows-msvc-x64",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "${env.WIN32_CXX_FLAGS_DEBUG} ${env.WIN32_CXX_FLAGS}" },
-                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" },
-                              { "name": "VCPKG_TARGET_TRIPLET",       "value": "x64-windows-static" }]
+                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" }]
     },
     {
       "name":                "2.WSL-x64-Debug",
@@ -67,9 +63,7 @@
       "inheritEnvironments": [ "linux_x64" ],
       "environments":        [{ "CXX": "/usr/bin/g++-12",
                                 "CC" : "/usr/bin/gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" }]
     },
     {
       "name":                "2.WSL-x64-Debug (clang)",
@@ -82,9 +76,7 @@
       "inheritEnvironments": [ "linux_x64" ],
       "environments":        [{ "CXX": "/usr/bin/clang++-16",
                                 "CC" : "/usr/bin/clang-16" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" }]
     },
     {
       "name":                "3.Win-x32-Debug",
@@ -94,8 +86,7 @@
       "installRoot":         "${workspaceRoot}/.vs/build/install/${name}",
       "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "${env.WIN32_CXX_FLAGS_DEBUG} ${env.WIN32_CXX_FLAGS}" },
-                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" },
-                              { "name": "VCPKG_TARGET_TRIPLET",       "value": "x86-windows-static" }]
+                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" }]
     },
     {
       "name":                "4.WSL-x32-Debug",
@@ -108,9 +99,7 @@
       "inheritEnvironments": [ "linux_x86" ],
       "environments":        [{ "CXX": "/usr/bin/i686-linux-gnu-g++-12",
                                 "CC" : "/usr/bin/i686-linux-gnu-gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",  "value": "x86-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" }]
     },
     {
       "name":                "5.WSL-ARM64-Debug",
@@ -123,9 +112,7 @@
       "inheritEnvironments": [ "linux_arm" ],
       "environments":        [{ "CXX": "/usr/bin/aarch64-linux-gnu-g++-12",
                                 "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",  "value": "arm64-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" }]
     },
     {
       "name":                "PROD-Win-ARM64",
@@ -136,8 +123,7 @@
       "intelliSenseMode":    "windows-msvc-arm64",
       "inheritEnvironments": [ "msvc_arm64_x64" ],
       "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE",    "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
-                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreaded" },
-                              { "name": "VCPKG_TARGET_TRIPLET",       "value": "arm64-windows-static" }]
+                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreaded" }]
     },
     {
       "name":                "PROD-Win-x32",
@@ -148,8 +134,7 @@
       "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
                               { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "${env.WIN32_EXE_LINKER_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" },
-                              { "name": "VCPKG_TARGET_TRIPLET",           "value": "x86-windows-static" }]
+                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" }]
     },
     {
       "name":                "PROD-Win-x64",
@@ -160,8 +145,7 @@
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
                               { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "${env.WIN32_EXE_LINKER_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" },
-                              { "name": "VCPKG_TARGET_TRIPLET",           "value": "x64-windows-static" }]
+                              { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" }]
     },
     {
       "name":                "PROD-WSL-ARM32",
@@ -174,9 +158,7 @@
       "inheritEnvironments": [ "linux_arm" ],
       "environments":        [{ "CXX": "/usr/bin/arm-linux-gnueabihf-g++-12",
                                 "CC" : "/usr/bin/arm-linux-gnueabihf-gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" }]
     },
     {
       "name":                "PROD-WSL-ARM64",
@@ -189,9 +171,7 @@
       "inheritEnvironments": [ "linux_arm" ],
       "environments":        [{ "CXX": "/usr/bin/aarch64-linux-gnu-g++-12",
                                 "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm64-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" }]
     },
     {
       "name":                "PROD-WSL-x32",
@@ -204,9 +184,7 @@
       "inheritEnvironments": [ "linux_x86" ],
       "environments":        [{ "CXX": "/usr/bin/i686-linux-gnu-g++-12",
                                 "CC" : "/usr/bin/i686-linux-gnu-gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",    "value": "x86-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" }]
     },
     {
       "name":                "PROD-WSL-x64",
@@ -219,9 +197,7 @@
       "inheritEnvironments": [ "linux_x64" ],
       "environments":        [{ "CXX": "/usr/bin/g++-12",
                                 "CC" : "/usr/bin/gcc-12" }],
-      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
-                              { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
-                              { "name": "VCPKG_TARGET_TRIPLET",    "value": "x64-linux" }]
+      "variables":           [{ "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" }]
     }
   ]
 }
