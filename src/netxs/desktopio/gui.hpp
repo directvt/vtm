@@ -4055,7 +4055,7 @@ namespace netxs::gui
         }
         void sync_blinky_mask()
         {
-            auto grid_volume = gridsz.x * gridsz.y;
+            auto grid_volume = (arch)gridsz.x * gridsz.y;
             if (blinks.mask.size() != grid_volume)
             {
                 blinks.mask.resize(grid_volume);
