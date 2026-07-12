@@ -54,10 +54,10 @@ else()
     find_package(Freetype ${FT_MIN_VER} CONFIG QUIET)
     find_package(harfbuzz ${HB_MIN_VER} CONFIG QUIET)
     if(NOT Freetype_FOUND)
-        find_package(Freetype ${FT_VER} QUIET)
+        find_package(Freetype ${FT_MIN_VER} QUIET)
     endif()
     if(NOT harfbuzz_FOUND)
-        find_package(harfbuzz ${HB_VER} QUIET)
+        find_package(harfbuzz ${HB_MIN_VER} QUIET)
     endif()
 endif()
 
@@ -112,7 +112,8 @@ else()
     set(FT_DISABLE_BROTLI   ON CACHE BOOL "" FORCE)
     FetchContent_Declare(freetype
                          GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
-                         GIT_TAG        ${FT_TAG})
+                         GIT_TAG        ${FT_TAG}
+                         EXCLUDE_FROM_ALL)
     FetchContent_MakeAvailable(freetype)
     if(NOT TARGET Freetype::Freetype)
         add_library(Freetype::Freetype ALIAS freetype)
@@ -130,7 +131,8 @@ else()
     set(FREETYPE_INCLUDE_DIR_freetype2 "${freetype_SOURCE_DIR}/include" CACHE PATH "" FORCE)
     FetchContent_Declare(harfbuzz
                          GIT_REPOSITORY https://github.com/harfbuzz/harfbuzz.git
-                         GIT_TAG        ${HB_VER})
+                         GIT_TAG        ${HB_VER}
+                         EXCLUDE_FROM_ALL)
     FetchContent_MakeAvailable(harfbuzz)
     if(NOT TARGET harfbuzz::harfbuzz)
         add_library(harfbuzz::harfbuzz ALIAS harfbuzz)
