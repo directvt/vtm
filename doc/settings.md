@@ -1164,7 +1164,8 @@ Notes
             <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. The Esc key is used as a modifier. Press/release events are sent only if the key is released without being combined with any other keys. -->
             <script                         on="-Esc">  -- Clear selection (if any) and send Esc press/release events.
                 vtm.terminal.ClearSelection()
-                vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
+                vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}', keycode=118, shifted='\\u{1b}', unshift='\\u{1b}' },
+                                      { virtcod=0x1b, scancod=1, keystat=0, cluster='\\u{1b}', keycode=118, shifted='\\u{1b}', unshift='\\u{1b}' })
             </script>
             <script=IgnoreAltbuf | TerminalFindNext                   on="Alt+RightArrow"       />
             <script=IgnoreAltbuf | TerminalFindPrev                   on="Alt+LeftArrow"        />
