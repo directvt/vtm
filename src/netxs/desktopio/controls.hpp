@@ -24,30 +24,54 @@ namespace netxs
             crop = { ptr, len };
             ::lua_pop(lua, 1);
         }
-        else if (type == LUA_TLIGHTUSERDATA)
+        else if (type == LUA_TTABLE)
         {
-            if (auto object_ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+            auto abs_idx = ::lua_absindex(lua, idx);
+            ::lua_pushstring(lua, "__self");
+            auto raw_type = ::lua_rawget(lua, abs_idx);
+            if (raw_type == LUA_TLIGHTUSERDATA)
             {
+                auto object_ptr = (ui::base*)::lua_touserdata(lua, -1);
                 crop = utf::concat("<object:", object_ptr->id, ">");
             }
+            else
+            {
+                crop = "<table>";
+            }
+            ::lua_pop(lua, 1);
         }
-        else if (extended)
+        else if (extended && type == LUA_TFUNCTION)
         {
-                 if (type == LUA_TFUNCTION) crop = "<function>";
-            else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
+            crop = "<function>";
+        }
+        else
+        {
+            crop += "<";
+            crop += ::lua_typename(lua, type);
+            crop += ">";
         }
         return crop;
     }
-    // luna: Push the object name to the stack.
     si32 luna::vtmlua_object2string(lua_State* lua)
     {
         auto crop = text{};
-        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
+        if (::lua_type(lua, 1) == LUA_TTABLE)
         {
-            crop = utf::concat("<object:", object_ptr->id, ">");
+            ::lua_pushstring(lua, "__self");
+            if (::lua_rawget(lua, 1) == LUA_TLIGHTUSERDATA)
+            {
+                if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1))
+                {
+                    crop = utf::concat("<object:", object_ptr->id, ">");
+                }
+            }
+            ::lua_pop(lua, 1);
         }
-        else crop = "<object>";
-        ::lua_pushstring(lua, crop.data());
+        if (crop.empty())
+        {
+            crop = "<object>";
+        }
+        ::lua_pushlstring(lua, crop.data(), crop.size());
         return 1;
     }
     // luna: Log vars from stack.
@@ -57,20 +81,7 @@ namespace netxs
         auto crop = text{};
         for (auto i = 1; i <= n; i++)
         {
-            auto t = ::lua_type(lua, i);
-            switch (t)
-            {
-                case LUA_TBOOLEAN:
-                case LUA_TNUMBER:
-                case LUA_TSTRING:
-                    crop += luna::vtmlua_torawstring(lua, i);
-                    break;
-                default:
-                    crop += "<";
-                    crop += ::lua_typename(lua, t);
-                    crop += ">";
-                    break;
-            }
+            crop += luna::vtmlua_torawstring(lua, i, true);
         }
         log("", crop);
         return 0;
@@ -107,25 +118,33 @@ namespace netxs
     si32 luna::vtmlua_vtm_subindex(lua_State* lua)
     {
         // Stack:
-        //      1. lua's object_ptr.
+        //      1. proxy table (with object_ptr).
         //      2. fx name.
-        ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
+        ::lua_getfield(lua, 1, "__self"); // Get the reference to the object and push it to the stack top [3.] (-1)
+        ::lua_insert(lua, 2); // Swap the fx name (2.) and object_ptr (3.).
+        // Stack:
+        //      1. proxy table
+        //      2. lightuserdata (__self)
+        //      3. fx name
+        ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2); // Create closure, capturing 2 top stack elements (ptr+name).
         return 1;
     }
     si32 luna::vtmlua_cfg_subindex(lua_State* lua)
     {
         // Stack:
-        //      1. ptr to settings&.
-        //      2. settings path.
-        auto v = text{};
-        if (auto config_ptr = (settings*)::lua_touserdata(lua, 1))
+        //      1. proxy table (vtm.config).
+        //      2. settings path (key name).
+        ::lua_getfield(lua, 1, "__self"); // Get the reference to the settings and push it to the stack top [3.] (-1)
+        auto config_ptr = (settings*)::lua_touserdata(lua, -1);
+        ::lua_pop(lua, 1); // Pop the reference.
+        if (config_ptr)
         {
             auto len = size_t{};
             auto ptr = ::lua_tolstring(lua, 2, &len);
             auto frompath = qiew{ ptr, len };
             if (auto item_ptr = config_ptr->find_context_ptr(frompath))
             {
-                v = config_ptr->take_value(item_ptr);
+                auto v = config_ptr->take_value(item_ptr);
                 ::lua_pushlstring(lua, v.data(), v.size());
                 return 1;
             }
@@ -233,17 +252,27 @@ namespace netxs
         {
             auto object_name = luna::vtmlua_torawstring(lua, 2);
             auto& source_ctx = indexer.context_refs.back().get();
+            //log("object_name=", object_name);
             if (object_name == "config")
             {
-                //log("object_name=", object_name);
+                ::lua_createtable(lua, 0, 1); // Create proxy-table for config.
                 ::lua_pushlightuserdata(lua, &indexer.config); // Push address of the config instance.
+                ::lua_setfield(lua, -2, "__self"); // Store reference inside.
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
+                return 1;
+            }
+            else if (object_name == "keys")
+            {
+                ::lua_createtable(lua, 0, 0); // Create an empty proxy table.
+                ::luaL_setmetatable(lua, "keys_submetaindex"); // Link it with existing metatable keys_submetaindex (make it read only).
                 return 1;
             }
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->get_scripting_context()));
+                ::lua_createtable(lua, 0, 1); // Create proxy-table for target.
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
+                ::lua_setfield(lua, -2, "__self"); // Store target_ptr.
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
@@ -401,6 +430,7 @@ namespace netxs
         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "inlined script body")
                   || ::lua_pcall(lua, 0, 1, 0);
         auto result = text{};
+        auto base_top = ::lua_gettop(lua);
         if (error)
         {
             result = ::lua_tostring(lua, -1);
@@ -410,7 +440,7 @@ namespace netxs
         {
             result = luna::vtmlua_torawstring(lua, -1);
         }
-        ::lua_settop(lua, 0);
+        ::lua_settop(lua, base_top);
         return result;
     }
     text luna::run(luna::context_t& context, view script_body, auto&& param)
@@ -424,6 +454,7 @@ namespace netxs
         indexer.script_param.push_back(std::ref((T&)param));
 
         auto error = faux;
+        auto base_top = ::lua_gettop(lua);
         if (push_function_id(script_body))
         {
             if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is precompiled.
@@ -433,6 +464,7 @@ namespace netxs
             }
             else // It is not precompiled.
             {
+                ::lua_pop(lua, 1); // Pop nil after the ::lua_rawget() call.
                 //if constexpr (debugmode) log("It is not precompiled");
                 error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                      || ::lua_pcall(lua, 0, 0, 0);
@@ -452,7 +484,7 @@ namespace netxs
         {
             result = luna::vtmlua_torawstring(lua, -1);
         }
-        ::lua_settop(lua, 0);
+        ::lua_settop(lua, base_top);
         return result;
     }
     text luna::run_script(ui::base& boss, view script_body, auto&& param)
@@ -493,22 +525,16 @@ namespace netxs
     }
     bool luna::push_function_id(view script_body)
     {
-        ::lua_settop(lua, 0);
         // Get a table of precompiled functions from the registry.
         ::lua_pushstring(lua, "precompiled"); // Push internal registry key 'precompiled'.
         if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TTABLE) // Retrieve address of 'precompiled' and push it to the stack at -1.
         {
-            auto script_id = script_body.data();
-            auto memory_id = reinterpret_cast<char const*>(&script_id);
-            auto lua_fx_id = view{ memory_id, sizeof(script_id) };
-            //if constexpr (debugmode) log("Function id='%%'", utf::debase437(lua_fx_id));
-            ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size());
+            ::lua_pushlstring(lua, script_body.data(), script_body.size());
             return true;
         }
         else
         {
             log("%%The table of precompiled functions is missing", prompt::lua);
-            ::lua_settop(lua, 0);
             return faux;
         }
     }
@@ -519,6 +545,7 @@ namespace netxs
             auto& [ref_count, script_body] = *script_body_ptr;
             if (script_body.size())
             {
+                auto base_top = ::lua_gettop(lua);
                 if (push_function_id(script_body))
                 {
                     ::lua_pushvalue(lua, -1); // Duplicate lua_fx_id string.
@@ -529,7 +556,7 @@ namespace netxs
                     }
                     else // It is not precompiled yet.
                     {
-                        ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
+                        ::lua_pop(lua, 1); // Pop nil after the ::lua_rawget() call.
                         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script");
                         if (error)
                         {
@@ -545,7 +572,7 @@ namespace netxs
                             ++ref_count;
                         }
                     }
-                    ::lua_settop(lua, 0);
+                    ::lua_settop(lua, base_top);
                 }
             }
         }
@@ -557,13 +584,14 @@ namespace netxs
             auto& [ref_count, script_body] = *script_body_ptr;
             if (ref_count && --ref_count == 0)
             {
+                auto base_top = ::lua_gettop(lua);
                 if (push_function_id(script_body))
                 {
                     ::lua_pushnil(lua);
                     ::lua_rawset(lua, -3); // Remove rec from the table (because of nil) and pop key and val from stack.
                     //if constexpr (debugmode) log("Drop: Precompiled function counter: %%", get_table_size());
-                    ::lua_settop(lua, 0);
                 }
+                ::lua_settop(lua, base_top);
             }
         }
     }
@@ -627,7 +655,8 @@ namespace netxs
             ::lua_setglobal(lua, basename::vtm.data()); // Set global var "vtm". Pop "vtm".
 
         // Define vtm.* redirecting metatable.
-        static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_vtm_subindex },
+        static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_subindex },
+                                                                { "__tostring", luna::vtmlua_object2string },
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
@@ -637,6 +666,38 @@ namespace netxs
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "cfg_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, cfg_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
+
+        // Define vtm.keys redirecting metatable.
+        ::lua_createtable(lua, 0, input::key::lastKey); // Create a new table and push it to the stack.
+        for (auto keycode = input::key::undef; keycode < input::key::lastKey; keycode++) // Fill the table with input::key::<key> records.
+        {
+            auto& keyrec = input::key::map::_key_map()[keycode];
+            if (keyrec.name.size())
+            {
+                ::lua_createtable(lua, 0, 7); // Create subtable and reserve 7 fields.
+                ::lua_pushinteger(lua, (lua_Integer)keycode);
+                ::lua_setfield(lua, -2, "keycode");
+                ::lua_pushlstring(lua, keyrec.generic.data(), keyrec.generic.size());
+                ::lua_setfield(lua, -2, "generic");
+                ::lua_pushinteger(lua, (lua_Integer)keyrec.vkey);
+                ::lua_setfield(lua, -2, "virtcod");
+                ::lua_pushinteger(lua, (lua_Integer)keyrec.scan);
+                ::lua_setfield(lua, -2, "scancod");
+                ::lua_pushboolean(lua, keyrec.extflag);
+                ::lua_setfield(lua, -2, "extflag");
+                ::lua_pushboolean(lua, keyrec.edit);
+                ::lua_setfield(lua, -2, "is_editkey");
+                ::lua_pushboolean(lua, keyrec.KkpIsFx);
+                ::lua_setfield(lua, -2, "is_functional");
+                // Stack: [-1] -> new subtable (keyrec), [-2] -> keys_submetaindex.
+                ::lua_setfield(lua, -2, keyrec.name.data()); // Assign keys_submetaindex[keyrec.name] and pop subtable from the stack.
+            }
+        }
+        ::lua_setfield(lua, LUA_REGISTRYINDEX, "vtm_keys_data"); // Store key map as vtm_keys_data.
+        ::luaL_newmetatable(lua, "keys_submetaindex"); // Create proxy metatable.
+        ::lua_getfield(lua, LUA_REGISTRYINDEX, "vtm_keys_data");
+        ::lua_setfield(lua, -2, "__index"); // keys_submetaindex.__index = vtm_keys_data
+        ::lua_pop(lua, 1); // Pop it from stack.
     }
     luna::~luna()
     {

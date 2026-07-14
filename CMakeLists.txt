@@ -54,10 +54,10 @@ else()
     find_package(Freetype ${FT_MIN_VER} CONFIG QUIET)
     find_package(harfbuzz ${HB_MIN_VER} CONFIG QUIET)
     if(NOT Freetype_FOUND)
-        find_package(Freetype ${FT_MIN_VER} QUIET)
+        find_package(Freetype ${FT_VER} QUIET)
     endif()
     if(NOT harfbuzz_FOUND)
-        find_package(harfbuzz ${HB_MIN_VER} QUIET)
+        find_package(harfbuzz ${HB_VER} QUIET)
     endif()
 endif()
 
@@ -76,7 +76,8 @@ else()
     FetchContent_Declare(lua_source
                          URL           https://www.lua.org/ftp/lua-5.5.0.tar.gz
                          URL_HASH      SHA256=57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d
-                         SOURCE_SUBDIR "DONOTEXIST")
+                         SOURCE_SUBDIR "DONOTEXIST"
+                         EXCLUDE_FROM_ALL)
     FetchContent_MakeAvailable(lua_source)
     set(LUA_CUSTOM_CMAKE "${lua_source_BINARY_DIR}/CMakeLists.txt")
     file(WRITE "${LUA_CUSTOM_CMAKE}" [====[
