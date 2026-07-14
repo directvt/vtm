@@ -107,25 +107,33 @@ namespace netxs
     si32 luna::vtmlua_vtm_subindex(lua_State* lua)
     {
         // Stack:
-        //      1. lua's object_ptr.
+        //      1. proxy table (with object_ptr).
         //      2. fx name.
-        ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
+        ::lua_getfield(lua, 1, "__self"); // Get the reference to the object and push it to the stack top [3.] (-1)
+        ::lua_insert(lua, 2); // Swap the fx name (2.) and object_ptr (3.).
+        // Stack:
+        //      1. proxy table
+        //      2. lightuserdata (__self)
+        //      3. fx name
+        ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2); // Create closure, capturing 2 top stack elements (ptr+name).
         return 1;
     }
     si32 luna::vtmlua_cfg_subindex(lua_State* lua)
     {
         // Stack:
-        //      1. ptr to settings&.
-        //      2. settings path.
-        auto v = text{};
-        if (auto config_ptr = (settings*)::lua_touserdata(lua, 1))
+        //      1. proxy table (vtm.config).
+        //      2. settings path (key name).
+        ::lua_getfield(lua, 1, "__self"); // Get the reference to the settings and push it to the stack top [3.] (-1)
+        auto config_ptr = (settings*)::lua_touserdata(lua, -1);
+        ::lua_pop(lua, 1); // Pop the reference.
+        if (config_ptr)
         {
             auto len = size_t{};
             auto ptr = ::lua_tolstring(lua, 2, &len);
             auto frompath = qiew{ ptr, len };
             if (auto item_ptr = config_ptr->find_context_ptr(frompath))
             {
-                v = config_ptr->take_value(item_ptr);
+                auto v = config_ptr->take_value(item_ptr);
                 ::lua_pushlstring(lua, v.data(), v.size());
                 return 1;
             }
@@ -233,10 +241,12 @@ namespace netxs
         {
             auto object_name = luna::vtmlua_torawstring(lua, 2);
             auto& source_ctx = indexer.context_refs.back().get();
+            //log("object_name=", object_name);
             if (object_name == "config")
             {
-                //log("object_name=", object_name);
+                ::lua_createtable(lua, 0, 1); // Create proxy-table for config.
                 ::lua_pushlightuserdata(lua, &indexer.config); // Push address of the config instance.
+                ::lua_setfield(lua, -2, "__self"); // Store reference inside.
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
                 return 1;
             }
@@ -249,7 +259,9 @@ namespace netxs
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->get_scripting_context()));
+                ::lua_createtable(lua, 0, 1); // Create proxy-table for target.
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
+                ::lua_setfield(lua, -2, "__self"); // Store target_ptr.
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
