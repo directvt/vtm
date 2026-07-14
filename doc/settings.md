@@ -585,6 +585,7 @@ Standard object names
 |-----------------|--------------------------|----------------------------------------------------|-------------------
 |`vtm`            | Scripting context holder | Parentheses operator(): `vtm()`                    | Retrieve event parameters.
 |                 |                          | Dot index: `vtm.ObjectId`/`vtm.ClassId`            | Retrieve object refernce by ObjectId/ClassId.
+|`keys`           | Keyboard key properties  | `vtm.keys[string key_name] -> key_record`          | Get keyboard key properties.<br>Available properties:<br>`keycode`(int): ALL (Abstract Latin Layout) specific key code<br>`generic`(string): Generic key name (no distinction between left/right/numpad)<br>`virtcod`(int): Virtual key code<br>`scancod`(int): Scancode<br>`extflag`(bool): Extended flag (abstract)<br>`is_editkey`(bool): Involvement in text editing<br>`is_functional`(bool): Functional or not
 |`gate`           | User viewport            | `vtm.gate.Disconnect()`                            | Disconnect user from the desktop.
 |                 |                          | `vtm.gate.DebugOverlay(bool state)`                | Set debug overlay.
 |                 |                          | `vtm.gate.IncreaseCellHeight(int n)`               | Increase/decrease cell height for GUI mode.
