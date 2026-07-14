@@ -47,7 +47,7 @@ namespace netxs
             crop = utf::concat("<object:", object_ptr->id, ">");
         }
         else crop = "<object>";
-        ::lua_pushstring(lua, crop.data());
+        ::lua_pushlstring(lua, crop.data(), crop.size());
         return 1;
     }
     // luna: Log vars from stack.
@@ -242,7 +242,8 @@ namespace netxs
             }
             else if (object_name == "keys")
             {
-                ::lua_getfield(lua, LUA_REGISTRYINDEX, "keys_submetaindex"); // Set the keys_submetaindex as required table.
+                ::lua_createtable(lua, 0, 0); // Create an empty proxy table.
+                ::luaL_setmetatable(lua, "keys_submetaindex"); // Link it with existing metatable keys_submetaindex (make it read only).
                 return 1;
             }
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
@@ -644,7 +645,7 @@ namespace netxs
         ::luaL_setfuncs(lua, cfg_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
 
         // Define vtm.keys redirecting metatable.
-        ::luaL_newmetatable(lua, "keys_submetaindex"); // Create a new metatable in registry and push it to the stack.
+        ::lua_createtable(lua, 0, input::key::lastKey); // Create a new metatable in registry and push it to the stack.
         for (auto keycode = input::key::undef; keycode < input::key::lastKey; keycode++) // Fill the table with input::key::<key> records.
         {
             auto& keyrec = input::key::map::_key_map()[keycode];
@@ -653,7 +654,7 @@ namespace netxs
                 ::lua_createtable(lua, 0, 7); // Create subtable and reserve 7 fields.
                 ::lua_pushinteger(lua, (lua_Integer)keycode);
                 ::lua_setfield(lua, -2, "keycode");
-                ::lua_pushstring(lua, keyrec.generic.data());
+                ::lua_pushlstring(lua, keyrec.generic.data(), keyrec.generic.size());
                 ::lua_setfield(lua, -2, "generic");
                 ::lua_pushinteger(lua, (lua_Integer)keyrec.vkey);
                 ::lua_setfield(lua, -2, "virtcod");
@@ -669,6 +670,11 @@ namespace netxs
                 ::lua_setfield(lua, -2, keyrec.name.data()); // Assign keys_submetaindex[keyrec.name] and pop subtable from the stack.
             }
         }
+        ::lua_setfield(lua, LUA_REGISTRYINDEX, "vtm_keys_data"); // Store key map as vtm_keys_data.
+        ::luaL_newmetatable(lua, "keys_submetaindex"); // Create proxy metatable.
+        ::lua_getfield(lua, LUA_REGISTRYINDEX, "vtm_keys_data");
+        ::lua_setfield(lua, -2, "__index"); // keys_submetaindex.__index = vtm_keys_data
+        ::lua_pop(lua, 1); // Pop it from stack.
     }
     luna::~luna()
     {
