@@ -430,6 +430,7 @@ namespace netxs
         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "inlined script body")
                   || ::lua_pcall(lua, 0, 1, 0);
         auto result = text{};
+        auto base_top = ::lua_gettop(lua);
         if (error)
         {
             result = ::lua_tostring(lua, -1);
@@ -439,7 +440,7 @@ namespace netxs
         {
             result = luna::vtmlua_torawstring(lua, -1);
         }
-        ::lua_settop(lua, 0);
+        ::lua_settop(lua, base_top);
         return result;
     }
     text luna::run(luna::context_t& context, view script_body, auto&& param)
@@ -453,6 +454,7 @@ namespace netxs
         indexer.script_param.push_back(std::ref((T&)param));
 
         auto error = faux;
+        auto base_top = ::lua_gettop(lua);
         if (push_function_id(script_body))
         {
             if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is precompiled.
@@ -462,6 +464,7 @@ namespace netxs
             }
             else // It is not precompiled.
             {
+                ::lua_pop(lua, 1); // Pop nil after the ::lua_rawget() call.
                 //if constexpr (debugmode) log("It is not precompiled");
                 error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                      || ::lua_pcall(lua, 0, 0, 0);
@@ -481,7 +484,7 @@ namespace netxs
         {
             result = luna::vtmlua_torawstring(lua, -1);
         }
-        ::lua_settop(lua, 0);
+        ::lua_settop(lua, base_top);
         return result;
     }
     text luna::run_script(ui::base& boss, view script_body, auto&& param)
@@ -522,22 +525,16 @@ namespace netxs
     }
     bool luna::push_function_id(view script_body)
     {
-        ::lua_settop(lua, 0);
         // Get a table of precompiled functions from the registry.
         ::lua_pushstring(lua, "precompiled"); // Push internal registry key 'precompiled'.
         if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TTABLE) // Retrieve address of 'precompiled' and push it to the stack at -1.
         {
-            auto script_id = script_body.data();
-            auto memory_id = reinterpret_cast<char const*>(&script_id);
-            auto lua_fx_id = view{ memory_id, sizeof(script_id) };
-            //if constexpr (debugmode) log("Function id='%%'", utf::debase437(lua_fx_id));
-            ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size());
+            ::lua_pushlstring(lua, script_body.data(), script_body.size());
             return true;
         }
         else
         {
             log("%%The table of precompiled functions is missing", prompt::lua);
-            ::lua_settop(lua, 0);
             return faux;
         }
     }
@@ -548,6 +545,7 @@ namespace netxs
             auto& [ref_count, script_body] = *script_body_ptr;
             if (script_body.size())
             {
+                auto base_top = ::lua_gettop(lua);
                 if (push_function_id(script_body))
                 {
                     ::lua_pushvalue(lua, -1); // Duplicate lua_fx_id string.
@@ -558,7 +556,7 @@ namespace netxs
                     }
                     else // It is not precompiled yet.
                     {
-                        ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
+                        ::lua_pop(lua, 1); // Pop nil after the ::lua_rawget() call.
                         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script");
                         if (error)
                         {
@@ -574,7 +572,7 @@ namespace netxs
                             ++ref_count;
                         }
                     }
-                    ::lua_settop(lua, 0);
+                    ::lua_settop(lua, base_top);
                 }
             }
         }
@@ -586,13 +584,14 @@ namespace netxs
             auto& [ref_count, script_body] = *script_body_ptr;
             if (ref_count && --ref_count == 0)
             {
+                auto base_top = ::lua_gettop(lua);
                 if (push_function_id(script_body))
                 {
                     ::lua_pushnil(lua);
                     ::lua_rawset(lua, -3); // Remove rec from the table (because of nil) and pop key and val from stack.
                     //if constexpr (debugmode) log("Drop: Precompiled function counter: %%", get_table_size());
-                    ::lua_settop(lua, 0);
                 }
+                ::lua_settop(lua, base_top);
             }
         }
     }
