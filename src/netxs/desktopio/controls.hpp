@@ -24,29 +24,53 @@ namespace netxs
             crop = { ptr, len };
             ::lua_pop(lua, 1);
         }
-        else if (type == LUA_TLIGHTUSERDATA)
+        else if (type == LUA_TTABLE)
         {
-            if (auto object_ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+            auto abs_idx = ::lua_absindex(lua, idx);
+            ::lua_pushstring(lua, "__self");
+            auto raw_type = ::lua_rawget(lua, abs_idx);
+            if (raw_type == LUA_TLIGHTUSERDATA)
             {
+                auto object_ptr = (ui::base*)::lua_touserdata(lua, -1);
                 crop = utf::concat("<object:", object_ptr->id, ">");
             }
+            else
+            {
+                crop = "<table>";
+            }
+            ::lua_pop(lua, 1);
         }
-        else if (extended)
+        else if (extended && type == LUA_TFUNCTION)
         {
-                 if (type == LUA_TFUNCTION) crop = "<function>";
-            else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
+            crop = "<function>";
+        }
+        else
+        {
+            crop += "<";
+            crop += ::lua_typename(lua, type);
+            crop += ">";
         }
         return crop;
     }
-    // luna: Push the object name to the stack.
     si32 luna::vtmlua_object2string(lua_State* lua)
     {
         auto crop = text{};
-        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
+        if (::lua_type(lua, 1) == LUA_TTABLE)
         {
-            crop = utf::concat("<object:", object_ptr->id, ">");
+            ::lua_pushstring(lua, "__self");
+            if (::lua_rawget(lua, 1) == LUA_TLIGHTUSERDATA)
+            {
+                if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1))
+                {
+                    crop = utf::concat("<object:", object_ptr->id, ">");
+                }
+            }
+            ::lua_pop(lua, 1);
         }
-        else crop = "<object>";
+        if (crop.empty())
+        {
+            crop = "<object>";
+        }
         ::lua_pushlstring(lua, crop.data(), crop.size());
         return 1;
     }
@@ -57,20 +81,7 @@ namespace netxs
         auto crop = text{};
         for (auto i = 1; i <= n; i++)
         {
-            auto t = ::lua_type(lua, i);
-            switch (t)
-            {
-                case LUA_TBOOLEAN:
-                case LUA_TNUMBER:
-                case LUA_TSTRING:
-                    crop += luna::vtmlua_torawstring(lua, i);
-                    break;
-                default:
-                    crop += "<";
-                    crop += ::lua_typename(lua, t);
-                    crop += ">";
-                    break;
-            }
+            crop += luna::vtmlua_torawstring(lua, i, true);
         }
         log("", crop);
         return 0;
@@ -645,7 +656,8 @@ namespace netxs
             ::lua_setglobal(lua, basename::vtm.data()); // Set global var "vtm". Pop "vtm".
 
         // Define vtm.* redirecting metatable.
-        static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_vtm_subindex },
+        static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_subindex },
+                                                                { "__tostring", luna::vtmlua_object2string },
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
