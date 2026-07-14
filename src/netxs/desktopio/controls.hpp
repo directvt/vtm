@@ -645,7 +645,7 @@ namespace netxs
         ::luaL_setfuncs(lua, cfg_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
 
         // Define vtm.keys redirecting metatable.
-        ::lua_createtable(lua, 0, input::key::lastKey); // Create a new metatable in registry and push it to the stack.
+        ::lua_createtable(lua, 0, input::key::lastKey); // Create a new table and push it to the stack.
         for (auto keycode = input::key::undef; keycode < input::key::lastKey; keycode++) // Fill the table with input::key::<key> records.
         {
             auto& keyrec = input::key::map::_key_map()[keycode];
