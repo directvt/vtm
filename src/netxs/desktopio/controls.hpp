@@ -240,6 +240,11 @@ namespace netxs
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
                 return 1;
             }
+            else if (object_name == "keys")
+            {
+                ::lua_getfield(lua, LUA_REGISTRYINDEX, "keys_submetaindex"); // Set the keys_submetaindex as required table.
+                return 1;
+            }
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->get_scripting_context()));
@@ -637,6 +642,33 @@ namespace netxs
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "cfg_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, cfg_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
+
+        // Define vtm.keys redirecting metatable.
+        ::luaL_newmetatable(lua, "keys_submetaindex"); // Create a new metatable in registry and push it to the stack.
+        for (auto keycode = input::key::undef; keycode < input::key::lastKey; keycode++) // Fill the table with input::key::<key> records.
+        {
+            auto& keyrec = input::key::map::_key_map()[keycode];
+            if (keyrec.name.size())
+            {
+                ::lua_createtable(lua, 0, 7); // Create subtable and reserve 7 fields.
+                ::lua_pushinteger(lua, (lua_Integer)keycode);
+                ::lua_setfield(lua, -2, "keycode");
+                ::lua_pushstring(lua, keyrec.generic.data());
+                ::lua_setfield(lua, -2, "generic");
+                ::lua_pushinteger(lua, (lua_Integer)keyrec.vkey);
+                ::lua_setfield(lua, -2, "virtcod");
+                ::lua_pushinteger(lua, (lua_Integer)keyrec.scan);
+                ::lua_setfield(lua, -2, "scancod");
+                ::lua_pushboolean(lua, keyrec.extflag);
+                ::lua_setfield(lua, -2, "extflag");
+                ::lua_pushboolean(lua, keyrec.edit);
+                ::lua_setfield(lua, -2, "is_editkey");
+                ::lua_pushboolean(lua, keyrec.KkpIsFx);
+                ::lua_setfield(lua, -2, "is_functional");
+                // Stack: [-1] -> new subtable (keyrec), [-2] -> keys_submetaindex.
+                ::lua_setfield(lua, -2, keyrec.name.data()); // Assign keys_submetaindex[keyrec.name] and pop subtable from the stack.
+            }
+        }
     }
     luna::~luna()
     {

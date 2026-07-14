@@ -599,7 +599,7 @@ namespace netxs::input
             {
                 return mask()[std::clamp(vk, 0, input::key::lastKey - 1)];
             }
-            static auto& data(si32 keycode)
+            static auto& _key_map()
             {
                 struct key
                 {
@@ -617,7 +617,11 @@ namespace netxs::input
                     si32 KkpCtl;
                 };
                 static auto data = std::array<key, input::key::lastKey>{};
-                return data[std::clamp(keycode, 0, input::key::lastKey - 1)];
+                return data;
+            }
+            static auto& data(si32 keycode)
+            {
+                return _key_map()[std::clamp(keycode, 0, input::key::lastKey - 1)];
             }
 
             map(si32 vk, si32 sc, si32 cs, si32 klid)
