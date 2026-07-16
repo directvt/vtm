@@ -5695,7 +5695,7 @@ namespace netxs::gui
             auto extflag = !!param.v.extended;
             auto scancod = (si32)param.v.scancode;
             auto keytype = 0;
-            //log("Vkey=%% extflag=%% scancod=%% keystat=%%", utf::to_hex(virtcod), extflag, utf::to_hex(scancod), keystat);
+            if constexpr (debugmode) log("Vkey=%% extflag=%% scancod=%% keystat=%% winmsg.message=%%", utf::to_hex(virtcod), extflag, utf::to_hex(scancod), keystat, winmsg.message);
             //todo process Alt+Numpads on our side: use TSF message pump.
             //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
             ::TranslateMessage(&winmsg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
@@ -5711,7 +5711,7 @@ namespace netxs::gui
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             //log("\tvkey=", utf::to_hex(virtcod), " pressed=", keystat, " scancod=", scancod);
-            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+            if constexpr (debugmode) log(" toWIDE.size=%% toWIDE=%% key_type=%%", toWIDE.size(), ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), keytype);
             if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
                 toWIDE.clear();

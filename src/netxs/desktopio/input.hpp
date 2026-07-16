@@ -2859,16 +2859,16 @@ namespace netxs::input
                             : k.keystat == input::key::repeated ? kkp::keystate::repeated
                                                                 : kkp::keystate::released; // Released or interrupted.
             auto keycode = k.keycode;
-            if (report_detailed || !kkp::is_modifier(keycode)) // Report pressed modifiers only if detailed reporting requested.
+            auto key_released = key_status == kkp::keystate::released;
+            if (report_detailed || !kkp::is_modifier(keycode) || (key_released && report_upevents)) // Report pressed modifiers only if detailed reporting requested.
             {
-                auto has_cluster = k.cluster.size() && !kkp::is_control(k.cluster.front()) && !(k.ctlstat & mods::anyCtrl); // Exclude Enter/BS/Esc/Tab.
+                auto has_cluster = k.cluster.size() && !kkp::is_control(k.cluster.front()) && !(k.ctlstat & mods::anyCtrlAlt); // Exclude Enter/BS/Esc/Tab.
                 if (keycode != input::key::undef || has_cluster) // Ignore empty unknown keys.
                 {
                     if (!report_specific && !report_detailed && kkp::is_keypad(keycode)) // Generalize physical key if details required.
                     {
                         keycode = input::key::generic(keycode);
                     }
-                    auto key_released = key_status == kkp::keystate::released;
                     if constexpr (debugmode) log("ALL->KKP: report_lvls=%% has_cluster=%% key_released=%%", report_levels, has_cluster, key_released);
                     if (!key_released && !report_detailed && has_cluster) // Report cluster directly in simple mode.
                     {
