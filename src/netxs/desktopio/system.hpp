@@ -2830,7 +2830,7 @@ namespace netxs::os
 
             #elif defined(__APPLE__)
 
-                auto size = uint32_t{};
+                auto size = ui32{};
                 if (-1 == ::_NSGetExecutablePath(nullptr, &size))
                 {
                     auto buff = std::vector<char>(size);
@@ -3953,6 +3953,153 @@ namespace netxs::os
         }
     }
 
+    namespace x11
+    {
+        auto read_ui16be(std::ifstream& fs)
+        {
+            auto uword = ui16{};
+            auto bytes = text(2, '\0');
+            if (fs.read(bytes.data(), bytes.size()))
+            {
+                uword = ((ui16)(byte)bytes[0] << 8) | (byte)bytes[1];
+            }
+            return uword;
+        }
+        auto read_string(std::ifstream& fs, ui16 length)
+        {
+            auto buffer = text(length, '\0');
+            if (length > 0)
+            {
+                fs.read(buffer.data(), length);
+            }
+            return buffer;
+        }
+        auto get_cookie(view target_display_num)
+        {
+            struct x11cookie_t
+            {
+                text auth_name;
+                text auth_data;
+            };
+            auto x11cookie = x11cookie_t{};
+            auto auth_path = text{}; // Path to .Xauthority file.
+            if (auto xauth_env = os::env::get("XAUTHORITY"); xauth_env.size())
+            {
+                auth_path = xauth_env;
+            }
+            else if (auto home_env = os::env::get("HOME"); home_env.size())
+            {
+                //todo expand home_env for win32
+                auth_path = home_env + "/.Xauthority";
+            }
+            if (auth_path.size())
+            if (auto fs = std::ifstream{ auth_path, std::ios::binary }; fs.is_open())
+            {
+                while (fs.peek() != EOF)
+                {
+   [[maybe_unused]] auto family   = read_ui16be(fs); // family = 256 (FamilyLocal).
+                    auto addr_len = read_ui16be(fs);
+   [[maybe_unused]] auto addr_str = read_string(fs, addr_len);
+                    auto disp_len = read_ui16be(fs);
+                    auto disp_str = read_string(fs, disp_len);
+                    auto name_len = read_ui16be(fs);
+                    auto name_str = read_string(fs, name_len);
+                    auto data_len = read_ui16be(fs);
+                    auto data_str = read_string(fs, data_len);
+                    if (!fs) break; // Unexpected errors.
+                    if constexpr (debugmode) log("XAuth entry: family=%%, disp='%%', proto='%%', data_size=%%", family, disp_str, name_str, data_len);
+                    if (name_str == "MIT-MAGIC-COOKIE-1" && (disp_str == target_display_num || disp_str.empty()))
+                    {
+                        if constexpr (debugmode) log("Cookie found. Name: %%, Data size: %%", name_str, data_len);
+                        x11cookie.auth_name = std::move(name_str);
+                        x11cookie.auth_data = std::move(data_str);
+                        break;
+                    }
+                }
+            }
+            return x11cookie;
+        }
+        auto build_connect_packet(auto& cookie_data)
+        {
+            #pragma pack(push, 1)
+            struct x11_connect_request
+            {
+                byte byte_order;       // 0x6c ('l') or 0x42 ('B')
+                byte pad1;             //
+                ui16 major_version;    // X_PROTOCOL
+                ui16 minor_version;    // X_PROTOCOL_REVISION
+                ui16 auth_proto_len;   //
+                ui16 auth_data_len;    //
+                ui16 pad2;             //
+            };
+            #pragma pack(pop)
+            auto header = x11_connect_request{};
+            header.byte_order = netxs::endian_LE ? 'l' : 'B';
+            header.major_version = 11;
+            header.minor_version = 0;
+            header.auth_proto_len = (ui16)cookie_data.auth_name.size();
+            header.auth_data_len  = (ui16)cookie_data.auth_data.size();
+            auto auth_name_padded_len = (header.auth_proto_len + 3) & ~3; // Rounding up to a multiple of 4.
+            auto auth_data_padded_len = (header.auth_data_len  + 3) & ~3; //
+            auto packet = text(sizeof(header) + auth_name_padded_len + auth_data_padded_len, '\0');
+            std::memcpy(packet.data(), &header, sizeof(header));
+            std::memcpy(packet.data() + sizeof(header), cookie_data.auth_name.data(), cookie_data.auth_name.size());
+            std::memcpy(packet.data() + sizeof(header) + auth_name_padded_len, cookie_data.auth_data.data(), cookie_data.auth_data.size());
+            return packet;
+        }
+        auto parse_x11_connection_reply(auto x11connection)
+        {
+            struct x11_reply_header
+            {
+                byte status;            // 0 = Fail, 1 = Success.
+                byte pad1;
+                ui16 major_version;
+                ui16 minor_version;
+                ui16 additional_length; // Payload length in 4-byte chunks.
+            };
+            struct x11_session_config
+            {
+                ui32 resource_id_base;
+                ui32 resource_id_mask;
+                bool success;
+            };
+            auto header = x11_reply_header{};
+            auto config = x11_session_config{};
+            if (auto l1 = x11connection->recv((char*)&header, sizeof(header)); l1.size() == sizeof(header))
+            {
+                auto remaining_bytes = (size_t)header.additional_length * 4;
+                auto buffer = text(remaining_bytes, '\0');
+                if (header.status == 0) // Failed.
+                {
+                    log("%%Connection rejected: '%%'", prompt::x11, utf::debase<faux, faux>(x11connection->recv(buffer.data(), buffer.size())));
+                }
+                else if (header.status != 1)
+                {
+                    log("%%Unknown response status", prompt::x11);
+                }
+                else if (auto l3 = x11connection->recv(buffer.data(), buffer.size()); l3.size() != buffer.size())
+                {
+                    log("%%Error reading response payload", prompt::x11);
+                }
+                else
+                {
+                    // buffer[0..3]   = release_number
+                    // buffer[4..7]   = resource_id_base
+                    // buffer[8..11]  = resource_id_mask
+                    // buffer[12..15] = ...
+                    std::memcpy(&config.resource_id_base, buffer.data() + 4, sizeof(ui32));
+                    std::memcpy(&config.resource_id_mask, buffer.data() + 8, sizeof(ui32));
+                    config.success = true;
+                }
+            }
+            else
+            {
+                log("%%Error reading response header", prompt::x11);
+            }
+            return config;
+        }
+    }
+
     namespace dtvt
     {
         static auto vtmode = si32{}; // dtvt: VT-mode bit set.
@@ -3965,6 +4112,7 @@ namespace netxs::os
         static auto flagsz = flag{}; // dtvt: Initial window grid size updating flag.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
+        static auto x11con = sptr<ipc::stdcon>{}; // dtvt: Active X11 socket connection.
 
         auto consize()
         {
@@ -4130,7 +4278,7 @@ namespace netxs::os
                             }
                             if (dtvt::vtmode & ui::console::gui)
                             {
-                                term = "Native GUI console";
+                                term = "Native GUI console (Win32)";
                             }
                         }
                     }
@@ -4145,12 +4293,24 @@ namespace netxs::os
                     }
                     if (rungui)
                     {
-                        auto x11detected = faux;
-                        //todo detect x11
-                        if (x11detected)
+                        if (auto display_env = os::env::get("DISPLAY"); display_env.size())
+                        if (auto colon_start = display_env.find(':'); colon_start != text::npos)
+                        if (auto display_num = utf::to_int(display_env.substr(colon_start + 1)))
+                        if (auto x11unixpath = utf::concat("/tmp/.X11-unix/X", display_num.value()); os::fs::exists(x11unixpath))
+                        if (auto socket_link = os::ipc::socket::connect(x11unixpath))
                         {
-                            dtvt::vtmode |= ui::console::gui;
-                            term = "Native GUI console";
+                            auto display_str = std::to_string(display_num.value());
+                            auto cookie_data = x11::get_cookie(display_str);
+                            auto init_packet = x11::build_connect_packet(cookie_data);
+                            socket_link->send(init_packet);
+                            auto x11_connect = x11::parse_x11_connection_reply(socket_link);
+                            if (x11_connect.success)
+                            {
+                                dtvt::x11con = socket_link;
+                                dtvt::vtmode |= ui::console::gui;
+                                term = "Native GUI console (X11)";
+                                if constexpr (debugmode) log("%%Connected: resource_id_base=%% resource_id_mask=%%", prompt::x11, utf::to_hex(x11_connect.resource_id_base), utf::to_hex(x11_connect.resource_id_mask));
+                            }
                         }
                     }
                     //if (!haspty && !(dtvt::vtmode & ui::console::gui))
