@@ -1311,7 +1311,6 @@ namespace netxs::gui
                 auto system_font_flow = os::nt::walk_registry(HKEY_CURRENT_USER,  registered_fonts, filter)
                                       | os::nt::walk_registry(HKEY_LOCAL_MACHINE, registered_fonts, filter);
             #else
-                //todo build a native system_font_flow
                 struct fontfile_item_t
                 {
                     text path;
@@ -1319,6 +1318,30 @@ namespace netxs::gui
                     text data;
                 };
                 auto system_font_flow = std::vector<fontfile_item_t>{};
+                auto search_paths = std::vector<os::fs::path>{ "/usr/share/fonts",
+                                                               "/usr/local/share/fonts" };
+                if (auto home_str = os::env::get("HOME"); home_str.size())
+                {
+                    search_paths.push_back(os::fs::path(home_str) / ".fonts");
+                    search_paths.push_back(os::fs::path(home_str) / ".local/share/fonts");
+                }
+                auto is_font_supported = [](auto ext) { return ext == ".ttf" || ext == ".otf" || ext == ".ttc"; };
+                for (auto& dir : search_paths)
+                {
+                    if (os::fs::exists(dir))
+                    {
+                        auto ec = std::error_code{};
+                        for (auto& entry : os::fs::recursive_directory_iterator(dir, os::fs::directory_options::skip_permission_denied, ec))
+                        {
+                            if (entry.is_regular_file() && is_font_supported(entry.path().extension()))
+                            {
+                                system_font_flow.push_back({ .path = entry.path().parent_path().generic_string(),
+                                                             .name = entry.path().stem().string(),
+                                                             .data = entry.path().generic_string() });
+                            }
+                        }
+                    }
+                }
             #endif
             auto font_list = std::vector<sptr<bare_face_t>>{};
             for (auto& item : system_font_flow)
