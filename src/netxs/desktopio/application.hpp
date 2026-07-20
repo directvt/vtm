@@ -1183,7 +1183,6 @@ namespace netxs::app::shared
     }
     static void start(text cmd, text aclass)
     {
-        //todo revise
         auto [client, server] = os::ipc::xlink();
         auto& indexer = ui::tui_domain();
         auto& config = indexer.config;
