@@ -3955,6 +3955,153 @@ namespace netxs::os
 
     namespace x11
     {
+        #pragma pack(push, 1)
+        struct session_config
+        {
+            struct format
+            {
+                byte depth;          // 1 byte depth
+                byte bits_per_pixel; // 1 byte bits_per_pixel
+                byte scanline_pad;   // 1 byte scanline_pad
+                byte pad[5];         // 5 pad  unused
+                static const size_t static_size; si32 _cut{};
+            };
+            struct screen
+            {
+                struct depth
+                {
+                    struct visual_type
+                    {
+                        struct vclass
+                        {
+                            static constexpr auto StaticGray  = (byte)1;
+                            static constexpr auto GrayScale   = (byte)2;
+                            static constexpr auto StaticColor = (byte)3;
+                            static constexpr auto PseudoColor = (byte)4;
+                            static constexpr auto TrueColor   = (byte)5;
+                            static constexpr auto DirectColor = (byte)6;
+                        };
+                        ui32 visual_id;          // 4 ui32 visual_id
+                        byte visual_class;       // 1 byte vclass
+                        byte bits_per_rgb_value; // 1 byte bits_per_rgb_value
+                        ui16 colormap_entries;   // 2 ui16 colormap_entries
+                        ui32 red_mask;           // 4 ui32 red_mask
+                        ui32 green_mask;         // 4 ui32 green_mask
+                        ui32 blue_mask;          // 4 ui32 blue_mask
+                        ui32 pad;                // 4 pad  unused
+                        static const size_t static_size; si32 _cut{};
+                    };
+                    byte depth;               // 1 byte depth
+                    byte pad1;                // 1 pad  unused
+                    ui16 num_of_visual_types; // 2 n    number of visual_types in visuals
+                    ui32 pad2;                // 4 pad  unused
+                    static const size_t static_size; si32 _cut{};
+                    std::vector<visual_type> list_of_visual_types; // 24*n  list_of_visual_types  visuals
+                };
+                ui32 root_window_id;        // 4 ui32 WINDOW      root_window_id
+                ui32 default_colormap;      // 4 ui32 COLORMAP    default_colormap
+                ui32 white_pixel;           // 4 ui32             white_pixel
+                ui32 black_pixel;           // 4 ui32             black_pixel
+                ui32 current_input_masks;   // 4 ui32 SETofEVENT  current_input_masks
+                ui16 width_in_pixels;       // 2 ui16             width_in_pixels
+                ui16 height_in_pixels;      // 2 ui16             height_in_pixels
+                ui16 width_in_millimeters;  // 2 ui16             width_in_millimeters
+                ui16 height_in_millimeters; // 2 ui16             height_in_millimeters
+                ui16 min_installed_maps;    // 2 ui16             min_installed_maps
+                ui16 max_installed_maps;    // 2 ui16             max_installed_maps
+                ui32 root_visual;           // 4 ui32 VisualId    root_visual
+                byte backing_stores;        // 1 byte             backing_stores 0: Never, 1: WhenMapped, 2: Always
+                byte save_unders;           // 1 byte BOOL        save_unders 0/1
+                byte root_depth;            // 1 byte             root_depth
+                byte number_of_depths;      // 1 byte             number of depths (list_of_depths) in allowed_depths
+                static const size_t static_size; si32 _cut{};
+                std::vector<depth> list_of_depths; // List of allowed_depths (n is always a multiple of 4)
+            };
+            ui32 release_number;              // 4 ui32 buffer[0..3]   = release_number
+            ui32 resource_id_base;            // 4 ui32 buffer[4..7]   = resource_id_base
+            ui32 resource_id_mask;            // 4 ui32 buffer[8..11]  = resource_id_mask
+            ui32 motion_buffer_size;          // 4 ui32 buffer[12..15] = motion_buffer_size
+            ui16 vendor_length;               // 2 ui16 buffer[16..17] = vendor_length
+            ui16 maximum_request_length;      // 2 ui16 buffer[18..19] = maximum_request_length
+            byte number_of_screens;           // 1 byte buffer[20]     = number_of_screens in roots
+            byte number_of_formats;           // 1 byte buffer[21]     = number_of_formats in pixmap_formats
+            byte image_byte_order;            // 1 byte buffer[22]     = 0: LSBFirst, 1: MSBFirst
+            byte bitmap_format_bit_order;     // 1 byte buffer[23]     = 0: LeastSignificant, 1: MostSignificant
+            byte bitmap_format_scanline_unit; // 1 byte buffer[24]     = bitmap_format_scanline_unit
+            byte bitmap_format_scanline_pad;  // 1 byte buffer[25]     = bitmap_format_scanline_pad
+            byte min_keycode;                 // 1 byte buffer[26]     = min_keycode
+            byte max_keycode;                 // 1 byte buffer[27]     = max_keycode
+            byte pad[4];                      // 4 ui32 buffer[28..31] = unused
+            static const size_t static_size; si32 _cut{};
+            text vendor_str;                  // 4 ui32 buffer[32..32+vendor_length] = vendor_str
+            // vendor_pad = pad(vendor_length)
+            std::vector<format> pixmap_formats; // format * number_of_formats = pixmap_formats
+            std::vector<screen> roots; // screen * number_of_screens = roots (always a multiple of 4)
+            bool success;
+            template<bool B = true>
+            auto str() const
+            {
+                if (roots.empty()) return "no screen roots"s;
+                auto str = utf::fprint("%%Connected: id_base/mask=%%/%% root_window_id=%% screens=%% vendor='%%'\n", prompt::x11,
+                    utf::to_hex(resource_id_base),
+                    utf::to_hex(resource_id_mask),
+                    utf::to_hex(roots.front().root_window_id),
+                    (si32)number_of_screens,
+                    utf::debase<faux, faux>(vendor_str));
+                str += pixmap_formats.size() ? utf::fprint("    pixmap_formats(%%):\n", pixmap_formats.size()) : "    no pixmap_formats\n";
+                for (auto& pf : pixmap_formats)
+                {
+                    str += utf::fprint("\tdepth=%% bpp=%% scanline_pad=%%\n", (si32)pf.depth, (si32)pf.bits_per_pixel, (si32)pf.scanline_pad);
+                }
+                str += roots.size() ? utf::fprint("    root screens(%%):\n", roots.size()) : "    no screen roots\n";
+                for (auto& sc : roots)
+                {
+                    str += utf::fprint("     root_window_id="        , utf::to_hex(sc.root_window_id),
+                                        "\n\t default_colormap="     , utf::to_hex(sc.default_colormap),
+                                        "\n\t white_pixel="          , utf::to_hex(sc.white_pixel),
+                                        "\n\t black_pixel="          , utf::to_hex(sc.black_pixel),
+                                        "\n\t current_input_masks="  , utf::to_hex(sc.current_input_masks),
+                                        "\n\t width_in_pixels="      , sc.width_in_pixels,
+                                        "\n\t height_in_pixels="     , sc.height_in_pixels,
+                                        "\n\t width_in_millimeters=" , sc.width_in_millimeters,
+                                        "\n\t height_in_millimeters=", sc.height_in_millimeters,
+                                        "\n\t min_installed_maps="   , sc.min_installed_maps,
+                                        "\n\t max_installed_maps="   , sc.max_installed_maps,
+                                        "\n\t root_visual="          , utf::to_hex(sc.root_visual),
+                                        "\n\t backing_stores="       , (si32)sc.backing_stores,
+                                        "\n\t save_unders="          , (si32)sc.save_unders,
+                                        "\n\t root_depth="           , (si32)sc.root_depth,
+                                        "\n\t number_of_depths="     , (si32)sc.number_of_depths,
+                                        "\n");
+                    str += sc.list_of_depths.size() ? utf::fprint("\t   depths(%%):\n", sc.list_of_depths.size()) : "        no depths\n";
+                    for (auto& d : sc.list_of_depths)
+                    {
+                        str += utf::fprint("\t\t depth=%% num_of_visual_types=%%\n", (si32)d.depth, d.num_of_visual_types);
+                        //str += d.list_of_visual_types.size() ? utf::fprint("          visual_types(%%):\n", d.list_of_visual_types.size()) : "          no visual_types\n";
+                        //for (auto& v : d.list_of_visual_types)
+                        //{
+                        //    str += utf::fprint("\tvisual_id=",              utf::to_hex(v.visual_id),
+                        //                        "\n\t\t visual_class=",       (si32)v.visual_class,
+                        //                        "\n\t\t bits_per_rgb_value=", (si32)v.bits_per_rgb_value,
+                        //                        "\n\t\t colormap_entries=",   v.colormap_entries,
+                        //                        "\n\t\t red_mask=",           utf::to_hex(v.red_mask),
+                        //                        "\n\t\t green_mask=",         utf::to_hex(v.green_mask),
+                        //                        "\n\t\t blue_mask=",          utf::to_hex(v.blue_mask),
+                        //                        "\n");
+                        //}
+                    }
+                }
+                if (str.back() == '\n') str.pop_back();
+                return str;
+            }
+        };
+        #pragma pack(pop)
+        inline const size_t session_config::format::static_size                     = offsetof(format,                     _cut);
+        inline const size_t session_config::screen::depth::visual_type::static_size = offsetof(screen::depth::visual_type, _cut);
+        inline const size_t session_config::screen::depth::static_size              = offsetof(screen::depth,              _cut);
+        inline const size_t session_config::screen::static_size                     = offsetof(screen,                     _cut);
+        inline const size_t session_config::static_size                             = offsetof(session_config,             _cut);
+
         auto read_ui16be(std::ifstream& fs)
         {
             auto uword = ui16{};
@@ -4058,18 +4205,8 @@ namespace netxs::os
                 ui16 additional_length; // Payload length in 4-byte chunks.
                 // payload ...
             };
-            struct x11_session_config
-            {
-                ui32 resource_id_base;
-                ui32 resource_id_mask;
-                text vendor;
-                ui32 root_window_id;
-                ui32 number_of_sreens;
-                ui32 number_of_depths;
-                bool success;
-            };
             auto header = x11_reply_header{};
-            auto config = x11_session_config{};
+            auto config = x11::session_config{};
             if (auto l1 = x11connection->recv((char*)&header, sizeof(header)); l1.size() == sizeof(header))
             {
                 auto remaining_bytes = (size_t)header.additional_length * 4;
@@ -4088,88 +4225,42 @@ namespace netxs::os
                 }
                 else
                 {
-                    // (ui32) buffer[0..3]   = release_number
-                    // (ui32) buffer[4..7]   = resource_id_base
-                    // (ui32) buffer[8..11]  = resource_id_mask
-                    // (ui32) buffer[12..15] = motion_buffer_size
-                    // (ui16) buffer[16..17] = vendor_length
-                    // (ui16) buffer[18..19] = maximum_request_length
-                    // (byte) buffer[20]     = number_of_screens in ListOfScreens
-                    // (byte) buffer[21]     = number_of_formats in ListOfFormats
-                    // (byte) buffer[22]     = image_byte_order. 0: LSBFirst, 1: MSBFirst
-                    // (byte) buffer[23]     = bitmap_format_bit_order. 0: LeastSignificant, 1: MostSignificant
-                    // (byte) buffer[24]     = bitmap_format_scanline_unit
-                    // (byte) buffer[25]     = bitmap_format_scanline_pad
-                    // (byte) buffer[26]     = min_keycode
-                    // (byte) buffer[27]     = max_keycode
-                    // (ui32) buffer[28..31] = unused
-                    // (ui32) buffer[32..32+vendor_length] = vendor_str
-                    // vendor_pad            = unused, =pad(vendor_length)
-                    // sizeof(Format)*number_of_formats   = ListOfFormats       pixmap_formats
-                    //   Format
-                    //        1     byte                           depth
-                    //        1     byte                           bits_per_pixel
-                    //        1     byte                           scanline_pad
-                    //        5     pad                            unused
-                    // number_of_screens     = ListOfScreens       roots (always a multiple of 4)
-                    //   Screen
-                    //        4     ui32 WINDOW      root_window_id
-                    //        4     ui32 COLORMAP    default_colormap
-                    //        4     ui32             white_pixel
-                    //        4     ui32             black_pixel
-                    //        4     ui32 SETofEVENT  current_input_masks
-                    //        2     ui16             width_in_pixels
-                    //        2     ui16             height_in_pixels
-                    //        2     ui16             width_in_millimeters
-                    //        2     ui16             height_in_millimeters
-                    //        2     ui16             min_installed_maps
-                    //        2     ui16             max_installed_maps
-                    //        4     ui32 VisualId    root_visual
-                    //        1     byte             backing_stores 0: Never, 1: WhenMapped, 2: Always
-                    //        1     byte BOOL        save_unders 0/1
-                    //        1     byte             root_depth
-                    //        1     byte             number of depths in allowed_depths
-                    //        n     ListOfDepths     allowed_depths (n is always a multiple of 4)
-                    //              Depth
-                    //                   1     byte               depth
-                    //                   1     pad                unused
-                    //                   2     n                  number of VisualTypes in visuals
-                    //                   4     pad                unused
-                    //                   24*n  ListOfVisualTypes  visuals
-                    //                         VisualType
-                    //                              4    ui32 VisualId  visual_id
-                    //                              1    byte           class
-                    //                                                       0: StaticGray
-                    //                                                       1: GrayScale
-                    //                                                       2: StaticColor
-                    //                                                       3: PseudoColor
-                    //                                                       4: TrueColor
-                    //                                                       5: DirectColor
-                    //                              1     byte          bits_per_rgb_value
-                    //                              2     ui16          colormap_entries
-                    //                              4     ui32          red_mask
-                    //                              4     ui32          green_mask
-                    //                              4     ui32          blue_mask
-                    //                              4     pad           unused
-
-                    std::memcpy(&config.resource_id_base, buffer.data() + 4, sizeof(ui32));
-                    std::memcpy(&config.resource_id_mask, buffer.data() + 8, sizeof(ui32));
-                    config.number_of_sreens = (byte)buffer[20];
-                    auto vendor_length = ui16{};
-                    std::memcpy(&vendor_length,           buffer.data() + 16, sizeof(ui16));
-                    config.vendor.resize(vendor_length);
-                    std::memcpy(config.vendor.data(),     buffer.data() + 32, vendor_length);
-                    auto number_of_formats = (byte)buffer[21];
-                    auto vendor_padded_len = (size_t)((vendor_length + 3) & ~3);
-                    auto formats_offset = 32 + vendor_padded_len;
-                    auto formats_total_len = (size_t)number_of_formats * 8;
-                    auto first_screen_offset = formats_offset + formats_total_len;
-                    if (first_screen_offset + sizeof(ui32) <= buffer.size())
+                    auto q = qiew{ buffer };
+                    auto failed = faux;
+                    auto load = [&](void* object_ptr, auto len)
                     {
-                        std::memcpy(&config.root_window_id, buffer.data() + first_screen_offset, sizeof(ui32));
-                        config.number_of_depths = (byte)buffer[first_screen_offset + 5*4+6*2+4+4*1];
-                        config.success = true;
+                        auto len_padded = (size_t)((len + 3) & ~3);
+                        if (!failed && q.size() >= len_padded)
+                        {
+                            std::memcpy(object_ptr, q.data(), len);
+                            q.remove_prefix(len_padded);
+                        }
+                        else failed = true;
+                    };
+                    load(&config, config.static_size);
+                    config.vendor_str.resize(config.vendor_length);
+                    load(config.vendor_str.data(), config.vendor_length);
+                    config.pixmap_formats.resize(config.number_of_formats);
+                    for (auto& pf : config.pixmap_formats)
+                    {
+                        load(&pf, pf.static_size);
                     }
+                    config.roots.resize(config.number_of_screens);
+                    for (auto& screen : config.roots)
+                    {
+                        load(&screen, screen.static_size);
+                        screen.list_of_depths.resize(screen.number_of_depths);
+                        for (auto& depth : screen.list_of_depths)
+                        {
+                            load(&depth, depth.static_size);
+                            depth.list_of_visual_types.resize(depth.num_of_visual_types);
+                            for (auto& visual_type : depth.list_of_visual_types)
+                            {
+                                load(&visual_type, visual_type.static_size);
+                            }
+                        }
+                    }
+                    config.success = !failed;
                 }
             }
             else
@@ -4384,18 +4475,12 @@ namespace netxs::os
                             auto init_packet = x11::build_connect_packet(cookie_data);
                             socket_link->send(init_packet);
                             auto x11_connect = x11::parse_x11_connection_reply(socket_link);
-                            if (x11_connect.success)
+                            if (x11_connect.success && x11_connect.roots.size())
                             {
                                 dtvt::x11con = socket_link;
                                 dtvt::vtmode |= ui::console::gui;
                                 term = "Native GUI console (X11)";
-                                if constexpr (debugmode) log("%%Connected: id_base/mask=%%/%% root_window_id=%% screens=%% depths=%% vendor='%%'", prompt::x11,
-                                    utf::to_hex(x11_connect.resource_id_base),
-                                    utf::to_hex(x11_connect.resource_id_mask),
-                                    utf::to_hex(x11_connect.root_window_id),
-                                    x11_connect.number_of_sreens,
-                                    x11_connect.number_of_depths,
-                                    utf::debase<faux, faux>(x11_connect.vendor));
+                                if constexpr (debugmode) log(x11_connect.str());
                             }
                         }
                     }
