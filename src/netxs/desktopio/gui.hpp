@@ -6492,7 +6492,10 @@ namespace netxs::gui
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
+        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {})
+        {
+            return true;
+        }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
@@ -6516,7 +6519,11 @@ namespace netxs::gui
         void mouse_capture(si32 /*captured_by*/) {}
         void mouse_release(si32 /*released_by*/) {}
         void mouse_catch_outside() {}
-        void sync_os_settings() {}
+        void sync_os_settings()
+        {
+            wdelta = 1.f;
+            blinks.rate = blinks.init;
+        }
     };
 }
 
