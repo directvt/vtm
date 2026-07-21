@@ -3962,7 +3962,16 @@ namespace netxs::os
             auto data() { return (void*)this; }
             auto size() { return sizeof(T::s); }
         };
-        struct session_config : data_n_size<session_config>
+        struct reply_header
+        {
+            byte status;            // 0 = Fail, 1 = Success.
+            byte pad1;
+            ui16 major_version;
+            ui16 minor_version;
+            ui16 additional_length; // Payload length in 4-byte chunks.
+            // payload ...
+        };
+        struct session_t : data_n_size<session_t>
         {
             struct format : data_n_size<format>
             {
@@ -4049,10 +4058,10 @@ namespace netxs::os
                 byte max_keycode;                 // 1 byte buffer[27]     = max_keycode
                 byte pad[4];                      // 4 ui32 buffer[28..31] = unused
             } s;
-            text vendor_str;                  // 4 ui32 buffer[32..32+vendor_length] = vendor_str
+            text                vendor_str;     // buffer[32..32+vendor_length] = vendor_str
             std::vector<format> pixmap_formats; // format * number_of_formats = pixmap_formats
-            std::vector<screen> roots; // screen * number_of_screens = roots (always a multiple of 4)
-            bool success;
+            std::vector<screen> roots;          // screen * number_of_screens = roots (always a multiple of 4)
+            sptr<ipc::stdcon>   x11connection;  // Active X11 socket connection.
             template<bool B = true>
             auto str() const
             {
@@ -4112,6 +4121,14 @@ namespace netxs::os
                 }
                 if (str.back() == '\n') str.pop_back();
                 return str;
+            }
+            auto reset()
+            {
+                roots.clear();
+            }
+            constexpr explicit operator bool () const
+            {
+                return !roots.empty();
             }
         };
         #pragma pack(pop)
@@ -4208,19 +4225,10 @@ namespace netxs::os
             std::memcpy(packet.data() + sizeof(header) + auth_name_padded_len, cookie_data.auth_data.data(), cookie_data.auth_data.size());
             return packet;
         }
-        auto parse_x11_connection_reply(auto x11connection)
+        auto parse_connection_reply(auto x11connection)
         {
-            struct x11_reply_header
-            {
-                byte status;            // 0 = Fail, 1 = Success.
-                byte pad1;
-                ui16 major_version;
-                ui16 minor_version;
-                ui16 additional_length; // Payload length in 4-byte chunks.
-                // payload ...
-            };
-            auto header = x11_reply_header{};
-            auto config = x11::session_config{};
+            auto header = x11::reply_header{};
+            auto session = x11::session_t{};
             if (auto l1 = x11connection->recv((char*)&header, sizeof(header)); l1.size() == sizeof(header))
             {
                 auto remaining_bytes = (size_t)header.additional_length * 4;
@@ -4253,16 +4261,16 @@ namespace netxs::os
                         }
                         else failed = true;
                     };
-                    load(config);
-                    config.vendor_str.resize(config.s.vendor_length);
-                    load(config.vendor_str);
-                    config.pixmap_formats.resize(config.s.number_of_formats);
-                    for (auto& pixmap_format : config.pixmap_formats)
+                    load(session);
+                    session.vendor_str.resize(session.s.vendor_length);
+                    load(session.vendor_str);
+                    session.pixmap_formats.resize(session.s.number_of_formats);
+                    for (auto& pixmap_format : session.pixmap_formats)
                     {
                         load(pixmap_format);
                     }
-                    config.roots.resize(config.s.number_of_screens);
-                    for (auto& screen : config.roots)
+                    session.roots.resize(session.s.number_of_screens);
+                    for (auto& screen : session.roots)
                     {
                         load(screen);
                         screen.list_of_depths.resize(screen.s.number_of_depths);
@@ -4276,14 +4284,36 @@ namespace netxs::os
                             }
                         }
                     }
-                    config.success = !failed;
+                    if (failed) session.reset();
                 }
             }
             else
             {
                 log("%%Error reading response header", prompt::x11);
             }
-            return config;
+            return session;
+        }
+        static auto session = sptr<session_t>{}; // x11: Active X11 session.
+        auto connect()
+        {
+            if (auto display_env = os::env::get("DISPLAY"); display_env.size())
+            if (auto colon_start = display_env.find(':'); colon_start != text::npos)
+            if (auto display_num = utf::to_int(display_env.substr(colon_start + 1)))
+            if (auto x11unixpath = utf::concat("/tmp/.X11-unix/X", display_num.value()); os::fs::exists(x11unixpath))
+            if (auto socket_link = os::ipc::socket::connect(x11unixpath))
+            {
+                auto display_str = std::to_string(display_num.value());
+                auto cookie_data = x11::get_cookie(display_str);
+                auto init_packet = x11::build_connect_packet(cookie_data);
+                socket_link->send(init_packet);
+                if (auto session = x11::parse_connection_reply(socket_link))
+                {
+                    session.x11connection = socket_link;
+                    x11::session = ptr::shared(std::move(session));
+                    return true;
+                }
+            }
+            return faux;
         }
     }
 
@@ -4299,7 +4329,6 @@ namespace netxs::os
         static auto flagsz = flag{}; // dtvt: Initial window grid size updating flag.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
-        static auto x11con = sptr<ipc::stdcon>{}; // dtvt: Active X11 socket connection.
 
         auto consize()
         {
@@ -4480,24 +4509,11 @@ namespace netxs::os
                     }
                     if (rungui)
                     {
-                        if (auto display_env = os::env::get("DISPLAY"); display_env.size())
-                        if (auto colon_start = display_env.find(':'); colon_start != text::npos)
-                        if (auto display_num = utf::to_int(display_env.substr(colon_start + 1)))
-                        if (auto x11unixpath = utf::concat("/tmp/.X11-unix/X", display_num.value()); os::fs::exists(x11unixpath))
-                        if (auto socket_link = os::ipc::socket::connect(x11unixpath))
+                        if (x11::connect())
                         {
-                            auto display_str = std::to_string(display_num.value());
-                            auto cookie_data = x11::get_cookie(display_str);
-                            auto init_packet = x11::build_connect_packet(cookie_data);
-                            socket_link->send(init_packet);
-                            auto x11_connect = x11::parse_x11_connection_reply(socket_link);
-                            if (x11_connect.success && x11_connect.roots.size())
-                            {
-                                dtvt::x11con = socket_link;
-                                dtvt::vtmode |= ui::console::gui;
-                                term = "Native GUI console (X11)";
-                                if constexpr (debugmode) log(x11_connect.str());
-                            }
+                            dtvt::vtmode |= ui::console::gui;
+                            term = "Native GUI console (X11)";
+                            if constexpr (debugmode) log(x11::session->str());
                         }
                     }
                     //if (!haspty && !(dtvt::vtmode & ui::console::gui))
