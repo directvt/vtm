@@ -719,235 +719,236 @@ R"==(
         <CloseWindow    tooltip=" Close "/>
     </en-US>
     <pt-BR>
-        <TextbasedDesktopEnvironment="  Text-based Desktop Environment  "/>
+        <TextbasedDesktopEnvironment="  Desktop baseado em texto  "/>
         <Info label="Info" title=label tooltip=" Info ">
-            <KeybdTest="Keyboard Test"/>
-            <KeybdMode="Exclusive keyboard mode:"/>
+            <KeybdTest="Teste do teclado"/>
+            <KeybdMode="Modo somente teclado:"/>
             <KeybdToggle on=" on █" off="█off "/>
-            <pressed="pressed"/>
-            <released="released"/>
-            <pressanykeys="<Press any keys>"/>
-            <Generic="Generic"/>
+            <pressed="pressionado"/>
+            <released="liberado"/>
+            <pressanykeys="<Pressione qualquer tecla>"/>
+            <Generic="Genérico"/>
             <Literal="Literal"/>
-            <Specific="Specific"/>
-            <Scancodes="Scancodes"/>
-            <copied="<copied>"/>
+            <Specific="Específico"/>
+            <Scancodes="Códigos de Scanear"/>
+            <copied="<copiado>"/>
             <Status>
                 "%%"
                 "\nStatus"
                 "\n"
-                "\n     Owner: %user@host%"
-                "\n   Session: %pipe%"
-                "\n     Users: %count%"
-                "\n  Monitors: %count%"
-                "\n    Uptime: %uptime%"
+                "\n Proprietário: %user@host%"
+                "\n      Sessão: %pipe%"
+                "\n    Usuários: %count%"
+                "\n   Monitores: %count%"
+                "\n     Atividade: %uptime%"
             </Status>
             <System>
                 "%%"
-                "\nSystem"
+                "\nSistema"
                 "\n"
-                "\n        OS: %os%"
+                "\n        SO: %os%"
                 "\n       CPU: %arch%"
-                "\n   Process: %binary%"
-                "\n       PID: %pid%"
-                "\n  Elevated: %level%"
+                "\n   Processo: %binary%"
+                "\n        PID: %pid%"
+                "\n   Elevado: %level%"
             </System>
-            <Yes="Yes"/>
-            <No="No"/>
+            <Yes="Sim"/>
+            <No="Não"/>
             <Uptime d="d" h="h" m="m" s="s"/>
-            <SF="Supported Features">
-                <SubcellSize="Subcell Size"/>
+            <SF="Features compatíveis">
+                <SubcellSize="Tamanho da subcélula"/>
                 <Latin="Latin"/>
                 <CJK="CJK"/>
-                <Thai="Thai"/>
-                <Georgian="Georgian"/>
+                <Thai="Tailandês"/>
+                <Georgian="Georgiano"/>
                 <Devanagari="Devanagari"/>
-                <Arabic="Arabic"/>
-                <Hebrew="Hebrew"/>
+                <Arabic="Árabe"/>
+                <Hebrew="Hebraico"/>
                 <Emoji="Emoji"/>
-                <BoxDrawing="Box Drawing"/>
-                <LargeTypePieces="Large Type Pieces"/>
-                <Style="Underline Styles">
-                    <SingleOverline="Single Overline"/>
-                    <DoubleUnderline="Double Underline"/>
-                    <SingleUnderline="Single Underline"/>
-                    <DashedUnderline="Dashed Underline"/>
-                    <DottedUnderline="Dotted Underline"/>
-                    <WavyUnderline="Wavy Underline"/>
-                    <WhiteSingleUnderline="White Single Underline"/>
-                    <WhiteWavyUnderline="White Wavy Underline"/>
-                    <RedSingleUnderline="Red Single Underline"/>
-                    <RedWavyUnderline="Red Wavy Underline"/>
+                <BoxDrawing="Desenho de caixas"/>
+                <LargeTypePieces="Peças tipográficas grandes"/>
+                <Style="Estilos de sublinhado">
+                    <SingleOverline="Sobrelinha simples"/>
+                    <DoubleUnderline="Sublinhado duplo"/>
+                    <SingleUnderline="Sublinhado simples"/>
+                    <DashedUnderline="Sublinhado tracejado"/>
+                    <DottedUnderline="Sublinhado pontilhado"/>
+                    <WavyUnderline="Sublinhado ondulado"/>
+                    <WhiteSingleUnderline="Sublinhado branco simples"/>
+                    <WhiteWavyUnderline="Sublinhado branco ondulado"/>
+                    <RedSingleUnderline="Sublinhado vermelho simples"/>
+                    <RedWavyUnderline="Sublinhado vermelho ondulado"/>
                 </Style>
-                <FontStyle="Font Styles">
+                <FontStyle="Estilos de fonte">
                     <Normal="Normal"/>
-                    <Blinking="Blinking"/>
-                    <Bold="Bold"/>
-                    <Italic="Italic"/>
+                    <Blinking="Piscando"/>
+                    <Bold="Negrito"/>
+                    <Italic="Itálico"/>
                 </FontStyle>
-                <CharacterWidth="Character Widths"/>
-                <VariationSelectors="Variation Selectors"/>
-                <LongestWord="The longest word in Hindi"/>
-                <RotationFlipandMirror="Rotation, Flip, and Mirror"/>
-                <CharacterMatrix="Character Matrix"/>
-                <CharacterHalves="Character Halves"/>
-                <TuiShadows="UI Shadows"/>
-                <TuiShadowsInner="Inner shadow"/>
-                <TuiShadowsOuter="Outer shadow"/>
-                <sRGBBlending="sRGB Gamma-Corrected Blending"/>
-                <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing and check the results."/>
+                <CharacterWidth="Largura dos caracteres"/>
+                <VariationSelectors="Seletores de variação"/>
+                <LongestWord="A palavra mais longa em hindi"/>
+                <RotationFlipandMirror="Rotação, inversão e espelhamento"/>
+                <CharacterMatrix="Matriz de caracteres"/>
+                <CharacterHalves="Metades dos caracteres"/>
+                <TuiShadows="Sombras da interface"/>
+                <TuiShadowsInner="Sombra interna"/>
+                <TuiShadowsOuter="Sombra externa"/>
+                <sRGBBlending="Mesclagem sRGB com correção de gama"/>
+                <PressCtrlCaps="Pressione Ctrl+CapsLock para alternar o antialiasing e conferir o resultado."/>
             </SF>
         </Info>
         <AlwaysOnTop>
             <on label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m"
-                tooltip="\e[1m"" Always on top: On                   ""\e[m\n"
-                               "  Keep this window above all others. "/>
+                tooltip="\e[1m"" Sempre no topo: On             ""\e[m\n"
+                               "  Mantém esta janela acima das demais. "/>
             <off label="  "
-                tooltip="\e[1m"" Always on top: Off                           ""\e[m\n"
-                               "  The window can be covered by other windows. "/>
+                tooltip="\e[1m"" Sempre no topo: Off                   ""\e[m\n"
+                               "  A janela pode ficar atrás de outras janelas. "/>
         </AlwaysOnTop>
         <LockAccess>
             <on label="\e[2:247m🔒\u{D0136}\e[2:239m🔒\u{D0137}\e[m"
-                tooltip="\e[1m"" Window access lock: On                                                    ""\e[m\n"
-                               "  Only users with focus at the time of locking can control this window.    ""\n"
-                               "  Released automatically when the last owner disconnects from the desktop. "/>
+                tooltip="\e[1m"" Bloqueio de acesso à janela: On                         ""\e[m\n"
+                               "  Somente usuários com foco no momento do bloqueio podem controlá-la. ""\n"
+                               "  Liberado quando o último proprietário se desconecta da área de trabalho. "/>
             <off label="  "
-                tooltip="\e[1m"" Window access lock: Off                                              ""\e[m\n"
-                               "  Turn it on to restrict window control to currently focused user(s). ""\n"
-                               "  Locked windows may prevent the desktop from shutting down.          "/>
+                tooltip="\e[1m"" Bloqueio de acesso à janela: Off                   ""\e[m\n"
+                               "  Ative-o para restringir o controle aos usuários em foco. ""\n"
+                               "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "/>
         </LockAccess>
-        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback buffer "/>
-        <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
+        <ClearScrollback label="  Limpar  "   tooltip=" Limpar histórico de rolagem "/>
+        <Restart         label="  Reiniciar  " tooltip=" Reiniciar a sessão atual do terminal "/>
         <Taskbar>
             <taskbar_tooltip>
-                "\e[1m"" Desktop Taskbar                     ""\e[m\n"
-                       "   RightDrag to scroll menu up/down  ""\n"
-                       "   LeftDrag to move desktop viewport "
+                "\e[1m"" Barra de tarefas                     ""\e[m\n"
+                       "   Arraste com o botão direito para rolar ""\n"
+                       "   Arraste com o botão esquerdo para mover a área de trabalho "
             </taskbar_tooltip>
-            <Apps label="apps">
+            <Apps label="aplicativos">
                 <tooltip>
-                    "\e[1m"" Default applications group                      ""\e[m\n"
-                           " Can be configured in ~/.config/vtm/settings.xml "
+                    "\e[1m"" Grupo de aplicativos padrão                      ""\e[m\n"
+                           " Pode ser configurado em ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Application:                               ""\n"
-                    "   LeftClick to launch application instance ""\n"
-                    "   RightClick to set as default             ""\n"
-                    "   LeftDrag to move desktop viewport        "
+                    " Aplicativo:                                  ""\n"
+                    "   Clique esquerdo para iniciar uma instância ""\n"
+                    "   Clique direito para definir como padrão   ""\n"
+                    "   Arraste com o botão esquerdo para mover a área de trabalho "
                 </deftooltip>
                 <toggletooltip>
-                    " Window list disclosure toggle                  ""\n"
-                    "   LeftClick to expand/collapse the window list ""\n"
-                    "   MouseWheel to switch to list-closing mode    "
+                    " Controle de exibição da lista de janelas          ""\n"
+                    "   Clique esquerdo para expandir/recolher a lista ""\n"
+                    "   Role o mouse para alternar o modo de fechamento "
                 </toggletooltip>
-                <groupclosetooltip=" Close all open windows in this group "/>
-                <Close tooltip=" Close application window "/>
+                <groupclosetooltip=" Fechar todas as janelas abertas deste grupo "/>
+                <Close tooltip=" Fechar janela do aplicativo "/>
                 <App>
                    <tooltip>
-                        " Running application          ""\n"
-                        "   LeftClick to activate      ""\n"
-                        "   DoubleLeftClick to fly to  "
+                        " Aplicativo em execução       ""\n"
+                        "   Clique esquerdo para ativar ""\n"
+                        "   Clique duplo para ir até ele "
                    </tooltip>
                 </App>
             </Apps>
             <tooltip_footer>
-                "   LeftClick to launch instance ""\n"
-                "   RightClick to set as default "
+                "   Clique esquerdo para iniciar ""\n"
+                "   Clique direito para definir como padrão "
             </tooltip_footer>
-            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console               \e[m\n"|tooltip_footer/>
-            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager          \e[m\n"|tooltip_footer/>
-            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker        \e[m\n"|tooltip_footer/>
-            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                    \e[m\n"|tooltip_footer/>
-            <Grips    tooltip=" LeftDrag to adjust taskbar width "/>
-            <UserList tooltip=" Active connections ">
-                <Admins label="admins"/>
-                <Users  label="users"/>
-                <User   tooltip=" Connected user "/>
-                <Toggle tooltip=" Show/hide user list "/>
+            <Terminal    label="Emulador de terminal" title="Terminal"          tooltip="\e[1m Console do terminal             \e[m\n"|tooltip_footer/>
+            <Tile        label="Gerenciador de janelas"  title="Gerenciador de janelas" tooltip="\e[1m Gerenciador de janelas lado a lado \e[m\n"|tooltip_footer/>
+            <Site        label="Marcador de área"     title="Marcador de área"     tooltip="\e[1m Marcador da área de trabalho    \e[m\n"|tooltip_footer/>
+            <Logs        label="Monitor de Logs"  title="Monitor de Logs"  tooltip="\e[1m Monitor de Logs             \e[m\n"|tooltip_footer/>
+            <Grips    tooltip=" Arraste com o botão esquerdo para ajustar a largura da barra "/>
+            <UserList tooltip=" Conexões ativas ">
+                <Admins label="administradores"/>
+                <Users  label="usuários"/>
+                <User   tooltip=" Usuário conectado "/>
+                <Toggle tooltip=" Mostrar/ocultar lista de usuários "/>
             </UserList>
-            <Disconnect  label="× Disconnect" tooltip=" Disconnect from the current session "/>
-            <Shutdown    label="× Shutdown"   tooltip="\e[1m"" Disconnect all users and shut down                          ""\e[m\n"
-                                                             "  Locked windows may prevent the desktop from shutting down. "/>
+            <Disconnect  label="× Desconectar" tooltip=" Desconectar da sessão atual "/>
+            <Shutdown    label="× Encerrar"   tooltip="\e[1m"" Desconectar todos os usuários e encerrar                         ""\e[m\n"
+                                                             "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
                 <tooltip>
-                    " Launch application instances in active empty slots.         ""\n"
-                    " RightClick on the taskbar menu item to set the application. "
+                    " Iniciar instâncias do aplicativo nos espaços vazios ativos. ""\n"
+                    " Clique direito no item da barra de tarefas para escolher o aplicativo. "
                 </tooltip>
             </RunApplication>
-            <SelectAllPanes     tooltip=" Select all panes "                              />
-            <SplitHorizontally  tooltip=" Split active panes horizontally "               />
-            <SplitVertically    tooltip=" Split active panes vertically "                 />
-            <SplitOrientation   tooltip=" Change split orientation "                      />
-            <SwapPanes          tooltip=" Swap two or more panes "                        />
-            <EqualizeSplitRatio tooltip=" Equalize split ratio "                          />
-            <SetManagerTitle    tooltip=" Set tiling window manager title from clipboard "/>
-            <ClosePane          tooltip=" Close active application "                      />
+            <SelectAllPanes     tooltip=" Selecionar todos os painéis "                  />
+            <SplitHorizontally  tooltip=" Dividir os painéis ativos horizontalmente "     />
+            <SplitVertically    tooltip=" Dividir os painéis ativos verticalmente "       />
+            <SplitOrientation   tooltip=" Alterar a orientação da divisão "               />
+            <SwapPanes          tooltip=" Trocar dois ou mais painéis "                   />
+            <EqualizeSplitRatio tooltip=" Equalizar a proporção da divisão "             />
+            <SetManagerTitle    tooltip=" Definir o título do gerenciador a partir da área de transferência "/>
+            <ClosePane          tooltip=" Fechar o aplicativo ativo "                    />
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Previous match                           ""\e[m\n"
-                       "  Click to jump to the previous match.    ""\n"
-                       "  Matches clipboard data if no selection. "
+                "\e[1m"" Ocorrência anterior                         ""\e[m\n"
+                       "  Clique para ir à ocorrência anterior.       ""\n"
+                       "  Sem seleção, procura o conteúdo da área de transferência. "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Next match                               ""\e[m\n"
-                       "  Click to jump to the next match.        ""\n"
-                       "  Matches clipboard data if no selection. "
+                "\e[1m"" Próxima ocorrência                           ""\e[m\n"
+                       "  Clique para ir à próxima ocorrência.          ""\n"
+                       "  Sem seleção, procura o conteúdo da área de transferência. "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
             <on label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m"
-                tooltip="\e[1m"" Exclusive keyboard mode: On            ""\e[m\n"
-                               "  Keystrokes are passed through to the  ""\n"
-                               "  application \e[1mwithout\e[m local processing. "/>
-            <off label="  Exclusive  "
-                tooltip="\e[1m"" Exclusive keyboard mode: Off          ""\e[m\n"
-                               "  Keystrokes are passed through to the ""\n"
-                               "  application \e[1mwith\e[m local processing.   "/>
+                tooltip="\e[1m"" Modo somente teclado: on ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao ""\n"
+                               "  aplicativo, \e[1msem\e[m processamento local. "/>
+            <off label="  Exclusivo  "
+                tooltip="\e[1m"" Modo exclusivo do teclado: off ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao ""\n"
+                               "  aplicativo, \e[1mcom\e[m processamento local. "/>
         </ExclusiveKeyboard>
         <NoWrapMode>
             <on label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m"
-                tooltip="\e[1m"" No-wrap mode: On                        ""\e[m\n"
-                               "  Text lines extend beyond the viewport. "/>
-            <off label=" NoWrap "
-                tooltip="\e[1m"" No-wrap mode: Off                      ""\e[m\n"
-                               "  Text lines are wrapped to a new line. "/>
+                tooltip="\e[1m"" Modo sem quebra de linha: on       ""\e[m\n"
+                               "  As linhas de texto ultrapassam a área visível. "/>
+            <off label=" Sem quebra "
+                tooltip="\e[1m"" Modo sem quebra de linha: off     ""\e[m\n"
+                               "  As linhas de texto são quebradas. "/>
         </NoWrapMode>
-        <ClipboardFormat tooltip=" Clipboard format ">
-                <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
-                <ansitext label="\e[38:2:255:255:0m  ANSI-text  \e[m"/>
-                <htmltext label="\e[38:2:0:255:255m  HTML-code  \e[m"/>
-                <safetext label="\e[38:2:0:255:255m  Protected  \e[m"/>
-                <disabled label=                  "  Clipboard  "/>
+        <ClipboardFormat tooltip=" Formato da área de transferência ">
+                <textonly label=  "\e[38:2:0:255:0m  Texto simples  \e[m"/>
+                <ansitext label="\e[38:2:255:255:0m  Texto ANSI  \e[m"/>
+                <htmltext label="\e[38:2:0:255:255m  Código HTML  \e[m"/>
+                <safetext label="\e[38:2:0:255:255m  Conteúdo protegido  \e[m"/>
+                <disabled label=                  "  Área de transferência  "/>
                 <richtext>
                     <label>
                         "\e[38:2:109:231:237m  ""R"
                         "\e[38:2:109:237:186m"  "T"
                         "\e[38:2:60:255:60m"    "F"
                         "\e[38:2:189:255:53m"   "-"
-                        "\e[38:2:255:255:49m"   "s"
-                        "\e[38:2:255:189:79m"   "t"
-                        "\e[38:2:255:114:94m"   "y"
-                        "\e[38:2:255:60:157m"   "l"
-                        "\e[38:2:255:49:214m"   "e""  \e[m"
+                        "\e[38:2:255:255:49m"   "e"
+                        "\e[38:2:255:189:79m"   "s"
+                        "\e[38:2:255:114:94m"   "t"
+                        "\e[38:2:255:60:157m"   "i"
+                        "\e[38:2:255:49:214m"   "l"
+                        "\e[38:2:255:49:214m"   "o""  \e[m"
                     </label>
                 </richtext>
         </ClipboardFormat>
         <StdioLog>
             <on label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"
-                tooltip="\e[1m"" Console logging: On            ""\e[m\n"
-                               "  Open Logs to view the output. "/>
+                tooltip="\e[1m"" Registro no console: on   ""\e[m\n"
+                               "  Abra o Monitor de registros para ver a saída. "/>
             <off label="  Log  "
-                tooltip="\e[1m"" Console logging: Off     ""\e[m\n"
-                               "  Logging is not enabled. "/>
+                tooltip="\e[1m"" Registro no console: off ""\e[m\n"
+                               "  O registro no console está off. "/>
         </StdioLog>
-        <MinimizeWindow tooltip=" Minimize "/>
-        <MaximizeWindow tooltip=" Maximize "/>
-        <CloseWindow    tooltip=" Close "/>
+        <MinimizeWindow tooltip=" Minimizar "/>
+        <MaximizeWindow tooltip=" Maximizar "/>
+        <CloseWindow    tooltip=" Fechar "/>
     </pt-BR>
     <en-GB>
         <Taskbar>
