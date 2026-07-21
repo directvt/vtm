@@ -719,7 +719,7 @@ R"==(
         <CloseWindow    tooltip=" Close "/>
     </en-US>
     <pt-BR>
-        <TextbasedDesktopEnvironment="  Desktop baseado em texto  "/>
+        <TextbasedDesktopEnvironment=" Ambiente Desktop baseado em texto  "/>
         <Info label="Info" title=label tooltip=" Info ">
             <KeybdTest="Teste do teclado"/>
             <KeybdMode="Modo somente teclado:"/>
@@ -730,7 +730,7 @@ R"==(
             <Generic="Genérico"/>
             <Literal="Literal"/>
             <Specific="Específico"/>
-            <Scancodes="Códigos de Scanear"/>
+            <Scancodes="Códigos de varredura"/>
             <copied="<copiado>"/>
             <Status>
                 "%%"
@@ -740,7 +740,7 @@ R"==(
                 "\n      Sessão: %pipe%"
                 "\n    Usuários: %count%"
                 "\n   Monitores: %count%"
-                "\n     Atividade: %uptime%"
+                "\n Tempo de atividade: %uptime%"
             </Status>
             <System>
                 "%%"
@@ -765,7 +765,7 @@ R"==(
                 <Arabic="Árabe"/>
                 <Hebrew="Hebraico"/>
                 <Emoji="Emoji"/>
-                <BoxDrawing="Desenho de caixas"/>
+                <BoxDrawing="Caracteres de moldura"/>
                 <LargeTypePieces="Peças tipográficas grandes"/>
                 <Style="Estilos de sublinhado">
                     <SingleOverline="Sobrelinha simples"/>
@@ -856,7 +856,7 @@ R"==(
             </tooltip_footer>
             <Terminal    label="Emulador de terminal" title="Terminal"          tooltip="\e[1m Console do terminal             \e[m\n"|tooltip_footer/>
             <Tile        label="Gerenciador de janelas"  title="Gerenciador de janelas" tooltip="\e[1m Gerenciador de janelas lado a lado \e[m\n"|tooltip_footer/>
-            <Site        label="Marcador de área"     title="Marcador de área"     tooltip="\e[1m Marcador da área de trabalho    \e[m\n"|tooltip_footer/>
+            <Site        label="Marcador de área "     title="Marcador de área "     tooltip="\e[1m Marcador da área de trabalho    \e[m\n"|tooltip_footer/>
             <Logs        label="Monitor de Logs"  title="Monitor de Logs"  tooltip="\e[1m Monitor de Logs             \e[m\n"|tooltip_footer/>
             <Grips    tooltip=" Arraste com o botão esquerdo para ajustar a largura da barra "/>
             <UserList tooltip=" Conexões ativas ">
@@ -905,7 +905,7 @@ R"==(
                                "  As teclas são enviadas diretamente ao ""\n"
                                "  aplicativo, \e[1msem\e[m processamento local. "/>
             <off label="  Exclusivo  "
-                tooltip="\e[1m"" Modo exclusivo do teclado: off ""\e[m\n"
+                tooltip="\e[1m"" Modo somente teclado: off ""\e[m\n"
                                "  As teclas são enviadas diretamente ao ""\n"
                                "  aplicativo, \e[1mcom\e[m processamento local. "/>
         </ExclusiveKeyboard>
@@ -925,16 +925,16 @@ R"==(
                 <disabled label=                  "  Área de transferência  "/>
                 <richtext>
                     <label>
-                        "\e[38:2:109:231:237m  ""R"
-                        "\e[38:2:109:237:186m"  "T"
-                        "\e[38:2:60:255:60m"    "F"
-                        "\e[38:2:189:255:53m"   "-"
-                        "\e[38:2:255:255:49m"   "e"
-                        "\e[38:2:255:189:79m"   "s"
-                        "\e[38:2:255:114:94m"   "t"
-                        "\e[38:2:255:60:157m"   "i"
-                        "\e[38:2:255:49:214m"   "l"
-                        "\e[38:2:255:49:214m"   "o""  \e[m"
+                        "\e[38:2:109:231:237m  ""E"
+                        "\e[38:2:109:237:186m"  "s"
+                        "\e[38:2:60:255:60m"    "t"
+                        "\e[38:2:189:255:53m"   "i"
+                        "\e[38:2:255:255:49m"   "l"
+                        "\e[38:2:255:189:79m"   "o"
+                        "\e[38:2:255:114:94m"   " "
+                        "\e[38:2:255:60:157m"   "R"
+                        "\e[38:2:255:49:214m"   "T"
+                        "\e[38:2:255:49:214m"   "F""  \e[m"
                     </label>
                 </richtext>
         </ClipboardFormat>
