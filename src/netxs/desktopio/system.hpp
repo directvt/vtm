@@ -3956,21 +3956,29 @@ namespace netxs::os
     namespace x11
     {
         #pragma pack(push, 1)
-        struct session_config
+        template<class T>
+        struct data_n_size
         {
-            struct format
+            auto data() { return (void*)this; }
+            auto size() { return sizeof(T::s); }
+        };
+        struct session_config : data_n_size<session_config>
+        {
+            struct format : data_n_size<format>
             {
-                byte depth;          // 1 byte depth
-                byte bits_per_pixel; // 1 byte bits_per_pixel
-                byte scanline_pad;   // 1 byte scanline_pad
-                byte pad[5];         // 5 pad  unused
-                static const size_t static_size; si32 _cut{};
-            };
-            struct screen
-            {
-                struct depth
+                struct
                 {
-                    struct visual_type
+                    byte depth;          // 1 byte depth
+                    byte bits_per_pixel; // 1 byte bits_per_pixel
+                    byte scanline_pad;   // 1 byte scanline_pad
+                    byte pad[5];         // 5 pad  unused
+                } s;
+            };
+            struct screen : data_n_size<screen>
+            {
+                struct depth : data_n_size<depth>
+                {
+                    struct visual_type : data_n_size<visual_type>
                     {
                         struct vclass
                         {
@@ -3981,60 +3989,67 @@ namespace netxs::os
                             static constexpr auto TrueColor   = (byte)5;
                             static constexpr auto DirectColor = (byte)6;
                         };
-                        ui32 visual_id;          // 4 ui32 visual_id
-                        byte visual_class;       // 1 byte vclass
-                        byte bits_per_rgb_value; // 1 byte bits_per_rgb_value
-                        ui16 colormap_entries;   // 2 ui16 colormap_entries
-                        ui32 red_mask;           // 4 ui32 red_mask
-                        ui32 green_mask;         // 4 ui32 green_mask
-                        ui32 blue_mask;          // 4 ui32 blue_mask
-                        ui32 pad;                // 4 pad  unused
-                        static const size_t static_size; si32 _cut{};
+                        struct
+                        {
+                            ui32 visual_id;          // 4 ui32 visual_id
+                            byte visual_class;       // 1 byte vclass
+                            byte bits_per_rgb_value; // 1 byte bits_per_rgb_value
+                            ui16 colormap_entries;   // 2 ui16 colormap_entries
+                            ui32 red_mask;           // 4 ui32 red_mask
+                            ui32 green_mask;         // 4 ui32 green_mask
+                            ui32 blue_mask;          // 4 ui32 blue_mask
+                            ui32 pad;                // 4 pad  unused
+                        } s;
                     };
-                    byte depth;               // 1 byte depth
-                    byte pad1;                // 1 pad  unused
-                    ui16 num_of_visual_types; // 2 n    number of visual_types in visuals
-                    ui32 pad2;                // 4 pad  unused
-                    static const size_t static_size; si32 _cut{};
+                    struct
+                    {
+                        byte depth;               // 1 byte depth
+                        byte pad1;                // 1 pad  unused
+                        ui16 num_of_visual_types; // 2 n    number of visual_types in visuals
+                        ui32 pad2;                // 4 pad  unused
+                    } s;
                     std::vector<visual_type> list_of_visual_types; // 24*n  list_of_visual_types  visuals
                 };
-                ui32 root_window_id;        // 4 ui32 WINDOW      root_window_id
-                ui32 default_colormap;      // 4 ui32 COLORMAP    default_colormap
-                ui32 white_pixel;           // 4 ui32             white_pixel
-                ui32 black_pixel;           // 4 ui32             black_pixel
-                ui32 current_input_masks;   // 4 ui32 SETofEVENT  current_input_masks
-                ui16 width_in_pixels;       // 2 ui16             width_in_pixels
-                ui16 height_in_pixels;      // 2 ui16             height_in_pixels
-                ui16 width_in_millimeters;  // 2 ui16             width_in_millimeters
-                ui16 height_in_millimeters; // 2 ui16             height_in_millimeters
-                ui16 min_installed_maps;    // 2 ui16             min_installed_maps
-                ui16 max_installed_maps;    // 2 ui16             max_installed_maps
-                ui32 root_visual;           // 4 ui32 VisualId    root_visual
-                byte backing_stores;        // 1 byte             backing_stores 0: Never, 1: WhenMapped, 2: Always
-                byte save_unders;           // 1 byte BOOL        save_unders 0/1
-                byte root_depth;            // 1 byte             root_depth
-                byte number_of_depths;      // 1 byte             number of depths (list_of_depths) in allowed_depths
-                static const size_t static_size; si32 _cut{};
+                struct
+                {
+                    ui32 root_window_id;        // 4 ui32 WINDOW      root_window_id
+                    ui32 default_colormap;      // 4 ui32 COLORMAP    default_colormap
+                    ui32 white_pixel;           // 4 ui32             white_pixel
+                    ui32 black_pixel;           // 4 ui32             black_pixel
+                    ui32 current_input_masks;   // 4 ui32 SETofEVENT  current_input_masks
+                    ui16 width_in_pixels;       // 2 ui16             width_in_pixels
+                    ui16 height_in_pixels;      // 2 ui16             height_in_pixels
+                    ui16 width_in_millimeters;  // 2 ui16             width_in_millimeters
+                    ui16 height_in_millimeters; // 2 ui16             height_in_millimeters
+                    ui16 min_installed_maps;    // 2 ui16             min_installed_maps
+                    ui16 max_installed_maps;    // 2 ui16             max_installed_maps
+                    ui32 root_visual;           // 4 ui32 VisualId    root_visual
+                    byte backing_stores;        // 1 byte             backing_stores 0: Never, 1: WhenMapped, 2: Always
+                    byte save_unders;           // 1 byte BOOL        save_unders 0/1
+                    byte root_depth;            // 1 byte             root_depth
+                    byte number_of_depths;      // 1 byte             number of depths (list_of_depths) in allowed_depths
+                } s;
                 std::vector<depth> list_of_depths; // List of allowed_depths (n is always a multiple of 4)
             };
-            ui32 release_number;              // 4 ui32 buffer[0..3]   = release_number
-            ui32 resource_id_base;            // 4 ui32 buffer[4..7]   = resource_id_base
-            ui32 resource_id_mask;            // 4 ui32 buffer[8..11]  = resource_id_mask
-            ui32 motion_buffer_size;          // 4 ui32 buffer[12..15] = motion_buffer_size
-            ui16 vendor_length;               // 2 ui16 buffer[16..17] = vendor_length
-            ui16 maximum_request_length;      // 2 ui16 buffer[18..19] = maximum_request_length
-            byte number_of_screens;           // 1 byte buffer[20]     = number_of_screens in roots
-            byte number_of_formats;           // 1 byte buffer[21]     = number_of_formats in pixmap_formats
-            byte image_byte_order;            // 1 byte buffer[22]     = 0: LSBFirst, 1: MSBFirst
-            byte bitmap_format_bit_order;     // 1 byte buffer[23]     = 0: LeastSignificant, 1: MostSignificant
-            byte bitmap_format_scanline_unit; // 1 byte buffer[24]     = bitmap_format_scanline_unit
-            byte bitmap_format_scanline_pad;  // 1 byte buffer[25]     = bitmap_format_scanline_pad
-            byte min_keycode;                 // 1 byte buffer[26]     = min_keycode
-            byte max_keycode;                 // 1 byte buffer[27]     = max_keycode
-            byte pad[4];                      // 4 ui32 buffer[28..31] = unused
-            static const size_t static_size; si32 _cut{};
+            struct
+            {
+                ui32 release_number;              // 4 ui32 buffer[0..3]   = release_number
+                ui32 resource_id_base;            // 4 ui32 buffer[4..7]   = resource_id_base
+                ui32 resource_id_mask;            // 4 ui32 buffer[8..11]  = resource_id_mask
+                ui32 motion_buffer_size;          // 4 ui32 buffer[12..15] = motion_buffer_size
+                ui16 vendor_length;               // 2 ui16 buffer[16..17] = vendor_length
+                ui16 maximum_request_length;      // 2 ui16 buffer[18..19] = maximum_request_length
+                byte number_of_screens;           // 1 byte buffer[20]     = number_of_screens in roots
+                byte number_of_formats;           // 1 byte buffer[21]     = number_of_formats in pixmap_formats
+                byte image_byte_order;            // 1 byte buffer[22]     = 0: LSBFirst, 1: MSBFirst
+                byte bitmap_format_bit_order;     // 1 byte buffer[23]     = 0: LeastSignificant, 1: MostSignificant
+                byte bitmap_format_scanline_unit; // 1 byte buffer[24]     = bitmap_format_scanline_unit
+                byte bitmap_format_scanline_pad;  // 1 byte buffer[25]     = bitmap_format_scanline_pad
+                byte min_keycode;                 // 1 byte buffer[26]     = min_keycode
+                byte max_keycode;                 // 1 byte buffer[27]     = max_keycode
+                byte pad[4];                      // 4 ui32 buffer[28..31] = unused
+            } s;
             text vendor_str;                  // 4 ui32 buffer[32..32+vendor_length] = vendor_str
-            // vendor_pad = pad(vendor_length)
             std::vector<format> pixmap_formats; // format * number_of_formats = pixmap_formats
             std::vector<screen> roots; // screen * number_of_screens = roots (always a multiple of 4)
             bool success;
@@ -4043,19 +4058,21 @@ namespace netxs::os
             {
                 if (roots.empty()) return "no screen roots"s;
                 auto str = utf::fprint("%%Connected: id_base/mask=%%/%% root_window_id=%% screens=%% vendor='%%'\n", prompt::x11,
-                    utf::to_hex(resource_id_base),
-                    utf::to_hex(resource_id_mask),
-                    utf::to_hex(roots.front().root_window_id),
-                    (si32)number_of_screens,
+                    utf::to_hex(s.resource_id_base),
+                    utf::to_hex(s.resource_id_mask),
+                    utf::to_hex(roots.front().s.root_window_id),
+                    (si32)s.number_of_screens,
                     utf::debase<faux, faux>(vendor_str));
                 str += pixmap_formats.size() ? utf::fprint("    pixmap_formats(%%):\n", pixmap_formats.size()) : "    no pixmap_formats\n";
-                for (auto& pf : pixmap_formats)
+                for (auto& format : pixmap_formats)
                 {
+                    auto& pf = format.s;
                     str += utf::fprint("\tdepth=%% bpp=%% scanline_pad=%%\n", (si32)pf.depth, (si32)pf.bits_per_pixel, (si32)pf.scanline_pad);
                 }
                 str += roots.size() ? utf::fprint("    root screens(%%):\n", roots.size()) : "    no screen roots\n";
-                for (auto& sc : roots)
+                for (auto& root : roots)
                 {
+                    auto& sc = root.s;
                     str += utf::fprint("     root_window_id="        , utf::to_hex(sc.root_window_id),
                                         "\n\t default_colormap="     , utf::to_hex(sc.default_colormap),
                                         "\n\t white_pixel="          , utf::to_hex(sc.white_pixel),
@@ -4073,13 +4090,15 @@ namespace netxs::os
                                         "\n\t root_depth="           , (si32)sc.root_depth,
                                         "\n\t number_of_depths="     , (si32)sc.number_of_depths,
                                         "\n");
-                    str += sc.list_of_depths.size() ? utf::fprint("\t   depths(%%):\n", sc.list_of_depths.size()) : "        no depths\n";
-                    for (auto& d : sc.list_of_depths)
+                    str += root.list_of_depths.size() ? utf::fprint("\t   depths(%%):\n", root.list_of_depths.size()) : "        no depths\n";
+                    for (auto& depth : root.list_of_depths)
                     {
+                        auto& d = depth.s;
                         str += utf::fprint("\t\t depth=%% num_of_visual_types=%%\n", (si32)d.depth, d.num_of_visual_types);
-                        //str += d.list_of_visual_types.size() ? utf::fprint("          visual_types(%%):\n", d.list_of_visual_types.size()) : "          no visual_types\n";
-                        //for (auto& v : d.list_of_visual_types)
+                        //str += depth.list_of_visual_types.size() ? utf::fprint("          visual_types(%%):\n", depth.list_of_visual_types.size()) : "          no visual_types\n";
+                        //for (auto& vt : depth.list_of_visual_types)
                         //{
+                        //    auto& v = vt.s;
                         //    str += utf::fprint("\tvisual_id=",              utf::to_hex(v.visual_id),
                         //                        "\n\t\t visual_class=",       (si32)v.visual_class,
                         //                        "\n\t\t bits_per_rgb_value=", (si32)v.bits_per_rgb_value,
@@ -4096,11 +4115,6 @@ namespace netxs::os
             }
         };
         #pragma pack(pop)
-        inline const size_t session_config::format::static_size                     = offsetof(format,                     _cut);
-        inline const size_t session_config::screen::depth::visual_type::static_size = offsetof(screen::depth::visual_type, _cut);
-        inline const size_t session_config::screen::depth::static_size              = offsetof(screen::depth,              _cut);
-        inline const size_t session_config::screen::static_size                     = offsetof(screen,                     _cut);
-        inline const size_t session_config::static_size                             = offsetof(session_config,             _cut);
 
         auto read_ui16be(std::ifstream& fs)
         {
@@ -4227,36 +4241,38 @@ namespace netxs::os
                 {
                     auto q = qiew{ buffer };
                     auto failed = faux;
-                    auto load = [&](void* object_ptr, auto len)
+                    auto load = [&](auto& object)
                     {
+                        auto ptr = object.data();
+                        auto len = object.size();
                         auto len_padded = (size_t)((len + 3) & ~3);
                         if (!failed && q.size() >= len_padded)
                         {
-                            std::memcpy(object_ptr, q.data(), len);
+                            std::memcpy(ptr, q.data(), len);
                             q.remove_prefix(len_padded);
                         }
                         else failed = true;
                     };
-                    load(&config, config.static_size);
-                    config.vendor_str.resize(config.vendor_length);
-                    load(config.vendor_str.data(), config.vendor_length);
-                    config.pixmap_formats.resize(config.number_of_formats);
-                    for (auto& pf : config.pixmap_formats)
+                    load(config);
+                    config.vendor_str.resize(config.s.vendor_length);
+                    load(config.vendor_str);
+                    config.pixmap_formats.resize(config.s.number_of_formats);
+                    for (auto& pixmap_format : config.pixmap_formats)
                     {
-                        load(&pf, pf.static_size);
+                        load(pixmap_format);
                     }
-                    config.roots.resize(config.number_of_screens);
+                    config.roots.resize(config.s.number_of_screens);
                     for (auto& screen : config.roots)
                     {
-                        load(&screen, screen.static_size);
-                        screen.list_of_depths.resize(screen.number_of_depths);
+                        load(screen);
+                        screen.list_of_depths.resize(screen.s.number_of_depths);
                         for (auto& depth : screen.list_of_depths)
                         {
-                            load(&depth, depth.static_size);
-                            depth.list_of_visual_types.resize(depth.num_of_visual_types);
+                            load(depth);
+                            depth.list_of_visual_types.resize(depth.s.num_of_visual_types);
                             for (auto& visual_type : depth.list_of_visual_types)
                             {
-                                load(&visual_type, visual_type.static_size);
+                                load(visual_type);
                             }
                         }
                     }
