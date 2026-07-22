@@ -719,7 +719,7 @@ R"==(
         <CloseWindow    tooltip=" Close "/>
     </en-US>
     <pt-BR>
-        <TextbasedDesktopEnvironment=" Ambiente Desktop baseado em texto  "/>
+        <TextbasedDesktopEnvironment="  Ambiente Desktop baseado em texto  "/>
         <Info label="Info" title=label tooltip=" Info ">
             <KeybdTest="Teste do teclado"/>
             <KeybdMode="Modo somente teclado:"/>
@@ -736,7 +736,7 @@ R"==(
                 "%%"
                 "\nStatus"
                 "\n"
-                "\n Proprietário      : %user@host%"
+                "\n       Proprietário: %user@host%"
                 "\n             Sessão: %pipe%"
                 "\n           Usuários: %count%"
                 "\n          Monitores: %count%"
@@ -746,11 +746,11 @@ R"==(
                 "%%"
                 "\nSistema"
                 "\n"
-                "\n        SO       : %os%"
-                "\n       CPU       : %arch%"
-                "\n   Processo      : %binary%"
-                "\n       PID       : %pid%"
-                "\n     Elevado     : %level%"
+                "\n          SO: %os%"
+                "\n         CPU: %arch%"
+                "\n    Processo: %binary%"
+                "\n         PID: %pid%"
+                "\n     Elevado: %level%"
             </System>
             <Yes="Sim"/>
             <No="Não"/>
@@ -799,117 +799,75 @@ R"==(
             </SF>
         </Info>
         <AlwaysOnTop>
-            <on
-                label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m"
-                tooltip="\e[1m"" Sempre no topo: On                              ""\e[m\n"
-                               "  Mantém esta janela acima das demais.              "
-            />
-            <off
-                label="  "
-                tooltip="\e[1m"" Sempre no topo: Off                             ""\e[m\n"
-                               "  A janela pode ficar atrás de outras janelas.     "
-            />
+            <on label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m"
+                tooltip="\e[1m"" Sempre no topo: On                    ""\e[m\n"
+                               "  Mantém esta janela acima das demais. "/>
+            <off label="  "
+                tooltip="\e[1m"" Sempre no topo: Off                           ""\e[m\n"
+                               "  A janela pode ficar atrás de outras janelas. "/>
         </AlwaysOnTop>
         <LockAccess>
-            <on
-                label="\e[2:247m🔒\u{D0136}\e[2:239m🔒\u{D0137}\e[m"
-                tooltip="\e[1m"" Bloqueio de acesso à janela: On                              ""\e[m\n"
-                               "  Somente usuários com foco no momento do bloqueio podem controlá-la.   ""\n"
-                               "  Liberado quando o último proprietário se desconecta da área de trabalho. "
-            />
-            <off
-                label="  "
-                tooltip="\e[1m"" Bloqueio de acesso à janela: Off                            ""\e[m\n"
-                               "  Ative-o para restringir o controle aos usuários em foco.       ""\n"
-                               "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "
-            />
+            <on label="\e[2:247m🔒\u{D0136}\e[2:239m🔒\u{D0137}\e[m"
+                tooltip="\e[1m"" Bloqueio de acesso à janela: On                                           ""\e[m\n"
+                               "  Somente usuários com foco no momento do bloqueio podem controlá-la.      ""\n"
+                               "  Liberado quando o último proprietário se desconecta da área de trabalho. "/>
+            <off label="  "
+                tooltip="\e[1m"" Bloqueio de acesso à janela: Off                                      ""\e[m\n"
+                               "  Ative-o para restringir o controle aos usuários em foco.             ""\n"
+                               "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "/>
         </LockAccess>
-        <ClearScrollback
-            label="  Limpar  "
-            tooltip=" Limpar histórico de rolagem "
-        />
-        <Restart
-            label="  Reiniciar  "
-            tooltip=" Reiniciar a sessão atual do terminal "
-        />
+        <ClearScrollback label="  Limpar  "    tooltip=" Limpar histórico de rolagem "/>
+        <Restart         label="  Reiniciar  " tooltip=" Reiniciar a sessão atual do terminal "/>
         <Taskbar>
             <taskbar_tooltip>
-                "\e[1m"" Barra de tarefas                                            ""\e[m\n"
-                       "   Arraste com o botão direito para rolar                         ""\n"
+                "\e[1m"" Barra de tarefas                                             ""\e[m\n"
+                       "   Arraste com o botão direito para rolar                     ""\n"
                        "   Arraste com o botão esquerdo para mover a área de trabalho "
             </taskbar_tooltip>
             <Apps label="aplicativos">
                 <tooltip>
-                    "\e[1m"" Grupo de aplicativos padrão                                ""\e[m\n"
-                           " Pode ser configurado em ~/.config/vtm/settings.xml         "
+                    "\e[1m"" Grupo de aplicativos padrão                        ""\e[m\n"
+                           " Pode ser configurado em ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Aplicativo:                                                         ""\n"
-                    "   Clique esquerdo para iniciar uma instância                        ""\n"
-                    "   Clique direito para definir como padrão                           ""\n"
-                    "   Arraste com o botão esquerdo para mover a área de trabalho        "
+                    " Aplicativo:                                                  ""\n"
+                    "   Clique esquerdo para iniciar uma instância                 ""\n"
+                    "   Clique direito para definir como padrão                    ""\n"
+                    "   Arraste com o botão esquerdo para mover a área de trabalho "
                 </deftooltip>
                 <toggletooltip>
-                    " Controle de exibição da lista de janelas                       ""\n"
-                    "   Clique esquerdo para expandir/recolher a lista               ""\n"
-                    "   Role o mouse para alternar o modo de fechamento              "
+                    " Controle de exibição da lista de janelas          ""\n"
+                    "   Clique esquerdo para expandir/recolher a lista  ""\n"
+                    "   Role o mouse para alternar o modo de fechamento "
                 </toggletooltip>
                 <groupclosetooltip=" Fechar todas as janelas abertas deste grupo "/>
-                <Close
-                    tooltip=" Fechar janela do aplicativo "
-                />
+                <Close tooltip=" Fechar janela do aplicativo "/>
                 <App>
                    <tooltip>
-                        " Aplicativo em execução                                      ""\n"
-                        "   Clique esquerdo para ativar                               ""\n"
-                        "   Clique duplo para ir até ele                              "
+                        " Aplicativo em execução         ""\n"
+                        "   Clique esquerdo para ativar  ""\n"
+                        "   Clique duplo para ir até ele "
                    </tooltip>
                 </App>
             </Apps>
             <tooltip_footer>
-                "   Clique esquerdo para iniciar                                  ""\n"
-                "   Clique direito para definir como padrão                       "
+                "   Clique esquerdo para iniciar            ""\n"
+                "   Clique direito para definir como padrão "
             </tooltip_footer>
-            <Terminal
-                label="Emulador de terminal"
-                title="Terminal"
-                tooltip="\e[1m Console do terminal                                             \e[m\n"|tooltip_footer
-            />
-            <Tile
-                label="Gerenciador de janelas"
-                title="Gerenciador de janelas"
-                tooltip="\e[1m Gerenciador de janelas lado a lado                              \e[m\n"|tooltip_footer
-            />
-            <Site
-                label="Marcador de área "
-                title="Marcador de área "
-                tooltip="\e[1m Marcador da área de trabalho                                    \e[m\n"|tooltip_footer
-            />
-            <Logs
-                label="Monitor de Logs"
-                title="Monitor de Logs"
-                tooltip="\e[1m Monitor de Logs                                                 \e[m\n"|tooltip_footer
-            />
-            <Grips
-                tooltip=" Arraste com o botão esquerdo para ajustar a largura da barra "
-            />
-            <UserList
-                tooltip=" Conexões ativas "
-            >
+            <Terminal label="Emulador de terminal"   title="Terminal"               tooltip="\e[1m Console do terminal                       \e[m\n"|tooltip_footer/>
+            <Tile     label="Gerenciador de janelas" title="Gerenciador de janelas" tooltip="\e[1m Gerenciador de janelas lado a lado        \e[m\n"|tooltip_footer/>
+            <Site     label="Marcador de área "      title="Marcador de área "      tooltip="\e[1m Marcador da área de trabalho              \e[m\n"|tooltip_footer/>
+            <Logs     label="Monitor de Logs"        title="Monitor de Logs"        tooltip="\e[1m Monitor de Logs                           \e[m\n"|tooltip_footer/>
+            <Grips    tooltip=" Arraste com o botão esquerdo para ajustar a largura da barra "/>
+            <UserList tooltip=" Conexões ativas ">
                 <Admins label="administradores"/>
                 <Users  label="usuários"/>
                 <User   tooltip=" Usuário conectado "/>
                 <Toggle tooltip=" Mostrar/ocultar lista de usuários "/>
             </UserList>
-            <Disconnect
-                label="× Desconectar"
-                tooltip=" Desconectar da sessão atual "
-            />
-            <Shutdown
-                label="× Encerrar"
-                tooltip="\e[1m"" Desconectar todos os usuários e encerrar                              ""\e[m\n"
-                               "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "
-            />
+            <Disconnect label="× Desconectar" tooltip=" Desconectar da sessão atual "/>
+            <Shutdown   label="× Encerrar"    tooltip="\e[1m"" Desconectar todos os usuários e encerrar                              ""\e[m\n"
+                                                             "  Janelas bloqueadas podem impedir o encerramento da área de trabalho. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
@@ -918,74 +876,48 @@ R"==(
                     " Clique direito no item da barra de tarefas para escolher o aplicativo. "
                 </tooltip>
             </RunApplication>
-            <SelectAllPanes
-                tooltip=" Selecionar todos os painéis "
-            />
-            <SplitHorizontally
-                tooltip=" Dividir os painéis ativos horizontalmente "
-            />
-            <SplitVertically
-                tooltip=" Dividir os painéis ativos verticalmente "
-            />
-            <SplitOrientation
-                tooltip=" Alterar a orientação da divisão "
-            />
-            <SwapPanes
-                tooltip=" Trocar dois ou mais painéis "
-            />
-            <EqualizeSplitRatio
-                tooltip=" Equalizar a proporção da divisão "
-            />
-            <SetManagerTitle
-                tooltip=" Definir o título do gerenciador a partir da área de transferência "
-            />
-            <ClosePane
-                tooltip=" Fechar o aplicativo ativo "
-            />
+            <SelectAllPanes     tooltip=" Selecionar todos os painéis "/>
+            <SplitHorizontally  tooltip=" Dividir os painéis ativos horizontalmente "/>
+            <SplitVertically    tooltip=" Dividir os painéis ativos verticalmente "/>
+            <SplitOrientation   tooltip=" Alterar a orientação da divisão "/>
+            <SwapPanes          tooltip=" Trocar dois ou mais painéis "/>
+            <EqualizeSplitRatio tooltip=" Equalizar a proporção da divisão "/>
+            <SetManagerTitle    tooltip=" Definir o título do gerenciador a partir da área de transferência "/>
+            <ClosePane          tooltip=" Fechar o aplicativo ativo "/>
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Ocorrência anterior                                      ""\e[m\n"
-                       "  Clique para ir à ocorrência anterior.                    ""\n"
-                 "  Sem seleção, procura o conteúdo da área de transferência.           "
+                "\e[1m"" Ocorrência anterior                                        ""\e[m\n"
+                       "  Clique para ir à ocorrência anterior.                     ""\n"
+                       "  Sem seleção, procura o conteúdo da área de transferência. "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Próxima ocorrência                                       ""\e[m\n"
-                       "  Clique para ir à próxima ocorrência.                     ""\n"
-                 "  Sem seleção, procura o conteúdo da área de transferência.           "
+                "\e[1m"" Próxima ocorrência                                         ""\e[m\n"
+                       "  Clique para ir à próxima ocorrência.                      ""\n"
+                       "  Sem seleção, procura o conteúdo da área de transferência. "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
-            <on
-                label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m"
-                tooltip="\e[1m"" Modo somente teclado: on                ""\e[m\n"
-                               "  As teclas são enviadas diretamente ao                  ""\n"
-                               "  aplicativo, \e[1msem\e[m processamento local.   "
-            />
-            <off
-                label="  Exclusivo  "
-                tooltip="\e[1m"" Modo somente teclado: off               ""\e[m\n"
-                               "  As teclas são enviadas diretamente ao                  ""\n"
-                               "  aplicativo, \e[1mcom\e[m processamento local.   "
-            />
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusivo \e[2:239m \e[m"
+                tooltip="\e[1m"" Modo somente teclado: on                       ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao         ""\n"
+                               "  aplicativo, \e[1msem\e[m processamento local. "/>
+            <off label="  Exclusivo  "
+                tooltip="\e[1m"" Modo somente teclado: off                      ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao         ""\n"
+                               "  aplicativo, \e[1mcom\e[m processamento local. "/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on
-                label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m"
-                tooltip="\e[1m"" Modo sem quebra de linha: on                         ""\e[m\n"
-                               "  As linhas de texto ultrapassam a área visível.        "
-            />
-            <off
-                label=" Sem quebra "
-                tooltip="\e[1m"" Modo sem quebra de linha: off                        ""\e[m\n"
-                               "  As linhas de texto são quebradas.                    "
-            />
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0mSem quebra\e[2:239m \e[m"
+                tooltip="\e[1m"" Modo sem quebra de linha: on                    ""\e[m\n"
+                               "  As linhas de texto ultrapassam a área visível. "/>
+            <off label=" Sem quebra "
+                tooltip="\e[1m"" Modo sem quebra de linha: off      ""\e[m\n"
+                               "  As linhas de texto são quebradas. "/>
         </NoWrapMode>
-        <ClipboardFormat
-            tooltip=" Formato da área de transferência "
-        >
+        <ClipboardFormat tooltip=" Formato da área de transferência ">
                 <textonly label=  "\e[38:2:0:255:0m  Texto simples  \e[m"/>
                 <ansitext label="\e[38:2:255:255:0m  Texto ANSI  \e[m"/>
                 <htmltext label="\e[38:2:0:255:255m  Código HTML  \e[m"/>
@@ -1007,26 +939,16 @@ R"==(
                 </richtext>
         </ClipboardFormat>
         <StdioLog>
-            <on
-                label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"
-                tooltip="\e[1m"" Registro no console: on                              ""\e[m\n"
-                               "  Abra o Monitor de registros para ver a saída.          "
-            />
-            <off
-                label="  Log  "
-                tooltip="\e[1m"" Registro no console: off                             ""\e[m\n"
-                               "  O registro no console está off.                       "
-            />
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"
+                tooltip="\e[1m"" Registro no console: on                        ""\e[m\n"
+                               "  Abra o Monitor de registros para ver a saída. "/>
+            <off label="  Log  "
+                tooltip="\e[1m"" Registro no console: off         ""\e[m\n"
+                               "  O registro no console está off. "/>
         </StdioLog>
-        <MinimizeWindow
-            tooltip=" Minimizar "
-        />
-        <MaximizeWindow
-            tooltip=" Maximizar "
-        />
-        <CloseWindow
-            tooltip=" Fechar "
-        />
+        <MinimizeWindow tooltip=" Minimizar "/>
+        <MaximizeWindow tooltip=" Maximizar "/>
+        <CloseWindow    tooltip=" Fechar "/>
     </pt-BR>
     <en-GB>
         <Taskbar>
