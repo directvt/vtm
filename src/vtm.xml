@@ -901,13 +901,13 @@ R"==(
         </FindNext>
         <ExclusiveKeyboard>
             <on label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusivo \e[2:239m \e[m"
-                tooltip="\e[1m"" Modo somente teclado: on                       ""\e[m\n"
-                               "  As teclas são enviadas diretamente ao         ""\n"
-                               "  aplicativo, \e[1msem\e[m processamento local. "/>
+                tooltip="\e[1m"" Modo somente teclado: on               ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao ""\n"
+                               "  aplicativo, \e[1msem\e[m processamento local.  "/>
             <off label="  Exclusivo  "
-                tooltip="\e[1m"" Modo somente teclado: off                      ""\e[m\n"
-                               "  As teclas são enviadas diretamente ao         ""\n"
-                               "  aplicativo, \e[1mcom\e[m processamento local. "/>
+                tooltip="\e[1m"" Modo somente teclado: off              ""\e[m\n"
+                               "  As teclas são enviadas diretamente ao ""\n"
+                               "  aplicativo, \e[1mcom\e[m processamento local.  "/>
         </ExclusiveKeyboard>
         <NoWrapMode>
             <on label="\e[2:247m \e[2:231;38:2:0:255:0mSem quebra\e[2:239m \e[m"
