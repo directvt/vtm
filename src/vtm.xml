@@ -844,15 +844,15 @@ R"==(
                            " Pode ser configurado em ~/.config/vtm/settings.xml         "
                 </tooltip>
                 <deftooltip>
-                    " Aplicativo:                                                       ""\n"
-                    "   Clique esquerdo para iniciar uma instância                       ""\n"
+                    " Aplicativo:                                                         ""\n"
+                    "   Clique esquerdo para iniciar uma instância                        ""\n"
                     "   Clique direito para definir como padrão                           ""\n"
                     "   Arraste com o botão esquerdo para mover a área de trabalho        "
                 </deftooltip>
                 <toggletooltip>
                     " Controle de exibição da lista de janelas                       ""\n"
                     "   Clique esquerdo para expandir/recolher a lista               ""\n"
-                    "   Role o mouse para alternar o modo de fechamento                    "
+                    "   Role o mouse para alternar o modo de fechamento              "
                 </toggletooltip>
                 <groupclosetooltip=" Fechar todas as janelas abertas deste grupo "/>
                 <Close
