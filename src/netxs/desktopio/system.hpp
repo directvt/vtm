@@ -66,8 +66,13 @@
 
     #if defined(__APPLE__)
         #include <mach-o/dyld.h>    // ::_NSGetExecutablePath()
-    #elif defined(__BSD__)
-        #include <sys/sysctl.h>
+    #else
+        #if defined(__BSD__)
+            #include <sys/sysctl.h>
+        #endif
+
+        #include <sys/ipc.h>     // X11 MIT-SHM
+        #include <sys/shm.h>     //
     #endif
 
     extern char **environ;
@@ -3953,7 +3958,9 @@ namespace netxs::os
         }
     }
 
-    #include "x11.hpp"
+    #if !defined(__APPLE__) && !defined(_WIN32)
+        #include "x11.hpp"
+    #endif
 
     namespace dtvt
     {

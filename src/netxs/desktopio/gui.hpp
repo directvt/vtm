@@ -1319,7 +1319,8 @@ namespace netxs::gui
                 };
                 auto system_font_flow = std::vector<fontfile_item_t>{};
                 auto search_paths = std::vector<os::fs::path>{ "/usr/share/fonts",
-                                                               "/usr/local/share/fonts" };
+                                                               "/usr/local/share/fonts",
+                                                               "/mnt/c/Windows/Fonts" }; // Check WSL.
                 if (auto home_str = os::env::get("HOME"); home_str.size())
                 {
                     search_paths.push_back(os::fs::path(home_str) / ".fonts");
@@ -6492,9 +6493,77 @@ namespace netxs::gui
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {})
+        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
-            return true;
+            if (!os::x11::session) return faux;
+            auto& session = *os::x11::session;
+            auto& screen = session.roots.front().s;
+            if (cell_size)
+            {
+                auto use_default_size = grid_size == dot_mx;
+                auto use_default_coor = win_coord == dot_mx;
+                if (use_default_coor)
+                {
+                    win_coord = { (si32)(screen.width_in_pixels / 2 - 400), (si32)(screen.height_in_pixels / 2 - 300) };
+                }
+                if (use_default_size)
+                {
+                    grid_size = cell_size * twod{ 80, 25 };
+                }
+                else
+                {
+                    grid_size *= cell_size;
+                }
+            }
+
+            auto new_window_id  = session.new_resource_id();
+            auto new_gc_id      = session.new_resource_id();
+            auto new_shm_seg_id = session.new_resource_id();
+
+            s.hWnd = (arch)new_window_id;
+            s.hdc  = (arch)new_gc_id;
+
+            //if (host_ptr)
+            //{
+            //    x11_user_data[new_window_id] = host_ptr;
+            //}
+
+            auto create_flow = session.create_window_flow(new_window_id, win_coord, grid_size);
+            auto gc_req = os::x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id };
+            create_flow += view{ (char*)&gc_req, sizeof(gc_req) };
+            //session.x11connection->send(create_flow);
+
+            //todo sync with 'bits layer_get_bits(layer& s, bool zeroize = faux)' (e.g. blinky has no size at startup)
+            // Allocate MIT-SHM (CreateDIBSection).
+            auto buffer_size = std::max(1ul, grid_size.x * grid_size.y * sizeof(argb));
+            if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
+            {
+                if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
+                {
+                    session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
+
+                    auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + (grid_size.x * grid_size.y) };
+                    s.data = netxs::raster{ bitmap, rect{ win_coord, grid_size }};
+
+                    auto attach = os::x11::req::shm_attach{};
+                    attach.req_opcode = session.shm_major_opcode;
+                    attach.shm_seg_id = new_shm_seg_id;
+                    attach.shmid      = shmid;
+                    create_flow += view{ (char*)&attach, sizeof(attach) };
+
+                    if (cell_size)
+                    {
+                        grid_size /= cell_size;
+                        s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+                    }
+                    ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
+
+                    session.x11connection->send(create_flow);
+                    return true;
+                }
+                ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
+            }
+            return faux;
         }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
@@ -6510,7 +6579,80 @@ namespace netxs::gui
         void window_make_focused() {}
         void window_make_exposed() {}
         void window_make_topmost(bool) {}
-        void window_message_pump() {}
+        void window_message_pump()
+        {
+            auto& x11connection = *os::x11::session->x11connection;
+            auto atom_wm_delete_window = ui32{};
+            auto ev = os::x11::event::any{};
+            while (x11connection.recv((char*)&ev, 32).size() == 32)
+            {
+                auto type = ev.type & 0x7F;
+                //// Take event window id.
+                //auto event_window = 0u;
+                //if (type == 4 || type == 5 || type == 6) // Mouse events
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::mouse_click&>(ev).event_window;
+                //}
+                //else if (type == 22) // ConfigureNotify
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::configure&>(ev).window;
+                //}
+                //else if (type == 33) // ClientMessage
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::client_message&>(ev).window;
+                //}
+                switch (type)
+                {
+                    case 6: // MotionNotify -> WM_MOUSEMOVE
+                    {
+                        //auto& m = reinterpret_cast<os::x11::event::motion&>(ev);
+                        mouse_moved(); // In X11, the mouse position is updated implicitly within the event structure.
+                        break;
+                    }
+                    case 7: // EnterNotify
+                        break;
+                    case 8: // LeaveNotify -> WM_MOUSELEAVE
+                        mouse_leave();
+                        break;
+                    case 4: // ButtonPress
+                    case 5: // ButtonRelease
+                    {
+                        auto& b = reinterpret_cast<os::x11::event::mouse_click&>(ev);
+                        auto pressed = type == 4;
+                             if (b.button == 1) mouse_press(bttn::left, pressed);
+                        else if (b.button == 2) mouse_press(bttn::middle, pressed);
+                        else if (b.button == 3) mouse_press(bttn::right, pressed);
+                        //todo use XInput2
+                        //else if (b.button == 4 && pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
+                        //else if (b.button == 5 && pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
+                        //else if (b.button == 6 && pressed) mouse_wheel(-120, 1); // WheelLeft
+                        //else if (b.button == 7 && pressed) mouse_wheel(120, 1);  // WheelRight
+                        break;
+                    }
+                    case 9:  // FocusIn  -> WM_SETFOCUS
+                    case 10: // FocusOut -> WM_KILLFOCUS
+                        focus_event(type == 9);
+                        break;
+                    case 22: // ConfigureNotify -> WM_WINDOWPOSCHANGED
+                    {
+                        auto& cfg = reinterpret_cast<os::x11::event::configure&>(ev);
+                        check_window(twod{ cfg.x, cfg.y }); // Window move/resize.
+                        break;
+                    }
+                    case 33: // ClientMessage -> ?WM_CLOSE
+                    {
+                        auto& msg = reinterpret_cast<os::x11::event::client_message&>(ev);
+                        if (msg.data32[0] == atom_wm_delete_window)
+                        {
+                            sys_command(syscmd::close);
+                        }
+                        break;
+                    }
+                }
+                sys_command(syscmd::update);
+            }
+            window_cleanup();
+        }
         void window_initilize() {}
         void window_shutdown() {}
         void window_cleanup() {}

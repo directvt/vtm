@@ -14,13 +14,266 @@ namespace x11
     };
     struct reply_header
     {
-        byte status;            // 0 = Fail, 1 = Success.
+        byte status;            // 0: Failed, 1: Success.
         byte pad1;
         ui16 major_version;
         ui16 minor_version;
         ui16 additional_length; // Payload length in 4-byte chunks.
         // payload ...
     };
+    namespace req
+    {
+        struct create_window // Opcode 1 (create window). This request generates a CreateNotify event.
+        {
+            byte opcode = 1;
+            byte depth = 32;          // Color depth.
+            ui16 length = 8;          // 8+n Packet size in 4-byte words.
+            ui32 window_id;           // New Window ID.
+            ui32 parent_id;           // root_window_id.
+            si16 x;                   // Initial coords in px.
+            si16 y;                   //
+            ui16 width;               // Initial size in px (not including the border).
+            ui16 height;              //
+            ui16 border_width = 0;
+            ui16 window_class = 1;    // 0: CopyFromParent, 1: InputOutput, 2: InputOnly (input events and painting).
+            ui32 visual_id = 0;       // 0: CopyFromParent.
+            ui32 value_mask = 0x00002800; // event-mask | colormap.
+            // payload ...  0x0001u  background-pixmap      4 0: none, 1: ParentRelative or PIXMAP
+            //              0x0002u  background-pixel       4 argb
+            //              0x0004u  border-pixmap          4 0: CopyFromParent or PIXMAP
+            //              0x0008u  border-pixel           4 argb
+            //              0x0010u  bit-gravity            1 BITGRAVITY (Forget) defines which region of the window should be retained if the window is resized
+            //              0x0020u  win-gravity            1 WINGRAVITY (NorthWest) defines how the window should be repositioned if the parent is resized
+            //              0x0040u  backing-store          1 0: NotUseful, 1: WhenMapped, 2: Always
+            //              0x0080u  backing-planes         4 (default: all ones)
+            //              0x0100u  backing-pixel          4 argb (0x00000000)
+            //              0x0200u  override-redirect      1 bool  specifies whether map and configure requests on this window should override a SubstructureRedirect on the parent, typically to inform a window manager not to tamper with the window
+            //              0x0400u  save-under             1 bool  If true, the server is advised that when this window is mapped, saving the contents of windows it obscures would be beneficial
+            //              0x0800u  event-mask             4 SETofEVENT
+            //              0x1000u  do-not-propagate-mask  4 SETofDEVICEEVENT
+            //              0x2000u  colormap               4 0: CopyFromParent or COLORMAP
+            //              0x4000u  cursor                 4 0: None or CURSOR
+        };
+        struct destroy_window // Opcode 4 (destroy window).
+        {
+            byte opcode = 4;
+            byte pad    = 0;
+            ui16 length = 2;
+            ui32 window_id;
+        };
+        struct map_window // Opcode 8 (show window).
+        {
+            byte opcode = 8;
+            byte pad    = 0;
+            ui16 length = 2;
+            ui32 window_id;
+        };
+        struct unmap_window // Opcode 10 (hide window).
+        {
+            byte opcode = 10;
+            byte pad    = 0;
+            ui16 length = 2;
+            ui32 window_id;
+        };
+        struct configure_window // Opcode 12 (configure window).
+        {
+            byte opcode = 10;
+            byte pad1   = 0;
+            ui16 length;
+            ui32 window_id;
+            ui16 value_mask; // value bit list
+            ui16 pad2   = 0;
+            // payload ... value-list
+            //             2 si16 x
+            //             2 si16 y
+            //             2 ui16 width
+            //             2 ui16 height
+            //             2 ui16 border-width
+            //             4 ui32 sibling (window id)
+            //             1 byte stack-mode
+            //                    0 Above
+            //                    1 Below
+            //                    2 TopIf
+            //                    3 BottomIf
+            //                    4 Opposite
+        };
+        struct create_gc // Opcode 55 (create graphical context).
+        {
+            byte opcode = 55;
+            byte pad    = 0;;
+            ui16 length = 4;     // 16 bytes / 4 = 4 words
+            ui32 gc_id;          // Generating id
+            ui32 drawable;       // Our window ID (or root window)
+            ui32 value_mask = 0; // No additional attributes
+        };
+        struct change_property // Opcode 18 (change property).
+        {
+            byte opcode    = 18;
+            byte mode      = 0;  // 0: Replace
+            ui16 length;         // Request length
+            ui32 window_id;
+            ui32 property  = 39; // Atom WM_NAME (predefined id = 39)
+            ui32 type      = 31; // Atom STRING (predefined id = 31)
+            byte format    = 8;  // 8-bit chars (string)
+            byte pad[3]    = {};
+            ui32 data_len;       // Char count
+        };
+        struct query_extension // Opcode 98 (query extension, query MIT-SHM).
+        {
+            struct reply
+            {
+                byte status; // 1
+                byte pad;
+                ui16 sequence;
+                ui32 length;
+                byte present; // 1 if supported.
+                byte major_opcode; // opcode for extension.
+                byte first_event;
+                byte first_error;
+                byte pad2[20];
+            };
+            byte opcode = 98;
+            byte pad1   = 0;
+            ui16 length;
+            ui16 name_len;
+            ui16 pad2   = 0;
+            // payload..., e.g. "MIT-SHM"
+        };
+        struct shm_attach // ShmAttach (Minor Opcode 1) - bind SHM segment with x-serveer.
+        {
+            byte req_opcode;   // MIT-SHM major_opcode from query_extension.
+            byte minor_opcode = 1; // X_ShmAttach.
+            ui16 length = 4;   // 16 bytes / 4 = 4 words.
+            ui32 shm_seg_id;   // Our side generated unique resource ID (XID).
+            ui32 shmid;        // Linux kernel's segment id (from shmget).
+            byte read_only = 0;
+            byte pad[3] = {0, 0, 0};
+        };
+        struct shm_put_image // ShmPutImage (Minor Opcode 3) - immediately output from SHM to screen.
+        {
+            byte req_opcode;   // Dynamic major_opcode.
+            byte minor_opcode = 3; // X_ShmPutImage.
+            ui16 length = 10;  // 40 bytes / 4 = 10 words.
+            ui32 drawable;     // Our window ID (fg_w).
+            ui32 gc_id;        // Graphical context.
+            ui16 total_width;  // Buffer width/height in SHM
+            ui16 total_height; //
+            ui16 src_x = 0;    // Clip coor.
+            ui16 src_y = 0;    //
+            ui16 src_width;    // Clip size.
+            ui16 src_height;   //
+            si16 dst_x = 0;    // Dest coor.
+            si16 dst_y = 0;    //
+            byte depth = 32;   // 32-bit ARGB
+            byte format = 2;   // 2: ZPixmap
+            byte send_event = 0; // Don't notify on output end.
+            byte pad = 0;
+            ui32 shm_seg_id;   // Linked segment ID.
+            ui32 offset = 0;   // Segment offset.
+        };
+        struct noop // Opcode 127 (NoOperation).
+        {
+            byte opcode = 127;
+            byte pad    = 0;
+            ui16 length = 1; // + n for payload
+            // arbitrary payload ...
+        };
+    }
+    namespace event
+    {
+        struct any
+        {
+            byte type; // Bit 7 may be set if the event is artificially generated (SendEvent).
+            byte detail;
+            ui16 sequence;
+            ui32 pad[7];
+        };
+        struct mouse_click // Type 4 (button press) and 5 (button release).
+        {
+            byte type;
+            byte button; // 1: Left, 2: Middle, 3: Right, 4: WheelUp, 5: WheelDown, 6: WheelLeft, 7: WheelRight
+            ui16 sequence;
+            ui32 time;
+            ui32 root_window;
+            ui32 event_window;
+            ui32 child_window;
+            si16 root_x;
+            si16 root_y;
+            si16 event_x; // Relative X
+            si16 event_y; // Relative Y
+            ui16 state;   // Keybd modifiers (Shift, Ctrl, Alt...)
+            byte same_screen;
+            byte pad;
+        };
+        struct motion // Type 6 (motion notify).
+        {
+            byte type;
+            byte detail; // 0: Normal, 1: Hint
+            ui16 sequence;
+            ui32 time;
+            ui32 root_window;
+            ui32 event_window;
+            ui32 child_window;
+            si16 root_x;
+            si16 root_y;
+            si16 event_x; // Relative (to window) mouse Х.
+            si16 event_y; // Relative (to window) mouse Y.
+            ui16 state;   // Mouse buttons bitfield + keybd mods (Ctrl, Shift, etc.)
+            byte same_screen;
+            byte pad;
+        };
+        struct crossing // Type 7 (enter notify) and 8 (leave notify), a-la TrackMouseEvent/WM_MOUSELEAVE.
+        {
+            byte type;
+            byte detail;
+            ui16 sequence;
+            ui32 time;
+            ui32 root_window;
+            ui32 event_window;
+            ui32 child_window;
+            si16 root_x;
+            si16 root_y;
+            si16 event_x;
+            si16 event_y;
+            ui16 state;
+            byte mode;
+            byte flags; // Bits: same_screen, focus
+        };
+        struct focus // Type 9 (focus on) and 10 (focus off).
+        {
+            byte type;
+            byte mode; // 0: Normal, 1: Grab, 2: Ungrab
+            ui16 sequence;
+            ui32 window;
+            byte detail;
+            byte pad[23];
+        };
+        struct configure // Type 22 (configure notify) a-la WM_SIZE/WM_MOVE.
+        {
+            byte type;
+            byte pad;
+            ui16 sequence;
+            ui32 event_window;
+            ui32 window;
+            ui32 above_sibling;
+            si16 x;
+            si16 y;
+            ui16 width;  // New width.
+            ui16 height; // New heigth.
+            ui16 border_width;
+            byte override_redirect;
+            byte pad2;
+        };
+        struct client_message // Type 33 (client message).
+        {
+            byte type;
+            byte format; // ? 32 bits
+            ui16 sequence;
+            ui32 window;
+            ui32 message_type; // Procotol atom (e.g., WM_PROTOCOLS)
+            ui32 data32[5];    // Payload. If data32[0]==atom_WM_DELETE_WINDOW -> Close window
+        };
+    }
     struct session_t : data_n_size<session_t>
     {
         struct format : data_n_size<format>
@@ -108,10 +361,20 @@ namespace x11
             byte max_keycode;                 // 1 byte buffer[27]     = max_keycode
             byte pad[4];                      // 4 ui32 buffer[28..31] = unused
         } s;
-        text                vendor_str;     // buffer[32..32+vendor_length] = vendor_str
-        std::vector<format> pixmap_formats; // format * number_of_formats = pixmap_formats
-        std::vector<screen> roots;          // screen * number_of_screens = roots (always a multiple of 4)
-        sptr<os::ipc::stdcon>   x11connection;  // Active X11 socket connection.
+        struct shm_alloc_t
+        {
+            si32 shmid;
+            ui32 shm_seg_id;
+            void* addr;
+        };
+        text                                  vendor_str;     // buffer[32..32+vendor_length] = vendor_str
+        std::vector<format>                   pixmap_formats; // format * number_of_formats = pixmap_formats
+        std::vector<screen>                   roots;          // screen * number_of_screens = roots (always a multiple of 4)
+        byte                                  shm_major_opcode = 0;
+
+        sptr<os::ipc::stdcon>                 x11connection;  // Active X11 socket connection.
+        std::unordered_map<ui32, shm_alloc_t> active_shm_segments;
+
         template<bool B = true>
         auto str() const
         {
@@ -179,6 +442,89 @@ namespace x11
         constexpr explicit operator bool () const
         {
             return !roots.empty();
+        }
+        auto new_resource_id()
+        {
+            static auto resource_index = std::atomic<ui32>{ 1 }; //todo use some generic::indexer
+            auto current_idx = resource_index.fetch_add(1);
+            auto resource_id = s.resource_id_base | (current_idx & s.resource_id_mask);
+            return resource_id;
+        }
+        auto detect_mit_shm()
+        {
+            auto ext_name = "MIT-SHM"s;
+            auto req = x11::req::query_extension{};
+            req.name_len = ext_name.size();
+            auto padded_len = (ext_name.size() + 3) & ~3;
+            req.length = (sizeof(req) + padded_len) / 4;
+            auto packet = text(sizeof(req) + padded_len, '\0');
+            std::memcpy(packet.data(), &req, sizeof(req));
+            std::memcpy(packet.data() + sizeof(req), ext_name.data(), ext_name.size());
+            x11connection->send(packet);
+            auto reply = x11::req::query_extension::reply{};
+            if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply))
+            if (reply.present)
+            {
+                shm_major_opcode = reply.major_opcode;
+                return true;
+            }
+            return faux;
+        }
+        void sync_pixmap(ui32 window_id, ui32 gc_id, twod size)
+        {
+            auto it = active_shm_segments.find(window_id);
+            if (it != active_shm_segments.end())
+            {
+                auto& shm = it->second;
+                auto req = x11::req::shm_put_image{};
+                req.req_opcode   = shm_major_opcode;
+                req.drawable     = window_id;
+                req.gc_id        = gc_id;
+                req.total_width  = size.x;
+                req.total_height = size.y;
+                req.src_width    = size.x;
+                req.src_height   = size.y;
+                req.shm_seg_id   = shm.shm_seg_id;
+                auto packet = text(sizeof(req), '\0');
+                std::memcpy(packet.data(), &req, sizeof(req));
+                x11connection->send(packet);
+            }
+        }
+        auto create_window_flow(ui32 new_window_id, twod coor, twod size)
+        {
+            auto& screen = roots.front();
+            auto req = x11::req::create_window{};
+            req.window_id = new_window_id;
+            req.parent_id = screen.s.root_window_id;
+            req.depth     = 32;//screen.s.root_depth;
+            req.visual_id = screen.s.root_visual;
+            req.x         = (ui16)coor.x;
+            req.y         = (ui16)coor.y;
+            req.width     = (ui16)size.x;
+            req.height    = (ui16)size.y;
+            auto event_mask = 0x0012804Fu; // Bitfield (Focus, Resize, Paint, Mouse, Keyboard).
+            auto colormap = screen.s.default_colormap;
+            // value_mask specifies arguments are stored in the payload block in bit order: CWColormap (0x00002000), CWEventMask (0x00000800).
+            auto create_packet = text(sizeof(req) + sizeof(colormap) + sizeof(event_mask), '\0');
+            std::memcpy(create_packet.data(), &req, sizeof(req));
+            std::memcpy(create_packet.data() + sizeof(req), &colormap, sizeof(colormap));
+            std::memcpy(create_packet.data() + sizeof(req) + sizeof(colormap), &event_mask, sizeof(event_mask));
+            auto map = x11::req::map_window{ .window_id = new_window_id }; // Immediately append the map_window request.
+            auto map_packet = text(sizeof(map), '\0');
+            std::memcpy(map_packet.data(), &map, sizeof(map));
+            return create_packet + map_packet;
+        }
+        void window_set_title(ui32 window_id, view title)
+        {
+            auto req = x11::req::change_property{};
+            req.window_id = window_id;
+            req.data_len  = title.size();
+            auto padded_str_len = (title.size() + 3) & ~3;
+            req.length = (sizeof(req) + padded_str_len) / 4;
+            auto packet = text(sizeof(req) + padded_str_len, '\0');
+            std::memcpy(packet.data(), &req, sizeof(req));
+            std::memcpy(packet.data() + sizeof(req), title.data(), title.size());
+            x11connection->send(packet);
         }
     };
     #pragma pack(pop)
@@ -359,8 +705,12 @@ namespace x11
             if (auto session = x11::parse_connection_reply(socket_link))
             {
                 session.x11connection = socket_link;
-                x11::session = ptr::shared(std::move(session));
-                return true;
+                //todo check argb support
+                if (session.detect_mit_shm())
+                {
+                    x11::session = ptr::shared(std::move(session));
+                    return true;
+                }
             }
         }
         return faux;

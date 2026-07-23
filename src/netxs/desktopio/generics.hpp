@@ -1392,7 +1392,7 @@ namespace netxs::generics
     template<class T, size_t Count>
     struct indexer_growing
     {
-        std::array<ui64, Count / 64> free_mask{}; // 1 — Available, 0 — In use. Initialized with zeros. Initial indices are allocated sequentially via next_index.
+        std::array<ui64, Count / 64> free_mask{}; // 1: Available, 0: In use. Initialized with zeros. Initial indices are allocated sequentially via next_index.
         T                            next_index{};
         T                            last_issued{};
         size_t                       free_count{}; // Total number of released indices available in the mask.
