@@ -6495,16 +6495,17 @@ namespace netxs::gui
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
-            if (!os::x11::session) return faux;
-            auto& session = *os::x11::session;
-            auto& screen = session.roots.front().s;
+            auto success = faux;
+            if (!os::x11::session) return success;
+            auto& x11session = *os::x11::session;
+            auto& x11screen = x11session.roots.front().s;
             if (cell_size)
             {
                 auto use_default_size = grid_size == dot_mx;
                 auto use_default_coor = win_coord == dot_mx;
                 if (use_default_coor)
                 {
-                    win_coord = { (si32)(screen.width_in_pixels / 2 - 400), (si32)(screen.height_in_pixels / 2 - 300) };
+                    win_coord = { (si32)(x11screen.width_in_pixels / 2 - 400), (si32)(x11screen.height_in_pixels / 2 - 300) };
                 }
                 if (use_default_size)
                 {
@@ -6515,61 +6516,81 @@ namespace netxs::gui
                     grid_size *= cell_size;
                 }
             }
-
-            auto new_window_id  = session.new_resource_id();
-            auto new_gc_id      = session.new_resource_id();
-            auto new_shm_seg_id = session.new_resource_id();
-
+            auto new_window_id  = x11session.new_resource_id();
+            auto new_gc_id      = x11session.new_resource_id();
+            auto new_shm_seg_id = x11session.new_resource_id();
             s.hWnd = (arch)new_window_id;
             s.hdc  = (arch)new_gc_id;
-
-            //if (host_ptr)
-            //{
-            //    x11_user_data[new_window_id] = host_ptr;
-            //}
-
-            auto create_flow = session.create_window_flow(new_window_id, win_coord, grid_size);
+            auto create_flow = x11session.create_window_flow(new_window_id, win_coord, grid_size);
             auto gc_req = os::x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id };
             create_flow += view{ (char*)&gc_req, sizeof(gc_req) };
-            //session.x11connection->send(create_flow);
-
-            //todo sync with 'bits layer_get_bits(layer& s, bool zeroize = faux)' (e.g. blinky has no size at startup)
-            // Allocate MIT-SHM (CreateDIBSection).
-            auto buffer_size = std::max(1ul, grid_size.x * grid_size.y * sizeof(argb));
+            //todo use single overallocated and double sized mit-shm segment for layers
+            auto buffer_size = sizeof(argb); // Allocate MIT-SHM (CreateDIBSection) 1x1 px bitmap.
             if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
             {
                 if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
                 {
-                    session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
+                    x11session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
 
-                    auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + (grid_size.x * grid_size.y) };
-                    s.data = netxs::raster{ bitmap, rect{ win_coord, grid_size }};
+                    auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + 1 };
+                    s.area = rect{ dot_00, dot_11 };
+                    s.data = netxs::raster{ bitmap, s.area };
 
                     auto attach = os::x11::req::shm_attach{};
-                    attach.req_opcode = session.shm_major_opcode;
+                    attach.req_opcode = x11session.shm_major_opcode;
                     attach.shm_seg_id = new_shm_seg_id;
                     attach.shmid      = shmid;
                     create_flow += view{ (char*)&attach, sizeof(attach) };
-
                     if (cell_size)
                     {
                         grid_size /= cell_size;
                         s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
                     }
-                    ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
-
-                    session.x11connection->send(create_flow);
-                    return true;
+                    x11session.x11connection->send(create_flow);
+                    success = true;
                 }
                 ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
             }
-            return faux;
+            return success;
         }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
         void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
-        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        bits layer_get_bits(layer& s, bool zeroize = faux)
+        {
+            //auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + (grid_size.x * grid_size.y) };
+            //s.data = netxs::raster{ bitmap, rect{ win_coord, grid_size }};
+            if (s.hdc && s.area)
+            {
+                if (s.resized())
+                {
+                    //todo implement allocation logic inside shared memory (+double buffering)
+                    //auto ptr = (void*)nullptr;
+                    //auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
+                    //                                      .biWidth       = s.area.size.x,
+                    //                                      .biHeight      = -s.area.size.y,
+                    //                                      .biPlanes      = 1,
+                    //                                      .biBitCount    = 32,
+                    //                                      .biCompression = BI_RGB }};
+                    //if (auto hbm = ::CreateDIBSection((HDC)s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
+                    //{
+                    //    ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
+                    //    zeroize = faux;
+                    //    s.prev.size = s.area.size;
+                    //    s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
+                    //
+                    //Sync resize:
+                    //send noop
+                    //wait reply
+                    //}
+                    //else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
+                }
+                if (zeroize) s.wipe();
+            }
+            s.data.move(s.area.coor);
+            return s.data;
+        }
         void window_sync_taskbar(si32 /*new_state*/) {}
         rect window_get_fs_area(rect window_area) { return window_area; }
         void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
