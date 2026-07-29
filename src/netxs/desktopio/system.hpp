@@ -69,7 +69,9 @@
     #else
         #if defined(__BSD__)
             #include <sys/sysctl.h>
+            #include <sys/mman.h> // X11 MIT-SHM ::shm_open()
         #endif
+            #include <sys/mman.h> // X11 MIT-SHM ::memfd_create()
 
         #include <sys/ipc.h>     // X11 MIT-SHM
         #include <sys/shm.h>     //
@@ -4158,7 +4160,6 @@ namespace netxs::os
                         {
                             dtvt::vtmode |= ui::console::gui;
                             term = "Native GUI console (X11)";
-                            if constexpr (debugmode) log(x11::session->str());
                         }
                     }
                     //if (!haspty && !(dtvt::vtmode & ui::console::gui))

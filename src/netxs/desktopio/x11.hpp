@@ -139,6 +139,25 @@ namespace x11
             ui16 pad2   = 0;
             // payload..., e.g. "MIT-SHM"
         };
+        struct shm_query_version // ShmQueryVersion (Minor Opcode 0)
+        {
+            struct reply // Always 32 bytes.
+            {
+                byte status;         // 1: Success.
+                byte pad1;
+                ui16 sequence;       // X11 request sequence number.
+                ui32 length;         // Attached payload length (0)
+                ui16 major_version;  // (required 1)
+                ui16 minor_version;  // (required >= 2)
+                ui16 uid;
+                ui16 gid;
+                byte pixmap_format;
+                byte pad2[15];
+            };
+            byte major_opcode;   // MIT-SHM major_opcode из query_extension
+            byte minor_opcode = 0; // X_ShmQueryVersion
+            ui16 length = 1;       // 4 bytes / 4 = 1 word
+        };
         struct shm_attach // ShmAttach (Minor Opcode 1) - bind SHM segment with x-serveer.
         {
             byte req_opcode;   // MIT-SHM major_opcode from query_extension.
@@ -147,7 +166,23 @@ namespace x11
             ui32 shm_seg_id;   // Our side generated unique resource ID (XID).
             ui32 shmid;        // Linux kernel's segment id (from shmget).
             byte read_only = 0;
-            byte pad[3] = {0, 0, 0};
+            byte pad[3] = {};
+        };
+        struct shm_attach_fd // ShmAttachFd (Minor Opcode 6) - bind SHM descriptor with x-serveer.
+        {
+            byte major_opcode;     // MIT-SHM major_opcode from query_extension.
+            byte minor_opcode = 6; // X_ShmAttachFd.
+            ui16 length = 4;
+            ui32 shm_seg_id;   // Our side generated unique resource ID (XID).
+            byte read_only = 0;
+            byte pad[3] = {};
+        };
+        struct shm_detach // ShmDetach (Minor Opcode 2)
+        {
+            byte major_opcode;     // MIT-SHM major_opcode.
+            byte minor_opcode = 2; // X_ShmDetach.
+            ui16 length = 2;
+            ui32 shm_seg_id;       // Detached segment ID (XID).
         };
         struct shm_put_image // ShmPutImage (Minor Opcode 3) - immediately output from SHM to screen.
         {
@@ -369,8 +404,14 @@ namespace x11
         };
         text                                  vendor_str;     // buffer[32..32+vendor_length] = vendor_str
         std::vector<format>                   pixmap_formats; // format * number_of_formats = pixmap_formats
+        si32                                  pixmap_format_index = -1;
         std::vector<screen>                   roots;          // screen * number_of_screens = roots (always a multiple of 4)
         byte                                  shm_major_opcode = 0;
+        byte                                  shm_first_event = 0;
+        fd_t                                  shm_buffer_fd = os::invalid_fd;
+        byte*                                 shm_buffer_ptr = {};
+        size_t                                shm_buffer_size = {};
+        ui32                                  shm_segmen_xid = {};
 
         sptr<os::ipc::stdcon>                 x11connection;  // Active X11 socket connection.
         std::unordered_map<ui32, shm_alloc_t> active_shm_segments;
@@ -450,9 +491,38 @@ namespace x11
             auto resource_id = s.resource_id_base | (current_idx & s.resource_id_mask);
             return resource_id;
         }
+        auto free_resource_id(ui32& resource_id)
+        {
+            //todo implement
+            resource_id = {};
+        }
+        auto detect_argb_32bit()
+        {
+            auto i = 0;
+            for (auto& format : pixmap_formats)
+            {
+                auto& pf = format.s;
+                if (pf.depth == 32 && pf.bits_per_pixel == 32)
+                {
+                    pixmap_format_index = i;
+                    return true;
+                }
+                i++;
+            }
+            auto errmsg = utf::fprint("%%32-bit ARGB pixel format not found on X11 server\n", prompt::x11);
+            errmsg += pixmap_formats.size() ? utf::fprint("    Available pixmap formats(%%):\n", pixmap_formats.size()) : "    There are no pixmap formats\n";
+            for (auto& format : pixmap_formats)
+            {
+                auto& pf = format.s;
+                errmsg += utf::fprint("\tdepth=%% bpp=%% scanline_pad=%%\n", (si32)pf.depth, (si32)pf.bits_per_pixel, (si32)pf.scanline_pad);
+            }
+            log<faux>(errmsg);
+            return faux;
+        }
         auto detect_mit_shm()
         {
             auto ext_name = "MIT-SHM"s;
+            auto errdetails = text{};
             auto req = x11::req::query_extension{};
             req.name_len = ext_name.size();
             auto padded_len = (ext_name.size() + 3) & ~3;
@@ -466,9 +536,68 @@ namespace x11
             if (reply.present)
             {
                 shm_major_opcode = reply.major_opcode;
-                return true;
+                shm_first_event  = reply.first_event;
+                auto v_req = x11::req::shm_query_version{ .major_opcode = shm_major_opcode };
+                x11connection->send(view{ (char*)&v_req, sizeof(v_req) });
+                auto v_reply = x11::req::shm_query_version::reply{};
+                if (x11connection->recv((char*)&v_reply, sizeof(v_reply)).size() == sizeof(v_reply))
+                if (v_reply.status == 1)
+                if (v_reply.major_version > 1 || (v_reply.major_version == 1 && v_reply.minor_version >= 2)) // Check min version 1.2.
+                {
+                    if constexpr (debugmode) log("%%MIT-SHM version %%.%% detected", prompt::x11, (si32)v_reply.major_version, (si32)v_reply.minor_version);
+                    return true;
+                }
+                if (v_reply.status == 1)
+                {
+                    errdetails = utf::fprint("\n\tMIT-SHM version %%.%% detected", (si32)v_reply.major_version, (si32)v_reply.minor_version);
+                }
+                else
+                {
+                    errdetails = utf::fprint("\n\tFailed to receive MIT-SHM version details");
+                }
             }
+            auto errmsg = utf::fprint("%%The required MIT-SHM extension (or required min version 1.2) is missing", prompt::x11);
+            log(errmsg + errdetails);
             return faux;
+        }
+        void send_shm_attach_fd(ui32 client_shmseg_xid)
+        {
+            auto request = x11::req::shm_attach_fd{};
+            request.major_opcode = shm_major_opcode;
+            request.shm_seg_id   = client_shmseg_xid;
+            // Fill iovec.
+            auto iov = ::iovec{ .iov_base = &request,
+                                .iov_len  = sizeof(request) };
+            union // Ancillary Data
+            {
+                ::cmsghdr cm;
+                char control[CMSG_SPACE(sizeof(int))];
+            }
+            control_buffer{};
+            auto msg = ::msghdr{ .msg_name       = nullptr,
+                                 .msg_namelen    = 0,
+                                 .msg_iov        = &iov,
+                                 .msg_iovlen     = 1,
+                                 .msg_control    = control_buffer.control,
+                                 .msg_controllen = sizeof(control_buffer.control) };
+            auto cmsg = CMSG_FIRSTHDR(&msg);
+            cmsg->cmsg_len   = CMSG_LEN(sizeof(int));
+            cmsg->cmsg_level = SOL_SOCKET;
+            cmsg->cmsg_type  = SCM_RIGHTS;
+            *reinterpret_cast<fd_t*>(CMSG_DATA(cmsg)) = shm_buffer_fd;
+            auto x11_socket_fd = x11connection->handle.w;
+            auto bytes_sent = ::sendmsg(x11_socket_fd, &msg, 0);
+            if (bytes_sent == -1)
+            {
+                log("%%sendmsg failed during shm_attach_fd invocation", prompt::x11);
+            }
+        }
+        void send_shm_detach_fd(ui32 client_shmseg_xid)
+        {
+            auto req = x11::req::shm_detach{ .major_opcode = shm_major_opcode,
+                                             .shm_seg_id   = client_shmseg_xid };
+            x11connection->send(view{ (char*)&req, sizeof(req) });
+            if constexpr (debugmode) log("%%Shared buffer segment XID %% is detached", prompt::x11, client_shmseg_xid);
         }
         void sync_pixmap(ui32 window_id, ui32 gc_id, twod size)
         {
@@ -525,6 +654,68 @@ namespace x11
             std::memcpy(packet.data(), &req, sizeof(req));
             std::memcpy(packet.data() + sizeof(req), title.data(), title.size());
             x11connection->send(packet);
+        }
+        bool resize_shared_buffer(size_t size)
+        {
+            if (shm_buffer_size)
+            {
+                //todo implement delayed detach
+                send_shm_detach_fd(shm_segmen_xid);
+                reset_shared_buffer();
+                free_resource_id(shm_segmen_xid);
+            }
+            shm_buffer_fd =
+            #if defined(__linux__)
+                ::memfd_create("x11_shm_double_buf", MFD_CLOEXEC);
+            #else
+                ::shm_open(SHM_ANON, O_RDWR | O_CREAT | O_EXCL, 0600); // SHM_ANON - native anonymous descriptor in BSD.
+            #endif
+            if (shm_buffer_fd == os::invalid_fd)
+            {
+                log("%%Failed to create anonymous shared memory fd", prompt::gui);
+            }
+            else
+            {
+                if (::ftruncate(shm_buffer_fd, size) == -1) // Set shm size.
+                {
+                    ::close(shm_buffer_fd);
+                    shm_buffer_fd = os::invalid_fd;
+                    log("%%Failed to truncate shared memory file to required size", prompt::gui);
+                }
+                else
+                {
+                    auto mapped_ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_buffer_fd, 0);
+                    if (mapped_ptr == MAP_FAILED)
+                    {
+                        ::close(shm_buffer_fd);
+                        shm_buffer_fd = os::invalid_fd;
+                        log("%%Failed to mmap shared memory descriptor", prompt::gui);
+                    }
+                    else
+                    {
+                        shm_buffer_ptr = (byte*)mapped_ptr;
+                        shm_buffer_size = size;
+                        shm_segmen_xid = new_resource_id();
+                        send_shm_attach_fd(shm_segmen_xid);
+                        if constexpr (debugmode) log("%%Shared buffer successfuly created at 0x%%, %% bytes", prompt::x11, utf::to_hex(shm_buffer_ptr), shm_buffer_size);
+                    }
+                }
+            }
+            return shm_buffer_size > 0;
+        }
+        void reset_shared_buffer()
+        {
+            if (shm_buffer_ptr && shm_buffer_ptr != MAP_FAILED)
+            {
+                ::munmap(shm_buffer_ptr, shm_buffer_size);
+                shm_buffer_size = {};
+                shm_buffer_ptr = {};
+            }
+            if (shm_buffer_fd != os::invalid_fd)
+            {
+                ::close(shm_buffer_fd);
+                shm_buffer_fd = os::invalid_fd;
+            }
         }
     };
     #pragma pack(pop)
@@ -705,11 +896,18 @@ namespace x11
             if (auto session = x11::parse_connection_reply(socket_link))
             {
                 session.x11connection = socket_link;
-                //todo check argb support
+                if (session.detect_argb_32bit())
                 if (session.detect_mit_shm())
                 {
-                    x11::session = ptr::shared(std::move(session));
-                    return true;
+                    if constexpr (debugmode) log(session.str());
+                    auto& x11screen = session.roots.front().s;
+                    auto max_grid_size = x11screen.width_in_pixels * x11screen.height_in_pixels;
+                    auto required_buffer_size = 2 * 3 * max_grid_size * sizeof(argb); // 2: Double buffer, 3: master+blinks+header/footer/tooltip.
+                    if (session.resize_shared_buffer(required_buffer_size))
+                    {
+                        x11::session = ptr::shared(std::move(session));
+                        return true;
+                    }
                 }
             }
         }

@@ -6496,7 +6496,6 @@ namespace netxs::gui
         bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto success = faux;
-            if (!os::x11::session) return success;
             auto& x11session = *os::x11::session;
             auto& x11screen = x11session.roots.front().s;
             if (cell_size)
@@ -6518,39 +6517,39 @@ namespace netxs::gui
             }
             auto new_window_id  = x11session.new_resource_id();
             auto new_gc_id      = x11session.new_resource_id();
-            auto new_shm_seg_id = x11session.new_resource_id();
             s.hWnd = (arch)new_window_id;
             s.hdc  = (arch)new_gc_id;
             auto create_flow = x11session.create_window_flow(new_window_id, win_coord, grid_size);
             auto gc_req = os::x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id };
             create_flow += view{ (char*)&gc_req, sizeof(gc_req) };
-            //todo use single overallocated and double sized mit-shm segment for layers
-            auto buffer_size = sizeof(argb); // Allocate MIT-SHM (CreateDIBSection) 1x1 px bitmap.
-            if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
-            {
-                if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
-                {
-                    x11session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
+            //todo switch to shm_fd. use single overallocated and double sized mit-shm segment for layers
+            //        if (cell_size) init shared_buffer...
+            //auto buffer_size = sizeof(argb); // Allocate MIT-SHM (CreateDIBSection) 1x1 px bitmap.
+            //if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
+            //{
+            //    if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
+            //    {
+            //        x11session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
 
-                    auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + 1 };
-                    s.area = rect{ dot_00, dot_11 };
-                    s.data = netxs::raster{ bitmap, s.area };
+            //        auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + 1 };
+            //        s.area = rect{ dot_00, dot_11 };
+            //        s.data = netxs::raster{ bitmap, s.area };
 
-                    auto attach = os::x11::req::shm_attach{};
-                    attach.req_opcode = x11session.shm_major_opcode;
-                    attach.shm_seg_id = new_shm_seg_id;
-                    attach.shmid      = shmid;
-                    create_flow += view{ (char*)&attach, sizeof(attach) };
-                    if (cell_size)
-                    {
-                        grid_size /= cell_size;
-                        s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
-                    }
-                    x11session.x11connection->send(create_flow);
-                    success = true;
-                }
-                ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
-            }
+            //        auto attach = os::x11::req::shm_attach{};
+            //        attach.req_opcode = x11session.shm_major_opcode;
+            //        attach.shm_seg_id = new_shm_seg_id;
+            //        attach.shmid      = shmid;
+            //        create_flow += view{ (char*)&attach, sizeof(attach) };
+            //        if (cell_size)
+            //        {
+            //            grid_size /= cell_size;
+            //            s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+            //        }
+            //        x11session.x11connection->send(create_flow);
+            //        success = true;
+            //    }
+            //    ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
+            //}
             return success;
         }
         void layer_move_all() {}
