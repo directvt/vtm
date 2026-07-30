@@ -24,8 +24,8 @@ The following libraries are required but will be automatically downloaded and bu
 OS                     | Dependency installation command              | Notes
 -----------------------|----------------------------------------------|------
  Linux (Ubuntu/Debian) | `sudo apt install git cmake build-essential` |
- FreeBSD               | `pkg install lua54 cmake git`                | Best results with GCC compiler and 6GB of RAM.
- macOS                 | `brew install lua cmake git`                 |
+ FreeBSD               | `pkg install cmake git`                      | Best results with GCC compiler and 6GB of RAM.<br>Clang requires ~11Gb of RAM: https://github.com/llvm/llvm-project/issues/133901
+ macOS                 | `brew install cmake git`                     |
 
 #### Build Steps
 
