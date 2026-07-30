@@ -73,8 +73,6 @@
         #endif
             #include <sys/mman.h> // X11 MIT-SHM ::memfd_create()
 
-        #include <sys/ipc.h>     // X11 MIT-SHM
-        #include <sys/shm.h>     //
     #endif
 
     extern char **environ;

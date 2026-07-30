@@ -704,8 +704,10 @@ namespace netxs::xml
                     auto dent = utf::pop_front_chars(temp, whitespaces);
                     if (dent.size() > sizeof('\n'))
                     {
-                        crop.clear(); // We can do this because the capacity is not released (de facto), remains the same, and the string decreases.
-                        utf::replace_all(temp, dent, "\n", crop);
+                        auto result = text{};
+                        result.reserve(crop.capacity());
+                        utf::replace_all(temp, dent, "\n", result);
+                        crop = std::move(result);
                     }
                 }
                 return crop;
