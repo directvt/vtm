@@ -1429,7 +1429,7 @@ namespace netxs::generics
                     }
                 }
             }
-            if (next_index < std::numeric_limits<T>::max() - 1 && next_index < (Count - 1)) [[likely]] // Allocate a new index.
+            if (next_index < std::numeric_limits<T>::max() - 1 && next_index < Count - 1) [[likely]] // Allocate a new index.
             {
                 return last_issued = ++next_index;
             }

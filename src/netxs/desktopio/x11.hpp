@@ -402,6 +402,7 @@ namespace x11
             ui32 shm_seg_id;
             void* addr;
         };
+
         text                                  vendor_str;     // buffer[32..32+vendor_length] = vendor_str
         std::vector<format>                   pixmap_formats; // format * number_of_formats = pixmap_formats
         si32                                  pixmap_format_index = -1;
@@ -415,6 +416,7 @@ namespace x11
 
         sptr<os::ipc::stdcon>                 x11connection;  // Active X11 socket connection.
         std::unordered_map<ui32, shm_alloc_t> active_shm_segments;
+        generics::indexer_growing<ui32, 256>  resource_indexer; // Use growing indexer to avoid reusing indexes.
 
         template<bool B = true>
         auto str() const
@@ -486,14 +488,13 @@ namespace x11
         }
         auto new_resource_id()
         {
-            static auto resource_index = std::atomic<ui32>{ 1 }; //todo use some generic::indexer
-            auto current_idx = resource_index.fetch_add(1);
+            auto current_idx = resource_indexer.get_new();
             auto resource_id = s.resource_id_base | (current_idx & s.resource_id_mask);
             return resource_id;
         }
         auto free_resource_id(ui32& resource_id)
         {
-            //todo implement
+            resource_indexer.release(resource_id & s.resource_id_mask);
             resource_id = {};
         }
         auto detect_argb_32bit()
@@ -659,7 +660,7 @@ namespace x11
         {
             if (shm_buffer_size)
             {
-                //todo implement delayed detach
+                //todo implement delayed detach+copy
                 send_shm_detach_fd(shm_segmen_xid);
                 reset_shared_buffer();
                 free_resource_id(shm_segmen_xid);
