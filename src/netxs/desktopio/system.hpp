@@ -4154,11 +4154,13 @@ namespace netxs::os
                     }
                     if (rungui)
                     {
+                        #if !defined(__APPLE__)
                         if (x11::connect())
                         {
                             dtvt::vtmode |= ui::console::gui;
                             term = "Native GUI console (X11)";
                         }
+                        #endif
                     }
                 #endif
             }
