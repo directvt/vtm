@@ -6467,7 +6467,7 @@ namespace netxs::gui
     };
 }
 
-#else
+#elif !defined(__APPLE__)
 
 namespace netxs::gui
 {
@@ -6686,6 +6686,60 @@ namespace netxs::gui
             wdelta = 1.f;
             blinks.rate = blinks.init;
         }
+    };
+}
+
+#else // if defined(__APPLE__)
+
+namespace netxs::gui
+{
+    struct window : winbase
+    {
+        window(auto&& ...Args)
+            : winbase{ Args... }
+        { }
+        bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
+        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        bool keybd_read_input() { return true; }
+        void keybd_sync_shift(bool /*async*/) {}
+        si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
+        si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
+        bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        void keybd_wipe_vkstat() {}
+        void keybd_read_vkstat() {}
+        void keybd_send_block(view /*block*/) {}
+        void keybd_turn_layout(ui32 /*hkl*/) {}
+        void keybd_sync_layout() {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
+        void keybd_sync_state(si32 /*virtcod*/) {}
+        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
+        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
+        void layer_move_all() {}
+        void layer_present(layer& /*s*/) {}
+        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void window_sync_taskbar(si32 /*new_state*/) {}
+        rect window_get_fs_area(rect window_area) { return window_area; }
+        void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        cont window_recv_command(arch /*lParam*/) { return cont{}; }
+        void window_make_foreground() {}
+        void window_make_focused() {}
+        void window_make_exposed() {}
+        void window_make_topmost(bool) {}
+        void window_message_pump() {}
+        void window_initilize() {}
+        void window_shutdown() {}
+        void window_cleanup() {}
+        void window_set_title(view /*utf8*/) {}
+        twod mouse_get_pos() { return twod{}; }
+        void mouse_capture(si32 /*captured_by*/) {}
+        void mouse_release(si32 /*released_by*/) {}
+        void mouse_catch_outside() {}
+        void sync_os_settings() {}
     };
 }
 
