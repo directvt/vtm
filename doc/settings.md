@@ -771,12 +771,21 @@ The value of the `cfg` menu item attribute (or the entire `<config>` subsection)
 
 The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root `<Ns=.../>` element to ensure patch inheritance.
 
-The vtm UI has built-in English (`en-US`) and Russian (`ru-RU`) localizations.
+Vtm UI has the following built-in localizations:
+- `en-US` US English
+- `pt-BR` Brazilian Portuguese
+- `ru-RU` Russian
 
 For example:
-- To activate the `ru-RU` interface with fallback to `en-US` for the desktop:
+- To activate the `pt-BR` interface with fallback to `en-US` for the desktop:  
+  Add the following record to your `~/.config/vtm/settings.xml`:
   ```
-  vtm --config "<Ns=en-US|ru-RU/>"
+  <Ns=en-US|pt-BR/>  <!-- Brazilian Portuguese with fallback to US English -->
+  <!-- the rest of your configuration...
+     <config>
+     ...
+     </config>
+  -->
   ```
 - To activate the `ru-RU` interface for the built-in terminal:
 
