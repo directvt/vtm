@@ -755,7 +755,6 @@ namespace x11
         }
         else if (auto home_env = os::env::get("HOME"); home_env.size())
         {
-            //todo expand home_env for win32
             auth_path = home_env + "/.Xauthority";
         }
         if (auth_path.size())
