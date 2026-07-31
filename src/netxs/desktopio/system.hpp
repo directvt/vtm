@@ -4160,10 +4160,6 @@ namespace netxs::os
                             term = "Native GUI console (X11)";
                         }
                     }
-                    //if (!haspty && !(dtvt::vtmode & ui::console::gui))
-                    //{
-                    //    dtvt::vtmode |= ui::console::redirio;
-                    //}
                 #endif
             }
             if (!dtvt::active && !(dtvt::vtmode & ui::console::redirio) && os::stdin_fd  != os::invalid_fd
