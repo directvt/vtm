@@ -6493,7 +6493,7 @@ namespace netxs::gui
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent /*border_dent*/ = {}, twod cell_size = {})
         {
             auto success = faux;
             auto& x11session = *os::x11::session;

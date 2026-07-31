@@ -884,6 +884,7 @@ namespace x11
     static auto session = sptr<session_t>{}; // x11: Active X11 session.
     auto connect()
     {
+        if (faux) //todo
         if (auto display_env = os::env::get("DISPLAY"); display_env.size())
         if (auto colon_start = display_env.find(':'); colon_start != text::npos)
         if (auto display_num = utf::to_int(display_env.substr(colon_start + 1)))
