@@ -66,8 +66,13 @@
 
     #if defined(__APPLE__)
         #include <mach-o/dyld.h>    // ::_NSGetExecutablePath()
-    #elif defined(__BSD__)
-        #include <sys/sysctl.h>
+    #else
+        #if defined(__BSD__)
+            #include <sys/sysctl.h>
+            #include <sys/mman.h> // X11 MIT-SHM ::shm_open()
+        #endif
+            #include <sys/mman.h> // X11 MIT-SHM ::memfd_create()
+
     #endif
 
     extern char **environ;
@@ -2830,7 +2835,7 @@ namespace netxs::os
 
             #elif defined(__APPLE__)
 
-                auto size = uint32_t{};
+                auto size = ui32{};
                 if (-1 == ::_NSGetExecutablePath(nullptr, &size))
                 {
                     auto buff = std::vector<char>(size);
@@ -3953,6 +3958,10 @@ namespace netxs::os
         }
     }
 
+    #if !defined(__APPLE__) && !defined(_WIN32)
+        #include "x11.hpp"
+    #endif
+
     namespace dtvt
     {
         static auto vtmode = si32{}; // dtvt: VT-mode bit set.
@@ -4069,7 +4078,7 @@ namespace netxs::os
                        : proc([&](auto... args){ return io::select(netxs::maxspan, noop{}, args...); }); // Blocking.
 
             #endif
-            if (cfsize)
+            if (cfsize && cfsize < 100 * 1000000) // 100Mb limit for size.
             {
                 dtvt::config.resize(cfsize);
                 auto data = dtvt::config.data();
@@ -4103,41 +4112,57 @@ namespace netxs::os
                 #endif
                 dtvt::vtmode |= ui::console::direct;
             }
-            else if (!haspty)
-            {
-                dtvt::vtmode |= ui::console::redirio;
-            }
             else
             {
-                dtvt::gridsz = dtvt::consize();
-                if (rungui)
-                {
-                    #if defined(_WIN32)
-                    if (nt::session()) // There is no gui mode in Session0.
+                #if defined(_WIN32)
+                    if (!haspty)
                     {
-                        dtvt::vtmode |= ui::console::gui;
-                        auto processpid = DWORD{};
-                        auto proc_count = ::GetConsoleProcessList(&processpid, 1);
-                        if (1 == proc_count) // Run gui console. Close parent console when we are alone.
+                        dtvt::vtmode |= ui::console::redirio;
+                    }
+                    else
+                    {
+                        dtvt::gridsz = dtvt::consize();
+                        if (rungui)
                         {
-                            os::stdin_fd  = os::invalid_fd;
-                            os::stdout_fd = os::invalid_fd;
-                            os::stderr_fd = os::invalid_fd;
-                            //if constexpr (!debugmode) ::FreeConsole();
-                            ::FreeConsole();
+                            if (nt::session()) // There is no gui mode in Session0.
+                            {
+                                dtvt::vtmode |= ui::console::gui;
+                                auto processpid = DWORD{};
+                                auto proc_count = ::GetConsoleProcessList(&processpid, 1);
+                                if (1 == proc_count) // Run gui console. Close parent console when we are alone.
+                                {
+                                    os::stdin_fd  = os::invalid_fd;
+                                    os::stdout_fd = os::invalid_fd;
+                                    os::stderr_fd = os::invalid_fd;
+                                    ::FreeConsole();
+                                }
+                            }
+                            if (dtvt::vtmode & ui::console::gui)
+                            {
+                                term = "Native GUI console (Win32)";
+                            }
                         }
                     }
-                    #else
-                    if (!haspty) //todo this never happens, see ui::console::redirio above
+                #else
+                    if (haspty)
                     {
-                        dtvt::vtmode |= ui::console::gui;
+                        dtvt::gridsz = dtvt::consize();
                     }
-                    #endif
-                    if (dtvt::vtmode & ui::console::gui)
+                    else
                     {
-                        term = "Native GUI console";
+                        dtvt::vtmode |= ui::console::redirio;
                     }
-                }
+                    if (rungui)
+                    {
+                        #if !defined(__APPLE__)
+                        if (x11::connect())
+                        {
+                            dtvt::vtmode |= ui::console::gui;
+                            term = "Native GUI console (X11)";
+                        }
+                        #endif
+                    }
+                #endif
             }
             if (!dtvt::active && !(dtvt::vtmode & ui::console::redirio) && os::stdin_fd  != os::invalid_fd
                                                                         && os::stdout_fd != os::invalid_fd)

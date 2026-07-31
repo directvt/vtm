@@ -1311,7 +1311,6 @@ namespace netxs::gui
                 auto system_font_flow = os::nt::walk_registry(HKEY_CURRENT_USER,  registered_fonts, filter)
                                       | os::nt::walk_registry(HKEY_LOCAL_MACHINE, registered_fonts, filter);
             #else
-                //todo build a native system_font_flow
                 struct fontfile_item_t
                 {
                     text path;
@@ -1319,6 +1318,31 @@ namespace netxs::gui
                     text data;
                 };
                 auto system_font_flow = std::vector<fontfile_item_t>{};
+                auto search_paths = std::vector<os::fs::path>{ "/usr/share/fonts",
+                                                               "/usr/local/share/fonts",
+                                                               "/mnt/c/Windows/Fonts" }; // Check WSL.
+                if (auto home_str = os::env::get("HOME"); home_str.size())
+                {
+                    search_paths.push_back(os::fs::path(home_str) / ".fonts");
+                    search_paths.push_back(os::fs::path(home_str) / ".local/share/fonts");
+                }
+                auto is_font_supported = [](auto ext) { return ext == ".ttf" || ext == ".otf" || ext == ".ttc"; };
+                for (auto& dir : search_paths)
+                {
+                    if (os::fs::exists(dir))
+                    {
+                        auto ec = std::error_code{};
+                        for (auto& entry : os::fs::recursive_directory_iterator(dir, os::fs::directory_options::skip_permission_denied, ec))
+                        {
+                            if (entry.is_regular_file() && is_font_supported(entry.path().extension()))
+                            {
+                                system_font_flow.push_back({ .path = entry.path().parent_path().generic_string(),
+                                                             .name = entry.path().stem().string(),
+                                                             .data = entry.path().generic_string() });
+                            }
+                        }
+                    }
+                }
             #endif
             auto font_list = std::vector<sptr<bare_face_t>>{};
             for (auto& item : system_font_flow)
@@ -6443,7 +6467,7 @@ namespace netxs::gui
     };
 }
 
-#else
+#elif !defined(__APPLE__)
 
 namespace netxs::gui
 {
@@ -6469,7 +6493,229 @@ namespace netxs::gui
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
+        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent /*border_dent*/ = {}, twod cell_size = {})
+        {
+            auto success = faux;
+            auto& x11session = *os::x11::session;
+            auto& x11screen = x11session.roots.front().s;
+            if (cell_size)
+            {
+                auto use_default_size = grid_size == dot_mx;
+                auto use_default_coor = win_coord == dot_mx;
+                if (use_default_coor)
+                {
+                    win_coord = { (si32)(x11screen.width_in_pixels / 2 - 400), (si32)(x11screen.height_in_pixels / 2 - 300) };
+                }
+                if (use_default_size)
+                {
+                    grid_size = cell_size * twod{ 80, 25 };
+                }
+                else
+                {
+                    grid_size *= cell_size;
+                }
+            }
+            auto new_window_id  = x11session.new_resource_id();
+            auto new_gc_id      = x11session.new_resource_id();
+            s.hWnd = (arch)new_window_id;
+            s.hdc  = (arch)new_gc_id;
+            auto create_flow = x11session.create_window_flow(new_window_id, win_coord, grid_size);
+            auto gc_req = os::x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id };
+            create_flow += view{ (char*)&gc_req, sizeof(gc_req) };
+            //todo switch to shm_fd. use single overallocated and double sized mit-shm segment for layers
+            //        if (cell_size) init shared_buffer...
+            //auto buffer_size = sizeof(argb); // Allocate MIT-SHM (CreateDIBSection) 1x1 px bitmap.
+            //if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
+            //{
+            //    if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
+            //    {
+            //        x11session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
+
+            //        auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + 1 };
+            //        s.area = rect{ dot_00, dot_11 };
+            //        s.data = netxs::raster{ bitmap, s.area };
+
+            //        auto attach = os::x11::req::shm_attach{};
+            //        attach.req_opcode = x11session.shm_major_opcode;
+            //        attach.shm_seg_id = new_shm_seg_id;
+            //        attach.shmid      = shmid;
+            //        create_flow += view{ (char*)&attach, sizeof(attach) };
+            //        if (cell_size)
+            //        {
+            //            grid_size /= cell_size;
+            //            s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+            //        }
+            //        x11session.x11connection->send(create_flow);
+            //        success = true;
+            //    }
+            //    ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
+            //}
+            return success;
+        }
+        void layer_move_all() {}
+        void layer_present(layer& /*s*/) {}
+        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        bits layer_get_bits(layer& s, bool zeroize = faux)
+        {
+            //auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + (grid_size.x * grid_size.y) };
+            //s.data = netxs::raster{ bitmap, rect{ win_coord, grid_size }};
+            if (s.hdc && s.area)
+            {
+                if (s.resized())
+                {
+                    //todo implement allocation logic inside shared memory (+double buffering)
+                    //auto ptr = (void*)nullptr;
+                    //auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
+                    //                                      .biWidth       = s.area.size.x,
+                    //                                      .biHeight      = -s.area.size.y,
+                    //                                      .biPlanes      = 1,
+                    //                                      .biBitCount    = 32,
+                    //                                      .biCompression = BI_RGB }};
+                    //if (auto hbm = ::CreateDIBSection((HDC)s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
+                    //{
+                    //    ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
+                    //    zeroize = faux;
+                    //    s.prev.size = s.area.size;
+                    //    s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
+                    //
+                    //Sync resize:
+                    //send noop
+                    //wait reply
+                    //}
+                    //else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
+                }
+                if (zeroize) s.wipe();
+            }
+            s.data.move(s.area.coor);
+            return s.data;
+        }
+        void window_sync_taskbar(si32 /*new_state*/) {}
+        rect window_get_fs_area(rect window_area) { return window_area; }
+        void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        cont window_recv_command(arch /*lParam*/) { return cont{}; }
+        void window_make_foreground() {}
+        void window_make_focused() {}
+        void window_make_exposed() {}
+        void window_make_topmost(bool) {}
+        void window_message_pump()
+        {
+            auto& x11connection = *os::x11::session->x11connection;
+            auto atom_wm_delete_window = ui32{};
+            auto ev = os::x11::event::any{};
+            while (x11connection.recv((char*)&ev, 32).size() == 32)
+            {
+                auto type = ev.type & 0x7F;
+                //// Take event window id.
+                //auto event_window = 0u;
+                //if (type == 4 || type == 5 || type == 6) // Mouse events
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::mouse_click&>(ev).event_window;
+                //}
+                //else if (type == 22) // ConfigureNotify
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::configure&>(ev).window;
+                //}
+                //else if (type == 33) // ClientMessage
+                //{
+                //    event_window = reinterpret_cast<os::x11::event::client_message&>(ev).window;
+                //}
+                switch (type)
+                {
+                    case 6: // MotionNotify -> WM_MOUSEMOVE
+                    {
+                        //auto& m = reinterpret_cast<os::x11::event::motion&>(ev);
+                        mouse_moved(); // In X11, the mouse position is updated implicitly within the event structure.
+                        break;
+                    }
+                    case 7: // EnterNotify
+                        break;
+                    case 8: // LeaveNotify -> WM_MOUSELEAVE
+                        mouse_leave();
+                        break;
+                    case 4: // ButtonPress
+                    case 5: // ButtonRelease
+                    {
+                        auto& b = reinterpret_cast<os::x11::event::mouse_click&>(ev);
+                        auto pressed = type == 4;
+                             if (b.button == 1) mouse_press(bttn::left, pressed);
+                        else if (b.button == 2) mouse_press(bttn::middle, pressed);
+                        else if (b.button == 3) mouse_press(bttn::right, pressed);
+                        //todo use XInput2
+                        //else if (b.button == 4 && pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
+                        //else if (b.button == 5 && pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
+                        //else if (b.button == 6 && pressed) mouse_wheel(-120, 1); // WheelLeft
+                        //else if (b.button == 7 && pressed) mouse_wheel(120, 1);  // WheelRight
+                        break;
+                    }
+                    case 9:  // FocusIn  -> WM_SETFOCUS
+                    case 10: // FocusOut -> WM_KILLFOCUS
+                        focus_event(type == 9);
+                        break;
+                    case 22: // ConfigureNotify -> WM_WINDOWPOSCHANGED
+                    {
+                        auto& cfg = reinterpret_cast<os::x11::event::configure&>(ev);
+                        check_window(twod{ cfg.x, cfg.y }); // Window move/resize.
+                        break;
+                    }
+                    case 33: // ClientMessage -> ?WM_CLOSE
+                    {
+                        auto& msg = reinterpret_cast<os::x11::event::client_message&>(ev);
+                        if (msg.data32[0] == atom_wm_delete_window)
+                        {
+                            sys_command(syscmd::close);
+                        }
+                        break;
+                    }
+                }
+                sys_command(syscmd::update);
+            }
+            window_cleanup();
+        }
+        void window_initilize() {}
+        void window_shutdown() {}
+        void window_cleanup() {}
+        void window_set_title(view /*utf8*/) {}
+        twod mouse_get_pos() { return twod{}; }
+        void mouse_capture(si32 /*captured_by*/) {}
+        void mouse_release(si32 /*released_by*/) {}
+        void mouse_catch_outside() {}
+        void sync_os_settings()
+        {
+            wdelta = 1.f;
+            blinks.rate = blinks.init;
+        }
+    };
+}
+
+#else // if defined(__APPLE__)
+
+namespace netxs::gui
+{
+    struct window : winbase
+    {
+        window(auto&& ...Args)
+            : winbase{ Args... }
+        { }
+        bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
+        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        bool keybd_read_input() { return true; }
+        void keybd_sync_shift(bool /*async*/) {}
+        si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
+        si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
+        bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        void keybd_wipe_vkstat() {}
+        void keybd_read_vkstat() {}
+        void keybd_send_block(view /*block*/) {}
+        void keybd_turn_layout(ui32 /*hkl*/) {}
+        void keybd_sync_layout() {}
+        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
+        void keybd_sync_state(si32 /*virtcod*/) {}
+        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
+        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}

@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.07.22";
+    static const auto version = "v2026.07.30";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1183,7 +1183,6 @@ namespace netxs::app::shared
     }
     static void start(text cmd, text aclass)
     {
-        //todo revise
         auto [client, server] = os::ipc::xlink();
         auto& indexer = ui::tui_domain();
         auto& config = indexer.config;
