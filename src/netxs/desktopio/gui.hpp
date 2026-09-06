@@ -3517,7 +3517,6 @@ namespace netxs::gui
         rect  grip_r; // winbase: Resizing grips right segment area.
         rect  grip_t; // winbase: Resizing grips top segment area.
         rect  grip_b; // winbase: Resizing grips bottom segment area.
-        b256  vkstat; // winbase: Keyboard virtual keys state.
         si32  keymod; // winbase: Keyboard modifiers state.
         si32  heldby; // winbase: Mouse capture owners bitfield.
         fp32  whlacc; // winbase: Mouse wheel accumulator.
@@ -3555,7 +3554,6 @@ namespace netxs::gui
               fsmode{ winstate::undefined },
               fullcs{ cellsz },
               normcs{ cellsz },
-              vkstat{},
               keymod{ 0x0 },
               heldby{ 0x0 },
               whlacc{ 0.f },
@@ -3574,6 +3572,7 @@ namespace netxs::gui
         virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
+        virtual si32 keybd_mods_state() = 0;
         virtual void keybd_sync_state(si32 virtcod = 0) = 0;
         virtual void keybd_turn_layout(ui32 hkl) = 0;
         virtual void keybd_sync_layout()
@@ -3587,12 +3586,13 @@ namespace netxs::gui
             if constexpr (debugmode) log("Sync kb layout: xlayout=%%", utf::to_hex(xlayout));
         }
         virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
+        virtual void keybd_load_vkstat(void* ptr, ui32 len) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
+        virtual void keybd_print_vkstat(text s) = 0;
         virtual bool keybd_read_input() = 0;
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
-        virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
@@ -3671,28 +3671,6 @@ namespace netxs::gui
         auto lbutton_pressed()
         {
             return keybd_read_pressed(vkey::lbutton);
-        }
-        void print_vkstat(text s)
-        {
-            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
-            auto i = 0;
-            for (auto k : vkstat)
-            {
-                if (i % 16 == 0)
-                {
-                    s += "\n ";
-                    utf::to_hex<true>(i, s, 2);
-                    s += ' ';
-                }
-                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
-                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
-                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
-                else if (k)         s += ansi::fgc(tint::magentalt);
-                else                s += ansi::nil();
-                s += utf::to_hex(k) + ' ';
-                i++;
-            }
-            log(s);
         }
         void output(view data)
         {
@@ -4364,23 +4342,8 @@ namespace netxs::gui
         }
         auto get_mods_state()
         {
-            if (mfocus.focused()) return keymod;
-            else
-            {
-                auto state = 0;
-                if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
-                if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
-                if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-                if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-                if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
-                if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
-                if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
-                if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
-                if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
-                if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
-                if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
-                return state;
-            }
+            return mfocus.focused()? keymod
+                                   : keybd_mods_state();
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
@@ -4715,7 +4678,7 @@ namespace netxs::gui
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
-            //print_vkstat("keybd_send_state");
+            //keybd_print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
                 synth ? chords.build(gear)
@@ -4847,10 +4810,7 @@ namespace netxs::gui
                 }
                 else if (command == ipc::pass_state) // Keybd state.
                 {
-                    if (data.len == sizeof(vkstat))
-                    {
-                        std::memcpy(vkstat.data(), data.ptr, sizeof(vkstat));
-                    }
+                    keybd_load_vkstat(data.ptr, data.len);
                 }
                 else if (command == ipc::pass_input) // Keybd input.
                 {
@@ -5501,6 +5461,7 @@ namespace netxs::gui
         bool fake_ralt{};     // window: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
         ui32 fake_time{};     // window: Fake alt/ctrl event time stamp.
         si32 fake_scan{};     // window: Fake LeftCtrl scancode.
+        b256 vkstat{};        // window: Win32 keyboard virtual keys state.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -5949,7 +5910,7 @@ namespace netxs::gui
                     {
                         keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(cluster, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        //print_vkstat("Alt+Numpad");
+                        //keybd_print_vkstat("Alt+Numpad");
                         return true;
                     }
                 }
@@ -5965,8 +5926,53 @@ namespace netxs::gui
                 //if constexpr (debugmode) log("deadkey pressed");
                 keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
-            //print_vkstat("keybd_read_input");
+            //keybd_print_vkstat("keybd_read_input");
             return true;
+        }
+        si32 keybd_mods_state()
+        {
+            auto state = 0;
+            if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
+            if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
+            return state;
+        }
+        void keybd_load_vkstat(void* ptr, ui32 len)
+        {
+            if (len == sizeof(vkstat))
+            {
+                std::memcpy(vkstat.data(), ptr, sizeof(vkstat));
+            }
+        }
+        void keybd_print_vkstat(text s)
+        {
+            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
+            auto i = 0;
+            for (auto k : vkstat)
+            {
+                if (i % 16 == 0)
+                {
+                    s += "\n ";
+                    utf::to_hex<true>(i, s, 2);
+                    s += ' ';
+                }
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+            }
+            log(s);
         }
         void window_message_pump()
         {
@@ -5992,13 +5998,13 @@ namespace netxs::gui
         {
             ::GetKeyboardState(vkstat.data());
             keybd_send_state(virtcod);
-            //print_vkstat("keybd_sync_state");
+            //keybd_print_vkstat("keybd_sync_state");
         }
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(vkstat.data());
             mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_vkstat("keybd_read_vkstat");
+            //keybd_print_vkstat("keybd_read_vkstat");
             tslink.set_focus();
         }
         void keybd_wipe_vkstat()
@@ -6017,7 +6023,7 @@ namespace netxs::gui
             vkstat[vkey::oem_roya] = r;
             vkstat[vkey::oem_loya] = l;
             ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
-            //print_vkstat("deactivate");
+            //keybd_print_vkstat("deactivate");
         }
         auto is_layout_latin_based(HKL hkl)
         {
@@ -6598,6 +6604,7 @@ namespace netxs::gui
             byts   received_data;
         };
 
+        x11::session_t& session = *x11::session_ptr;
         mouse_state_t mouse_state;
         text batch_buffer;
         fp2d current_mouse_pos;
@@ -6608,7 +6615,8 @@ namespace netxs::gui
         flag block_mouse_movement{};
         std::unordered_map<ui32, peer_state> recv_buffers;
         std::atomic<ui64> current_msc = 0;
-        x11::session_t& session = *x11::session_ptr;
+        std::array<byte, 32> vkstat{}; // window: X11 keyboard virtual keys state.
+        ui32                 led_state{}; // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -6959,18 +6967,126 @@ namespace netxs::gui
             }
             return result;
         }
+        void keybd_request_state()
+        {
+            auto lock = std::lock_guard{ session.sync_mutex };
+            if constexpr (debugmode) log("query_keymap: seq=%%", session.sync_sequence_counter + (ui16)1);
+            auto seq_num = session.syncrq(session.sync_buffer, x11::req::query_keymap{});
+            session.sync_x11connection->send(session.sync_buffer);
+            session.sync_buffer.resize(x11::recv_packet_size);
+            while (session.sync_x11connection->recv(session.sync_buffer.data(), x11::recv_packet_size).size() == x11::recv_packet_size)
+            {
+                auto ev = netxs::start_lifetime_as<x11::event::any>(session.sync_buffer.data());
+                auto type = ev.type & 0x7F;
+                if (type == x11::event::Error)
+                {
+                    log("%%Get keyboard state error: %%", prompt::x11, session.get_error(ev));
+                }
+                else
+                {
+                    if (ev.length)
+                    {
+                        auto rest = ev.length * 4;
+                        auto start = session.sync_buffer.size();
+                        session.sync_buffer.resize(start + rest);
+                        if (session.sync_x11connection->recv(session.sync_buffer.data() + start, rest).size() != rest)
+                        {
+                            log(ansi::err("%%Get keyboard state error: Unexpected reply length", prompt::x11));
+                            break;
+                        }
+                    }
+                    if (type == x11::event::Reply && ev.sequence == seq_num)
+                    {
+                        auto reply = netxs::start_lifetime_as<x11::req::query_keymap::reply>(session.sync_buffer.data());
+                        std::memcpy(vkstat.data(), &reply.keys, vkstat.size());
+                        break;
+                    }
+                }
+                if (ev.sequence == seq_num) break;
+            }
+            session.sync_buffer.clear();
+        }
+        void _set_keyboard_led_state(auto state)
+        {
+            led_state = state;
+        }
 
-        bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return faux; /*!!(vkstat[virtcod] & 0x80);*/ }
-        bool keybd_test_toggled(si32 /*virtcod*/) { return faux; /*!!(vkstat[virtcod] & 0x01);*/ }
-        bool keybd_read_pressed(si32 /*virtcod*/) { return faux; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_toggled(si32 /*virtcod*/) { return faux; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
+        {
+            return netxs::get_bit(vkstat, virtcod);
+        }
+        bool keybd_test_toggled(si32 virtcod)
+        {
+            //todo optimize
+                 if (virtcod == vkey::numlock ) return led_state &= x11::req::xi2::mods::NumLock;
+            else if (virtcod == vkey::capslock) return led_state &= x11::req::xi2::mods::CapsLock;
+            else if (virtcod == vkey::scrllock) return led_state &= x11::req::xi2::mods::ScrollLock;
+            else                                return faux;
+        }
+        bool keybd_read_pressed(si32 virtcod)
+        {
+            keybd_request_state();
+            return keybd_test_pressed(virtcod);
+        }
+        si32 keybd_mods_state()
+        {
+            auto state = 0;
+            keybd_request_state();
+            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt;
+            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+            return state;
+        }
         bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
         bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
-        void keybd_wipe_vkstat() {}
-        void keybd_read_vkstat() {}
+        void keybd_load_vkstat(void* ptr, ui32 len)
+        {
+            if (len == sizeof(vkstat))
+            {
+                std::memcpy(vkstat.data(), ptr, sizeof(vkstat));
+            }
+        }
+        void keybd_print_vkstat(text s)
+        {
+            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
+            for (auto i : std::views::iota(0, 256))
+            {
+                if (i % 16 == 0)
+                {
+                    s += "\n ";
+                    utf::to_hex<true>(i, s, 2);
+                    s += ' ';
+                }
+                auto k = netxs::get_bit(vkstat, i);
+                if (k) s += ansi::fgc(tint::greenlt);
+                else   s += ansi::nil();
+                s += utf::to_hex(i, 2) + ' ';
+                i++;
+            }
+            log(s);
+        }
+        void keybd_wipe_vkstat()
+        {
+            vkstat = {};
+        }
+        void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
+        {
+            keybd_request_state();
+            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            keybd_print_vkstat("keybd_read_vkstat");
+            //tslink.set_focus();
+        }
         void keybd_send_block(view /*block*/) {}
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
@@ -7790,36 +7906,31 @@ namespace netxs::gui
                 if (!is_master) return true; // Ignore slave keyboard.
                 auto k = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
                 auto is_pressed = d.evtype == x11::req::xi2::event::KeyPress;
-                auto s_keycode  = k.detail; // Native keycode.
-                auto repeated   = !!(k.flags & x11::req::xi2::event::km::KeyRepeated);
+                auto s_keycode  = k.detail & 0xFF; // Native keycode.
+                auto repeated   = is_pressed && netxs::get_bit(vkstat, s_keycode);
                 auto xi_mods    = k.mods.effective; // All modifiers.
                 auto layout_idx = k.group.effective; // Keybd layout.
-                auto keymods = 0;
-                if (xi_mods & x11::req::xi2::mods::Shift   ) keymods |= mods::LShift;
-                if (xi_mods & x11::req::xi2::mods::CapsLock) keymods |= mods::CapsLock;
-                if (xi_mods & x11::req::xi2::mods::Ctrl    ) keymods |= mods::LCtrl;
-                if (xi_mods & x11::req::xi2::mods::mod1    ) keymods |= mods::LAlt;
-                if (xi_mods & x11::req::xi2::mods::mod2    ) keymods |= mods::NumLock;
-                if (xi_mods & x11::req::xi2::mods::mod3    ) keymods |= mods::LMeta;//todo remove it (AltGr)
-                if (xi_mods & x11::req::xi2::mods::mod4    ) keymods |= mods::LSuper;
-                if (xi_mods & x11::req::xi2::mods::mod5    ) keymods |= mods::ScrollLock;
+                netxs::set_bit(vkstat, s_keycode, is_pressed);
+                _set_keyboard_led_state(k.group.locked); // NumLocks.
                 if constexpr (debugmode)
                 {
-                    log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% layout_idx=%% (Super:%% Shift:%%, Ctrl:%%, Alt:%% AltGr:%% Caps:%% Num:%% Scrl:%%)",
+                    log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%",
                         prompt::x11, k.sourceid, session.input_devices[k.sourceid].name,
                         is_pressed ? (repeated ? "Repeat" : "Press") : "Release", s_keycode,
                         utf::to_hex(xi_mods),
-                        (si32)layout_idx,
-                        (si32)(bool)(keymods & mods::LSuper),
-                        (si32)(bool)(keymods & mods::LShift),
-                        (si32)(bool)(keymods & mods::LCtrl),
-                        (si32)(bool)(keymods & mods::LAlt),
-                        (si32)(bool)(keymods & mods::LMeta),
-                        (si32)(bool)(keymods & mods::CapsLock),
-                        (si32)(bool)(keymods & mods::NumLock),
-                        (si32)(bool)(keymods & mods::ScrollLock));
+                        utf::to_hex(led_state),
+                        (si32)layout_idx);
+                    keybd_print_vkstat("KeyPress");
                 }
                 //todo get utf8 cluster
+                //todo deadkeys
+                //todo Alt+numpad
+                auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
+                auto cluster = text(1, s_keycode);
+                auto virtcod = s_keycode;
+                auto scancod = s_keycode;
+                auto extflag = 0;
+                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
 
                 //todo exit on esc
                 if (s_keycode == 9) return faux;
@@ -7916,7 +8027,8 @@ namespace netxs::gui
                 master_pointer_id = device_id;
                 auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
                 auto hover = d.evtype == x11::req::xi2::event::Enter;
-                if constexpr (debugmode) log("%%Hover: sourceid=%% '%%' mode=%% mods=0x%% hover=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, (si32)f.mode, utf::to_hex(f.mods.effective), (si32)hover);
+                if constexpr (debugmode) log("%%Hover: sourceid=%% '%%' mode=%% mods=0x%% leds=0x%% hover=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, (si32)f.mode, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)hover);
+                _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
                 if (!hover && f.mode == 0/*Normal*/)
                 {
                     mouse_leave();
@@ -7955,7 +8067,8 @@ namespace netxs::gui
                 if (!is_master) return true; // Ignore slave devices.
                 auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
                 auto focused = d.evtype == x11::req::xi2::event::FocusIn;
-                if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% focused=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), (si32)focused);
+                if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused);
+                _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
                 _toggle_foreground(focused);
                 focus_event(focused);
             }
@@ -7982,14 +8095,15 @@ namespace netxs::gui
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
         bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        void keybd_load_vkstat(void* /*ptr*/, ui32 /*len*/) {}
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
+        void keybd_print_vkstat(text /*s*/) {}
         void keybd_send_block(view /*block*/) {}
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}

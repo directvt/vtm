@@ -328,6 +328,25 @@ namespace netxs
     {
         n = (n & ~(1 << P)) | (v << P);
     }
+    // intmath: Set bit to array.
+    template<class T, size_t S>
+    void set_bit(std::array<T, S>& array, size_t i, bool value)
+    {
+        static constexpr auto word_len = sizeof(T) * 8;
+        assert(i < word_len * S);
+        auto& word = array[i / word_len];
+        auto mask = (T)1 << (i % word_len);
+        value ? word |= mask
+              : word &= ~mask;
+    }
+    // intmath: Get bit from array.
+    template<class T, size_t S>
+    auto get_bit(std::array<T, S> const& array, size_t i)
+    {
+        static constexpr auto word_len = sizeof(T) * 8;
+        assert(i < word_len * S);
+        return (array[i / word_len] & ((T)1 << (i % word_len))) != 0;
+    }
     // intmath: Get a single p-bit to v.
     template<sz_t P, class T>
     auto get_bit(T&& n)

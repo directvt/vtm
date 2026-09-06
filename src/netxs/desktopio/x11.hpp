@@ -252,7 +252,7 @@ namespace netxs::x11
             };
             auto serialize(text& yield, payload p) { x11::serialize_list(yield, *this, p); }
         };
-        struct intern_atom // Opcode 16 (intern atom)
+        struct intern_atom // Opcode 16 (intern atom).
         {
             struct reply
             {
@@ -285,7 +285,7 @@ namespace netxs::x11
 
             auto serialize(text& yield, auto const& data) { x11::serialize_str(yield, *this, data); }
         };
-        struct get_property // Opcode 20 (get property)
+        struct get_property // Opcode 20 (get property).
         {
             struct reply
             {
@@ -350,7 +350,7 @@ namespace netxs::x11
                 ui32 data32[6];     // User data.
             };
         };
-        //struct grab_server // Opcode 36 (grab server)
+        //struct grab_server // Opcode 36 (grab server).
         //{
         //    byte opcode = 36;
         //    byte pad    = 0;
@@ -362,7 +362,7 @@ namespace netxs::x11
         //    byte pad    = 0;
         //    ui16 length = 1;
         //};
-        struct query_pointer // Opcode 38 (query pointer)
+        struct query_pointer // Opcode 38 (query pointer).
         {
             struct reply
             {
@@ -384,7 +384,7 @@ namespace netxs::x11
             ui16 length = 2;
             ui32 window_id;
         };
-        struct set_input_focus // Opcode 42 (set input focus)
+        struct set_input_focus // Opcode 42 (set input focus).
         {
             static constexpr auto RevertToNone   = 0;
             static constexpr auto RevertToRoot   = 1;
@@ -409,6 +409,20 @@ namespace netxs::x11
             };
             byte opcode = 43;
             byte pad    = 0;
+            ui16 length = 1;
+        };
+        struct query_keymap // Opcode 44 (query keyboard state).
+        {
+            struct reply
+            {
+                byte type;
+                byte pad0;
+                ui16 sequence;
+                ui32 length;   // =2.
+                byte keys[32]; // Key bit field (256 bits).
+            };
+            byte opcode = 44;
+            byte pad0   = 0;
             ui16 length = 1;
         };
         //struct create_pixmap // Opcode 53 (create pixmap).
@@ -453,7 +467,7 @@ namespace netxs::x11
         //    ui16 height  = 1;
         //    ui32 plane_mask = 0xFFFFFFFF;
         //};
-        struct create_colormap // Opcode 78 (create colormap)
+        struct create_colormap // Opcode 78 (create colormap).
         {
             byte opcode = 78;
             byte alloc  = 0;  // 0: None, 1: All
@@ -483,6 +497,26 @@ namespace netxs::x11
             ui16 pad2   = 0;
 
             auto serialize(text& yield, view name) { x11::serialize_str(yield, *this, name); }
+        };
+        struct get_keyboard_control // Opcode 101 (get keybd control).
+        {
+            struct reply
+            {
+                byte type;
+                byte global_auto_repeat; // 1 = on, 0 = off.
+                ui16 sequence;
+                ui32 length;
+                ui32 led_mask;           // LED bit fileld.
+                byte key_click_percent;
+                byte bell_percent;
+                ui16 bell_pitch;
+                ui16 bell_duration;
+                ui16 pad0;
+                byte auto_repeats[32];
+            };
+            byte opcode = 101;
+            byte pad0   = 0;
+            ui16 length = 1;
         };
         namespace shm // SHM Minor Opcodes: 0:QueryVersion, 1:Attach, 2:Detach, 3:PutImage, 4:GetImage, 5:CreatePixmap, 6:AttachFd, 7:CreateSegment
         {
@@ -662,6 +696,12 @@ namespace netxs::x11
                 static constexpr auto mod3     = 1u << 5; // AltGr.
                 static constexpr auto mod4     = 1u << 6; // Win/Super.
                 static constexpr auto mod5     = 1u << 7; // ScrollLock.
+                
+                static constexpr auto Alt        = mod1;
+                static constexpr auto NumLock    = mod2;
+                static constexpr auto AltGr      = mod3;
+                static constexpr auto Win        = mod4;
+                static constexpr auto ScrollLock = mod5;
             }
             namespace event
             {
@@ -1128,6 +1168,36 @@ namespace netxs::x11
                 //byte first_vmod_map     = 0;
                 //byte num_vmod_maps      = 0;
                 //ui16 pad1               = 0;
+            };
+            struct per_client_flags
+            {
+                static constexpr auto DetectableAutoRepeat = 1u;
+                static constexpr auto DetectableAutoRepeatMask = 1u << (DetectableAutoRepeat - 1);
+
+                static constexpr auto UseCoreKbd = 0x0100;
+
+                struct reply
+                {
+                    byte type;
+                    byte xkb_type;
+                    ui16 sequence;
+                    ui32 length;
+                    ui32 supported;
+                    ui32 value;
+                    ui32 auto_ctrls;
+                    ui32 auto_ctrl_values;
+                    ui32 pad[2];
+                };
+                byte major_opcode;          // xkb_major_opcode
+                byte minor_opcode     = 21; // 21: XkbXPerClientFlags.
+                ui16 length           = 7;
+                ui16 device_spec      = UseCoreKbd;
+                ui16 pad0             = 0;
+                ui32 change_mask      = DetectableAutoRepeatMask; // Bit mask.
+                ui32 value            = DetectableAutoRepeat;     // New value: Enable DetectableAutoRepeat.
+                ui32 ctrls_to_change  = 0;
+                ui32 auto_ctrls       = 0;
+                ui32 auto_ctrl_values = 0;
             };
         }
         namespace xpresent
@@ -2349,6 +2419,23 @@ namespace netxs::x11
             }
             return ok;
         }
+        auto enable_detectable_autorepeat()
+        {
+            sendrq<x11::req::xkb::per_client_flags>({ .major_opcode = xkb_major_opcode,
+                                                      .device_spec  = x11::req::xkb::per_client_flags::UseCoreKbd,
+                                                      .change_mask  = x11::req::xkb::per_client_flags::DetectableAutoRepeatMask,
+                                                      .value        = x11::req::xkb::per_client_flags::DetectableAutoRepeat });
+            auto reply = x11::req::xkb::per_client_flags::reply{};
+            if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply) && reply.type == x11::event::Reply)
+            {
+                if constexpr (debugmode)
+                {
+                    auto detectable_auto_repeat_state = (reply.value & x11::req::xkb::per_client_flags::DetectableAutoRepeatMask) != 0;
+                    log("detectable_auto_repeat_state = ", detectable_auto_repeat_state);
+                }
+            }
+            return true;
+        }
         auto get_default_window_area()
         {
             auto default_area = workarea ? workarea : rect{ dot_00, { roots.front().s.width_in_pixels, roots.front().s.height_in_pixels }};
@@ -2862,6 +2949,7 @@ namespace netxs::x11
                 if (session.detect_extension<x11::req::xpresent::query_version>("Present"        , session.xpresent_major_opcode, byte{}, 1, 0))
                 if (session.get_atoms())
                 if (session.get_props())
+                if (session.enable_detectable_autorepeat())
                 if (session.get_default_window_area())
                 if (session.create_shared_objects())
                 if (session.open_sync_connection(x11unixpath, auth_packet))
