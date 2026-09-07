@@ -335,7 +335,7 @@ namespace netxs::x11
             // Payload header:
             ui32 originator_id;   // Originator window id.
             ui32 message_type;    // Atom message id (a-la WIN32_WM_USER).
-            ui32 serial      = 0; // Serial number to sync replay.
+            ui32 serial      = 0; // Serial number to sync replay. =Protocols atom for WM_PROTOCOLS.
             ui32 command     = 0; // User data.
             ui32 lParam      = 0; // User data: =data_length if command==cmd_w_data.
             // User data start:
@@ -498,26 +498,44 @@ namespace netxs::x11
 
             auto serialize(text& yield, view name) { x11::serialize_str(yield, *this, name); }
         };
-        struct get_keyboard_control // Opcode 101 (get keybd control).
+        struct get_keyboard_mapping // Opcode 101 (get keybd mapping)
         {
             struct reply
             {
                 byte type;
-                byte global_auto_repeat; // 1 = on, 0 = off.
+                byte key_syms_per_key_code;
                 ui16 sequence;
                 ui32 length;
-                ui32 led_mask;           // LED bit fileld.
-                byte key_click_percent;
-                byte bell_percent;
-                ui16 bell_pitch;
-                ui16 bell_duration;
-                ui16 pad0;
-                byte auto_repeats[32];
+                ui32 pad[6];
             };
             byte opcode = 101;
             byte pad0   = 0;
-            ui16 length = 1;
+            ui16 length = 2;
+            byte first_keycode;
+            byte count;
+            ui16 pad1   = 0;
         };
+        //struct get_keyboard_control // Opcode 102 (get keybd control).
+        //{
+        //    struct reply
+        //    {
+        //        byte type;
+        //        byte global_auto_repeat; // 1 = on, 0 = off.
+        //        ui16 sequence;
+        //        ui32 length;
+        //        ui32 led_mask;           // LED bit fileld.
+        //        byte key_click_percent;
+        //        byte bell_percent;
+        //        ui16 bell_pitch;
+        //        ui16 bell_duration;
+        //        ui16 pad0;
+        //        byte auto_repeats[32];
+        //    };
+        //    byte opcode = 102;
+        //    byte pad0   = 0;
+        //    ui16 length = 2;
+        //    ui32 mask   = 0;
+        //};
         namespace shm // SHM Minor Opcodes: 0:QueryVersion, 1:Attach, 2:Detach, 3:PutImage, 4:GetImage, 5:CreatePixmap, 6:AttachFd, 7:CreateSegment
         {
             struct query_version // ShmQueryVersion (Minor Opcode 0)
@@ -1681,8 +1699,9 @@ namespace netxs::x11
         //ui32                                  atom_net_wm_ping = 0;
         //ui32                                  atom_net_wm_sync_request = 0;
         //ui32                                  atom_net_wm_sync_request_counter = 0;
-        //ui32                                  atom_wm_protocols = 0;
         //ui32                                  atom_net_wm_bypass_compositor = 0; //_XWAYLAND_ALLOW_FRACTIONAL_SCALE
+        ui32                                  atom_wm_protocols = 0;
+        ui32                                  atom_wm_delete_window = 0;
         ui32                                  atom_atom = 0;
         ui32                                  atom_cardinal = 0;
         ui32                                  atom_utf8_string = 0;
@@ -2191,11 +2210,11 @@ namespace netxs::x11
                                                     .type      = atom_motif_wm_hints },
                                                 x11::motif::hints{ .flags = x11::motif::Decorations, .decorations = 0 });
             }
-            //todo it doesn't work // Set WM_PROTOCOLS.
-            //sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
-            //                                    .property  = atom_wm_protocols,
-            //                                    .type      = atom_atom },
-            //                                std::to_array({ atom_net_wm_sync_request, atom_net_wm_ping }));
+            // Set WM_PROTOCOLS.
+            sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+                                                .property  = atom_wm_protocols,
+                                                .type      = atom_atom },
+                                            std::to_array({ atom_wm_delete_window })); //std::to_array({ atom_net_wm_sync_request, atom_net_wm_ping }));
             // Set XSync counter.
             //sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
             //                                    .property  = atom_net_wm_sync_request_counter,
@@ -2384,8 +2403,9 @@ namespace netxs::x11
             atom_wm_hints               = get_atom_id("WM_HINTS",         faux);
             atom_wm_normal_hints        = get_atom_id("WM_NORMAL_HINTS",  faux);
             atom_wm_size_hints          = get_atom_id("WM_SIZE_HINTS",    faux);
-            //atom_wm_protocols           = get_atom_id("WM_PROTOCOLS",     faux);
             atom_net_workarea           = get_atom_id("_NET_WORKAREA",    faux);
+            atom_wm_protocols           = get_atom_id("WM_PROTOCOLS",            true);
+            atom_wm_delete_window       = get_atom_id("WM_DELETE_WINDOW",        true);
             atom_net_active_window      = get_atom_id("_NET_ACTIVE_WINDOW",      true);
             atom_net_number_of_desktops = get_atom_id("_NET_NUMBER_OF_DESKTOPS", true);
             atom_net_current_desktop    = get_atom_id("_NET_CURRENT_DESKTOP",    true);

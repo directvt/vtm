@@ -7476,6 +7476,15 @@ namespace netxs::gui
                                                  .command        = (ui32)ipc::send_reply,
                                                  .lParam         = result });
         }
+        void _close_command(ui32 originator_id)
+        {
+            if (!originator_id) return;
+            if constexpr (debugmode) log("_close_command: seq=%%", session.sync_sequence_counter + (ui16)1);
+            session.sendrq(x11::req::send_event{ .destination_id = originator_id,
+                                                 .originator_id  = 0,
+                                                 .message_type   = session.atom_wm_protocols,
+                                                 .serial         = session.atom_wm_delete_window });
+        }
         void window_message_pump()
         {
             if constexpr (debugmode) log("window_message_pump started");
@@ -7574,11 +7583,6 @@ namespace netxs::gui
                     }
                     case x11::event::ClientMessage:
                     {
-                        //auto msg = netxs::start_lifetime_as<x11::event::client_message>(read_buffer.data());
-                        //if (msg.data32[0] == session.atom_wm_delete_window)
-                        //{
-                        //    sys_command(syscmd::close);
-                        //}
                         auto msg = netxs::start_lifetime_as<x11::req::send_event::reply>(read_buffer.data());
                         auto originator_id = msg.originator_id;
                         if (auto iter = recv_buffers.find(originator_id); iter != recv_buffers.end() && iter->second.received_data.size()) // Append existing buffer.
@@ -7633,6 +7637,14 @@ namespace netxs::gui
                                 auto result = run_command(command, lParam);
                                 _reply_command(msg.originator_id, msg.serial, (ui32)result);
                             }
+                        }
+                        else if (msg.message_type == session.atom_wm_protocols
+                              && msg.serial       == session.atom_wm_delete_window)
+                        {
+                            // - User somehow closes window via window manager.
+                            // - window_shutdown().
+                            // Just interrupt the event loop.
+                            goto break_break;
                         }
                         break;
                     }
@@ -7787,8 +7799,11 @@ namespace netxs::gui
                 batch_buffer.clear();
             }
         }
-        void window_shutdown() {}
-        void window_cleanup() {}
+        void window_shutdown()
+        {
+            _close_command((ui32)master.hWnd);
+        }
+        void window_cleanup() { /*do nothing on X11*/ }
         void window_set_title(view utf8)
         {
             x11::session_ptr->window_set_title(master.wm_hWnd, utf8);
@@ -7928,12 +7943,9 @@ namespace netxs::gui
                 auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
                 auto cluster = text(1, s_keycode);
                 auto virtcod = s_keycode;
-                auto scancod = s_keycode;
+                auto scancod = std::max(0, (si32)s_keycode - 8);
                 auto extflag = 0;
                 keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
-
-                //todo exit on esc
-                if (s_keycode == 9) return faux;
             }
             else if (d.evtype == x11::req::xi2::event::ButtonPress
                   || d.evtype == x11::req::xi2::event::ButtonRelease
