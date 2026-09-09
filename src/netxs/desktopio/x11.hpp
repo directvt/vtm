@@ -411,7 +411,7 @@ namespace netxs::x11
             byte pad    = 0;
             ui16 length = 1;
         };
-        struct query_keymap // Opcode 44 (query keyboard state).
+        struct query_keymap // Opcode 44 (query pressed key state).
         {
             struct reply
             {
@@ -498,7 +498,7 @@ namespace netxs::x11
 
             auto serialize(text& yield, view name) { x11::serialize_str(yield, *this, name); }
         };
-        struct get_keyboard_mapping // Opcode 101 (get keybd mapping)
+        struct get_keyboard_mapping // Opcode 101 (get keybd keysym mapping)
         {
             struct reply
             {
@@ -507,6 +507,7 @@ namespace netxs::x11
                 ui16 sequence;
                 ui32 length;
                 ui32 pad[6];
+                // Payload...
             };
             byte opcode = 101;
             byte pad0   = 0;
@@ -515,8 +516,10 @@ namespace netxs::x11
             byte count;
             ui16 pad1   = 0;
         };
-        //struct get_keyboard_control // Opcode 102 (get keybd control).
+        //struct get_keyboard_control // Opcode 103 (get keybd control, LED state).
         //{
+        //    static constexpr auto CapsLock = 1 << 0; // It is unspecified.
+        //    static constexpr auto NumLock  = 1 << 1; //
         //    struct reply
         //    {
         //        byte type;
@@ -531,10 +534,10 @@ namespace netxs::x11
         //        ui16 pad0;
         //        byte auto_repeats[32];
         //    };
-        //    byte opcode = 102;
+        //    byte opcode = 103;
         //    byte pad0   = 0;
-        //    ui16 length = 2;
-        //    ui32 mask   = 0;
+        //    ui16 length = 1;
+        //    //ui32 mask   = 0;
         //};
         namespace shm // SHM Minor Opcodes: 0:QueryVersion, 1:Attach, 2:Detach, 3:PutImage, 4:GetImage, 5:CreatePixmap, 6:AttachFd, 7:CreateSegment
         {
@@ -706,20 +709,26 @@ namespace netxs::x11
             };
             namespace mods
             {
-                static constexpr auto Shift    = 1u << 0; // Shift.
-                static constexpr auto CapsLock = 1u << 1; // CapsLock.
-                static constexpr auto Ctrl     = 1u << 2; // Control.
-                static constexpr auto mod1     = 1u << 3; // Alt.
-                static constexpr auto mod2     = 1u << 4; // NumLock.
-                static constexpr auto mod3     = 1u << 5; // AltGr.
-                static constexpr auto mod4     = 1u << 6; // Win/Super.
-                static constexpr auto mod5     = 1u << 7; // ScrollLock.
-                
-                static constexpr auto Alt        = mod1;
-                static constexpr auto NumLock    = mod2;
-                static constexpr auto AltGr      = mod3;
-                static constexpr auto Win        = mod4;
-                static constexpr auto ScrollLock = mod5;
+                static constexpr auto Shift    = 1u << 0; // 01 Shift.
+                static constexpr auto CapsLock = 1u << 1; // 02 CapsLock.
+                static constexpr auto Ctrl     = 1u << 2; // 04 Control.
+                static constexpr auto mod1     = 1u << 3; // 08 Alt.
+                static constexpr auto mod2     = 1u << 4; // 10 NumLock.
+                static constexpr auto mod3     = 1u << 5; // 20 Level5Shift.
+                static constexpr auto mod4     = 1u << 6; // 40 Win.
+                static constexpr auto mod5     = 1u << 7; // 80 Level3Shift/AltGr.
+
+                static constexpr auto Alt         = mod1;
+                static constexpr auto NumLock     = mod2;
+                static constexpr auto Level5Shift = mod3;
+                static constexpr auto Win         = mod4;
+                static constexpr auto AltGr       = mod5;
+            }
+            namespace leds
+            {
+                static constexpr auto CapsLock   = 1u << 1;
+                static constexpr auto NumLock    = 1u << 4;
+                static constexpr auto ScrollLock = 1u << 6;
             }
             namespace event
             {
@@ -1110,7 +1119,23 @@ namespace netxs::x11
         }
         namespace xkb
         {
-            struct query_version
+            static constexpr auto Base_Char          = 0; // map_entry.syms[0]  Level 1 ('q')
+            static constexpr auto Shift_Char         = 1; // map_entry.syms[1]  Level 2 ('Q')
+            static constexpr auto AltGr_Char         = 2; // map_entry.syms[2]  Level 3 (symbols/diaritics)
+            static constexpr auto AltGr_Shift        = 3; // map_entry.syms[3]  Level 4 (symbols/diaritics)
+            static constexpr auto Level5_Char        = 4; // map_entry.syms[4]  Level 5 (symbols/diaritics/national)
+            static constexpr auto Level5_Shift       = 5; // map_entry.syms[5]  Level 6 (symbols/diaritics/national upper case)
+            static constexpr auto Level5_AltGr       = 6; // map_entry.syms[6]  Level 7 (symbols/diaritics)
+            static constexpr auto Level5_AltGr_Shift = 7; // map_entry.syms[7]  Level 8 (symbols/diaritics)
+
+            static constexpr auto UseCoreKbd = 0x0100;
+
+            static constexpr auto DetectableAutoRepeat = 1u;
+            static constexpr auto DetectableAutoRepeatMask = 1u << (DetectableAutoRepeat - 1);
+
+            static constexpr auto KeySymsMask = 1u << 1;
+
+            struct query_version // 0: QueryVersion (XkbUseExtension = 0).
             {
                 struct reply
                 {
@@ -1125,10 +1150,41 @@ namespace netxs::x11
                 byte major_opcode;      // xkb_major_opcode.
                 byte minor_opcode = 0;  // 0: QueryVersion (XkbUseExtension = 0).
                 ui16 length = 2;
-                ui16 client_major_version = 2;
-                ui16 client_minor_version = 2;
+                ui16 client_major_version = 1;
+                ui16 client_minor_version = 0;
             };
-            struct get_map
+            struct get_state // 4:
+            {
+                struct reply
+                {
+                    byte type;
+                    byte device_id;
+                    ui16 sequence;
+                    ui32 length;
+                    byte mods;
+                    byte base_mods;
+                    byte latched_mods;
+                    byte locked_mods;
+                    byte group;
+                    byte locked_group;
+                    si16 base_group;
+                    si16 latched_group;
+                    byte compat_state;
+                    byte grab_mods;
+                    byte compat_grab_mods;
+                    byte lookup_mods;
+                    byte compat_lookup_mods;
+                    byte pad1;
+                    ui16 pointer_btn_state;
+                    ui16 pad2[3];
+                };
+                byte major_opcode;     // xkb_major_opcode
+                byte minor_opcode = 4; // 4: XKBGetState.
+                ui16 length       = 2;
+                ui16 device_spec  = UseCoreKbd;
+                ui16 pad          = {};
+            };
+            struct get_map // 8: XkbGetMap.
             {
                 struct reply
                 {
@@ -1166,8 +1222,8 @@ namespace netxs::x11
                 byte major_opcode;    // xkb_major_opcode
                 byte minor_opcode = 8; // 8: XkbGetMap.
                 ui16 length       = 7;
-                ui16 deviceSpec   = 0x0100; // XkbUseCoreKbd (system keybd).
-                ui16 full         = 0x0002; // XkbKeySymsMask (only KeySym).
+                ui16 device_spec  = UseCoreKbd; // XkbUseCoreKbd (system keybd).
+                ui16 full         = KeySymsMask; // XkbKeySymsMask (only KeySym).
                 ui16 partial      = 0;
                 byte first_type   = 0;
                 byte num_types    = 0;
@@ -1187,13 +1243,8 @@ namespace netxs::x11
                 //byte num_vmod_maps      = 0;
                 //ui16 pad1               = 0;
             };
-            struct per_client_flags
+            struct per_client_flags // 21: XkbXPerClientFlags.
             {
-                static constexpr auto DetectableAutoRepeat = 1u;
-                static constexpr auto DetectableAutoRepeatMask = 1u << (DetectableAutoRepeat - 1);
-
-                static constexpr auto UseCoreKbd = 0x0100;
-
                 struct reply
                 {
                     byte type;
@@ -2442,15 +2493,15 @@ namespace netxs::x11
         auto enable_detectable_autorepeat()
         {
             sendrq<x11::req::xkb::per_client_flags>({ .major_opcode = xkb_major_opcode,
-                                                      .device_spec  = x11::req::xkb::per_client_flags::UseCoreKbd,
-                                                      .change_mask  = x11::req::xkb::per_client_flags::DetectableAutoRepeatMask,
-                                                      .value        = x11::req::xkb::per_client_flags::DetectableAutoRepeat });
+                                                      .device_spec  = x11::req::xkb::UseCoreKbd,
+                                                      .change_mask  = x11::req::xkb::DetectableAutoRepeatMask,
+                                                      .value        = x11::req::xkb::DetectableAutoRepeat });
             auto reply = x11::req::xkb::per_client_flags::reply{};
             if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply) && reply.type == x11::event::Reply)
             {
                 if constexpr (debugmode)
                 {
-                    auto detectable_auto_repeat_state = (reply.value & x11::req::xkb::per_client_flags::DetectableAutoRepeatMask) != 0;
+                    auto detectable_auto_repeat_state = (reply.value & x11::req::xkb::DetectableAutoRepeatMask) != 0;
                     log("detectable_auto_repeat_state = ", detectable_auto_repeat_state);
                 }
             }
@@ -2790,6 +2841,13 @@ namespace netxs::x11
                         //syncrq<x11::req::change_property>({ .window_id = sync_msg_window_id,
                         //                                    .property  = atom_vtmx,
                         //                                    .type      = atom_cardinal }, 1);
+                        // Register as a parallel XKB client.
+                        syncrq(x11::req::xkb::query_version{ .major_opcode = xkb_major_opcode });
+                        buffer.resize(x11::recv_packet_size);
+                        if (sync_x11connection->recv(buffer.data(), x11::recv_packet_size).size() != x11::recv_packet_size)
+                        {
+                            if constexpr (debugmode) log(ansi::err("Unexpected error while XKB activation"));
+                        }
                     }
                 }
             }

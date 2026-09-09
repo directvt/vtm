@@ -3573,7 +3573,6 @@ namespace netxs::gui
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
         virtual si32 keybd_mods_state() = 0;
-        virtual void keybd_sync_state(si32 virtcod = 0) = 0;
         virtual void keybd_turn_layout(ui32 hkl) = 0;
         virtual void keybd_sync_layout()
         {
@@ -6886,11 +6885,12 @@ namespace netxs::gui
             auto ev = x11::event::any{};
             while (session.sync_x11connection->recv((char*)&ev, sizeof(ev)).size() == sizeof(ev))
             {
-                if (ev.type == x11::event::Error)
+                auto type = ev.type & 0x7f;
+                if (type == x11::event::Error)
                 {
                     if constexpr (debugmode) log("get_property atom_vtmx error: %%", session.get_error(ev));
                 }
-                else if (ev.length)
+                else if ((type == x11::event::Reply || type == x11::event::GenericEvent) && ev.length)
                 {
                     session.sync_buffer.assign(ev.length * 4, '\0');
                     if (session.sync_x11connection->recv(session.sync_buffer.data(), session.sync_buffer.size()).size() == session.sync_buffer.size())
@@ -6912,7 +6912,7 @@ namespace netxs::gui
         {
             if (target_id)
             {
-                if constexpr (debugmode) log("_post_command: seq=%%", session.sync_sequence_counter + (ui16)1);
+                if constexpr (debugmode) log("_post_command: seq=%% target_id=%% command=%%", session.sync_sequence_counter + (ui16)1, utf::to_hex(target_id), command);
                 session.syncrq(x11::req::send_event{ .destination_id = (ui32)target_id,
                                                      .originator_id  = 0,
                                                      .message_type   = session.atom_vtmx,
@@ -6953,7 +6953,7 @@ namespace netxs::gui
                             break;
                         }
                     }
-                    else if (ev.length)
+                    else if ((type == x11::event::Reply || type == x11::event::GenericEvent) && ev.length)
                     {
                         session.sync_buffer.assign(ev.length * 4, '\0');
                         if (session.sync_x11connection->recv(session.sync_buffer.data(), session.sync_buffer.size()).size() != session.sync_buffer.size())
@@ -6970,8 +6970,10 @@ namespace netxs::gui
         void keybd_request_state()
         {
             auto lock = std::lock_guard{ session.sync_mutex };
-            if constexpr (debugmode) log("query_keymap: seq=%%", session.sync_sequence_counter + (ui16)1);
-            auto seq_num = session.syncrq(session.sync_buffer, x11::req::query_keymap{});
+            if constexpr (debugmode) log("query_keymap and get_keyboard_control: seq1=%% seq2=%%", session.sync_sequence_counter + (ui16)1, session.sync_sequence_counter + (ui16)2);
+            auto seq_num1 = session.syncrq(session.sync_buffer, x11::req::query_keymap{});
+            auto seq_num2 = session.syncrq(session.sync_buffer, x11::req::xkb::get_state{ .major_opcode = session.xkb_major_opcode });
+            //auto seq_num2 = session.syncrq(session.sync_buffer, x11::req::get_keyboard_control{});
             session.sync_x11connection->send(session.sync_buffer);
             session.sync_buffer.resize(x11::recv_packet_size);
             while (session.sync_x11connection->recv(session.sync_buffer.data(), x11::recv_packet_size).size() == x11::recv_packet_size)
@@ -6980,35 +6982,60 @@ namespace netxs::gui
                 auto type = ev.type & 0x7F;
                 if (type == x11::event::Error)
                 {
-                    log("%%Get keyboard state error: %%", prompt::x11, session.get_error(ev));
+                    log(ansi::err("%%Get keyboard state error: %%"), prompt::x11, session.get_error(ev));
                 }
-                else
+                else if (type == x11::event::Reply || type == x11::event::GenericEvent)
                 {
+                    if constexpr (debugmode) log("got reply: seq=%% ev.length=%% ev.length*4=%% type=%%", ev.sequence, ev.length, ev.length * 4, type);
                     if (ev.length)
                     {
                         auto rest = ev.length * 4;
                         auto start = session.sync_buffer.size();
                         session.sync_buffer.resize(start + rest);
-                        if (session.sync_x11connection->recv(session.sync_buffer.data() + start, rest).size() != rest)
+                        auto q = session.sync_x11connection->recv(session.sync_buffer.data() + start, rest);
+                        if (q.size() != rest)
                         {
-                            log(ansi::err("%%Get keyboard state error: Unexpected reply length", prompt::x11));
+                            if constexpr (debugmode) log(ansi::err("%%Get keyboard state error: Unexpected reply length: recv.size=%%\n"), prompt::x11, q.size(),
+                                utf::buffer_to_hex(view{ session.sync_buffer.data(), start + q.size() }, true));
                             break;
                         }
                     }
-                    if (type == x11::event::Reply && ev.sequence == seq_num)
+                    if (type == x11::event::Reply)
                     {
-                        auto reply = netxs::start_lifetime_as<x11::req::query_keymap::reply>(session.sync_buffer.data());
-                        std::memcpy(vkstat.data(), &reply.keys, vkstat.size());
-                        break;
+                        if (ev.sequence == seq_num1)
+                        {
+                            auto reply = netxs::start_lifetime_as<x11::req::query_keymap::reply>(session.sync_buffer.data());
+                            if constexpr (debugmode) log("recieved vkstat");
+                            std::memcpy(vkstat.data(), &reply.keys, vkstat.size());
+                        }
+                        else if (ev.sequence == seq_num2)
+                        {
+                            //auto reply = netxs::start_lifetime_as<x11::req::get_keyboard_control::reply>(session.sync_buffer.data());
+                            //if constexpr (debugmode) log("recieved led_mask=0x%%", utf::to_hex(reply.led_mask));
+                            //auto leds = 0;
+                            //if (reply.led_mask & x11::req::get_keyboard_control::CapsLock) leds |= x11::req::xi2::mods::CapsLock;
+                            //if (reply.led_mask & x11::req::get_keyboard_control::NumLock ) leds |= x11::req::xi2::mods::NumLock;
+                            //_set_keyboard_led_state(leds);
+                            auto reply = netxs::start_lifetime_as<x11::req::xkb::get_state::reply>(session.sync_buffer.data());
+                            auto current_layout = reply.group;
+                            if constexpr (debugmode) log("recieved led_bits=%% current_layout=%%", utf::to_bin(reply.locked_mods), (si32)current_layout);
+                            _set_keyboard_led_state(reply.locked_mods);
+                            //todo _query_layouts(current_layout);
+                        }
                     }
+                    session.sync_buffer.resize(x11::recv_packet_size);
                 }
-                if (ev.sequence == seq_num) break;
+                if (ev.sequence == seq_num2) break;
             }
             session.sync_buffer.clear();
         }
         void _set_keyboard_led_state(auto state)
         {
             led_state = state;
+        }
+        void _query_layouts(byte /*current_layout*/)
+        {
+            //
         }
 
         bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
@@ -7020,7 +7047,7 @@ namespace netxs::gui
             //todo optimize
                  if (virtcod == vkey::numlock ) return led_state &= x11::req::xi2::mods::NumLock;
             else if (virtcod == vkey::capslock) return led_state &= x11::req::xi2::mods::CapsLock;
-            else if (virtcod == vkey::scrllock) return led_state &= x11::req::xi2::mods::ScrollLock;
+            //else if (virtcod == vkey::scrllock) return led_state &= x11::req::xi2::mods::ScrollLock;
             else                                return faux;
         }
         bool keybd_read_pressed(si32 virtcod)
@@ -7064,7 +7091,7 @@ namespace netxs::gui
             {
                 if (i % 16 == 0)
                 {
-                    s += "\n ";
+                    s += ansi::nil().add("\n ");
                     utf::to_hex<true>(i, s, 2);
                     s += ' ';
                 }
@@ -7091,7 +7118,6 @@ namespace netxs::gui
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
-        void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& s, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
@@ -7340,6 +7366,7 @@ namespace netxs::gui
         }
         void window_post_command(arch target_id, si32 command, arch lParam = {})
         {
+            if constexpr (debugmode) log("window_post_command: target_id=0x%% command=%%", utf::to_hex(target_id), command);
             _post_command(target_id, command, lParam);
         }
         cont window_recv_command(arch lParam)
@@ -7926,7 +7953,7 @@ namespace netxs::gui
                 auto xi_mods    = k.mods.effective; // All modifiers.
                 auto layout_idx = k.group.effective; // Keybd layout.
                 netxs::set_bit(vkstat, s_keycode, is_pressed);
-                _set_keyboard_led_state(k.group.locked); // NumLocks.
+                _set_keyboard_led_state(k.mods.locked); // NumLocks.
                 if constexpr (debugmode)
                 {
                     log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%",
@@ -7935,6 +7962,16 @@ namespace netxs::gui
                         utf::to_hex(xi_mods),
                         utf::to_hex(led_state),
                         (si32)layout_idx);
+                    log("   mods:    pressed=0x%% latched=0x%% locked=0x%% effective=0x%%",
+                        utf::to_hex(k.mods.pressed),
+                        utf::to_hex(k.mods.latched),
+                        utf::to_hex(k.mods.locked),
+                        utf::to_hex(k.mods.effective));
+                    log("  group:    pressed=0x%% latched=0x%% locked=0x%% effective=0x%%",
+                        utf::to_hex(k.group.base_group),
+                        utf::to_hex(k.group.latched),
+                        utf::to_hex(k.group.locked),
+                        utf::to_hex(k.group.effective));
                     keybd_print_vkstat("KeyPress");
                 }
                 //todo get utf8 cluster
@@ -7983,7 +8020,7 @@ namespace netxs::gui
                     if (is_pressed || stream.m.buttons) // Filter fake button release.
                     {
                              if (button_id == 1) mouse_press(bttn::left,   is_pressed);
-                        else if (button_id == 2) return faux;//todo mouse_press(bttn::middle, is_pressed);
+                        else if (button_id == 2) mouse_press(bttn::middle, is_pressed);
                         else if (button_id == 3) mouse_press(bttn::right,  is_pressed);
                         //else if (button_id == 4 && is_pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
                         //else if (button_id == 5 && is_pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
@@ -8080,8 +8117,9 @@ namespace netxs::gui
                 auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
                 auto focused = d.evtype == x11::req::xi2::event::FocusIn;
                 if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused);
-                _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
+                _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
                 _toggle_foreground(focused);
+                _query_layouts(f.group.effective);
                 focus_event(focused);
             }
             if constexpr (debugmode) log("End ----------------------------------------");
@@ -8120,7 +8158,6 @@ namespace netxs::gui
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
         void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
-        void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& /*s*/, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
         void layers_move() {}
