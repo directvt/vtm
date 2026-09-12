@@ -3411,6 +3411,21 @@ namespace netxs::os
                 pipe::isbusy = faux; // io::send blocks until the send is complete.
                 return io::send(handle.w, buff);
             }
+            qiew recv_all(char* buff, size_t size)
+            {
+                auto dest = buff;
+                auto rest = size;
+                inread.exchange(true);
+                while (pipe::active && rest) // The read call can be interrupted by io::abort().
+                {
+                    auto crop = io::recv(handle, dest, rest); // The read call can be interrupted by the write side when their read call is interrupted.
+                    rest -= crop.size();
+                    dest += crop.size();
+                }
+                inread.exchange(faux);
+                auto result = qiew{ buff, size - rest };
+                return result;
+            }
             virtual qiew recv(char* buff, size_t size) override
             {
                 auto result = qiew{};

@@ -271,6 +271,23 @@ namespace netxs::x11
 
             auto serialize(text& yield, view name) { x11::serialize_str(yield, *this, name); }
         };
+        struct get_atom_name // Opcode 17 (get atom name).
+        {
+            struct reply
+            {
+                byte type;             // x11::event::Reply (1)
+                byte pad0;
+                ui16 sequence;
+                ui32 length;
+                ui16 name_len;         // Atom name length.
+                ui16 pad1[9];
+                // Payload: "atom_name".
+            };
+            byte opcode = 17; // 17: GetAtomName
+            byte pad0   = 0;
+            ui16 length = 2;
+            ui32 atom;
+        };
         struct change_property // Opcode 18 (change property).
         {
             byte opcode    = 18;
@@ -1119,6 +1136,38 @@ namespace netxs::x11
         }
         namespace xkb
         {
+            //namespace event
+            //{
+            //    static constexpr auto StateNotify = 0;
+            //    static constexpr auto MapNotify   = 1;
+            //    struct any
+            //    {
+            //        byte type;
+            //        byte xkb_type;
+            //        ui16 sequence;
+            //        ui32 time;
+            //        byte device;
+            //    };
+            //    struct state_notify
+            //    {
+            //        byte type;
+            //        byte xkb_type;
+            //        ui16 sequence;
+            //        ui32 time;
+            //        byte device;
+            //        byte mods;
+            //        byte base_mods;
+            //        byte latched_mods;
+            //        byte locked_mods;
+            //        byte group;
+            //        byte base_group;
+            //        ui16 latched_group;
+            //        ui16 locked_group;
+            //        //...
+            //    };
+            //}
+
+            // Shift Levels.
             static constexpr auto Base_Char          = 0; // map_entry.syms[0]  Level 1 ('q')
             static constexpr auto Shift_Char         = 1; // map_entry.syms[1]  Level 2 ('Q')
             static constexpr auto AltGr_Char         = 2; // map_entry.syms[2]  Level 3 (symbols/diaritics)
@@ -1133,7 +1182,19 @@ namespace netxs::x11
             static constexpr auto DetectableAutoRepeat = 1u;
             static constexpr auto DetectableAutoRepeatMask = 1u << (DetectableAutoRepeat - 1);
 
-            static constexpr auto KeySymsMask = 1u << 1;
+            static constexpr auto KeyTypesMask           = 1 << 0; // Return list of key_type_desc. Type like OneLevel/TwoLevel/Alphabetic.
+            static constexpr auto KeySymsMask            = 1 << 1; // Return list of key_sym_map_desc. Unicode codepoints for [layout_index][shift_level0..7].
+            static constexpr auto ModifierMapMask        = 1 << 2; // Return "pair<keycode,bytemask> modifier_map[total_mod_map_keys]". What modifier KeyCodes (list) are mapped to modifier bitfield (8 bit).
+
+            static constexpr auto ExplicitComponentsMask = 1 << 3; // List of user specified key properties (server can't change/update these properties).
+            static constexpr auto KeyActionsMask         = 1 << 4; // CapsLock to lock caps or Ctrl+Alt+Backspace to XkbSA_Terminate (kill x-server). Or multimedia key actions.
+            static constexpr auto KeyBehaviorsMask       = 1 << 5; // XkbKB_Lock/XkbKB_RadioGroup/XkbKB_Overlay1(a-la Fn)
+            static constexpr auto VirtualModsMask        = 1 << 6; // 16 modifiers name list like (16 bit): NumLock, AltGr, ScrollLock, Meta, Hyper, Super...
+            static constexpr auto VirtualModMapMask      = 1 << 7; // How to map 16 bit modifiers to 8 bit modifier bitfiled.
+
+            static constexpr auto AllClientInfoMask    = KeyTypesMask | KeySymsMask | ModifierMapMask;
+            static constexpr auto AllServerInfoMask    = ExplicitComponentsMask | KeyActionsMask | KeyBehaviorsMask | VirtualModsMask | VirtualModMapMask;
+            static constexpr auto AllMapComponentsMask = AllClientInfoMask | AllServerInfoMask;
 
             struct query_version // 0: QueryVersion (XkbUseExtension = 0).
             {
@@ -1153,7 +1214,21 @@ namespace netxs::x11
                 ui16 client_major_version = 1;
                 ui16 client_minor_version = 0;
             };
-            struct get_state // 4:
+            //struct select_events // 1: XkbSelectEvents
+            //{
+            //    static constexpr auto StateNotify = 1 << 0;
+            //    static constexpr auto MapNotify   = 1 << 1;
+            //    byte major_opcode;         // session.xkb_major_opcode
+            //    byte minor_opcode = 1;     // 1: XkbSelectEvents
+            //    ui16 length       = 4;
+            //    ui16 device_spec  = UseCoreKbd; // XkbUseCoreKbd.
+            //    ui16 affect_which = StateNotify | MapNotify;
+            //    ui16 clear        = 0;
+            //    ui16 select_any   = StateNotify | MapNotify;
+            //    ui16 affect_map   = 0;
+            //    ui16 map          = 0;
+            //};
+            struct get_state // 4: XkbGetState (get modifier state).
             {
                 struct reply
                 {
@@ -1184,66 +1259,121 @@ namespace netxs::x11
                 ui16 device_spec  = UseCoreKbd;
                 ui16 pad          = {};
             };
-            struct get_map // 8: XkbGetMap.
+            struct get_map // 8: XkbGetMap (get keyboard layout).
             {
                 struct reply
                 {
                     byte type;
-                    byte device_id;      // Device ID
+                    byte device_id;
                     ui16 sequence;
-                    ui32 length;         // Payload len in quads.
-                    ui16 device_spec;
-                    ui16 present;        // Payload bitmask.
-                    ui16 first_type;
-                    ui16 num_types;
-                    byte first_key;      // Start key.
-                    byte num_keys;       // Key count.
+                    ui32 length;
+                    ui16 pad0;
+                    byte min_key_code;
+                    byte max_key_code;
+                    ui16 present;      // Payload bitmask.
+                    byte first_type;
+                    byte num_types;
+                    byte total_types;
+                    byte first_key_sym;
+                    ui16 total_syms;
+                    byte num_key_syms;
                     byte first_key_act;
-                    byte num_acts;
+                    ui16 total_acts;
+                    byte num_key_acts;
                     byte first_key_behavior;
-                    byte num_behaviors;
+                    byte num_key_behaviors;
+                    byte total_key_behaviors;
                     byte first_key_explicit;
-                    byte num_explicits;
-                    byte first_mod_map;
-                    byte num_mod_maps;
-                    byte first_vmod_map;
-                    byte num_vmod_maps;
-                    ui32 pad;
+                    byte num_key_explicit;
+                    byte total_key_explicit;
+                    byte first_mod_map_key;
+                    byte num_mod_map_keys;
+                    byte total_mod_map_keys;
+                    byte first_vmod_map_key;
+                    byte num_vmod_map_keys;
+                    byte total_vmod_map_keys;
+                    byte pad1;
+                    ui16 virtual_mods;
                     // payload...
-                    struct key_behavior_info
+                    struct key_type_desc // 1. Key's Type Description Block. Returned by KeyTypesMask. xkbKeyTypeWireDesc.
                     {
-                        byte behavior;
-                        byte num_groups;
-                        byte width;
+                        byte mask;           // Битовая маска модификаторов, на которые реагирует тип (напр. для Shift будет 0x00000001)
+                        byte real_mods;      // Какие из них реальные.
+                        ui16 virtual_mods;   // Какие из них виртуальные (AltGr, NumLock и т.д.)
+                        byte num_levels;     // Сколько уровней сдвига генерирует тип (width)
+                        byte num_map_entries;// Количество правил перевода модификаторов в уровни.
+                        byte preserve;       // Флаг наличия таблицы сохранения модификаторов (сервер не убирает модификатор из mods.effective) (пока не знаю зачем мне это может понадобиться)
                         byte pad;
+                        // Сразу за этим дескриптором идут два массива:
+                        // a) xkb_kt_map_entry map_entries[num_map_entries];
+                        // b) if (preserve!=0) mods_desc preserve_real_mods[num_map_entries];
+                        struct xkb_kt_map_entry // xkbKTMapEntryWireDesc Структура правила (маппинга) внутри типа клавиши
+                        {
+                            byte active;         // 1: enabled, 0: not active.
+                            byte mods_mask;      // Affected modifiers for the rule.
+                            byte level;          // НА КАКОЙ УРОВЕНЬ ПЕРЕКЛЮЧИТЬ (0..num_levels-1)
+                            byte real_mods;      // Физические модификаторы правила.
+                            ui16 virtual_mods;   // Виртуальные модификаторы правила
+                            ui16 pad;
+                        };
+                        struct mods_desc // ModsWireDesc - это для if (key_type_desc::preserve!=0)
+                        {
+                            byte mask;
+                            byte realMods;
+                            ui16 virtualMods;
+                        };
                     };
+                    struct key_sym_map_desc // 2. xkbSymMapWireDesc (XkbSymMapRec).
+                    {
+                        static constexpr auto GroupCountMask = (byte)0b00'00'1111; // g_count= 0 или 1..4
+                        static constexpr auto GroupsWrapMask = (byte)0b11'00'0000;
+
+                        static constexpr auto Wrap_WrapIntoRange     = 0b00'00'0000; // g = g % g_count.
+                        static constexpr auto Wrap_ClampIntoRange    = 0b01'00'0000; // g = clamp(g, 0, g_count - 1).
+                        static constexpr auto Wrap_RedirectIntoRange = 0b10'00'0000; // g = 0. Unconditional redirect to Group0.
+
+                        byte kt_index[4];    // Key type for every group (0..num_key_types).
+                        byte group_info;     // Bits 0-3: layout_count (1..4). Bits 4-5: GroupsWrap flags. Bits 6-7: Reserved.
+                        byte width;          // Shift-level count for the key: 1..8.
+                        ui16 num_syms;       // KeySym count for the key.
+                        // ui32 syms[num_syms]
+                    };
+                    // 3. List KeyCodes for modifiers:
+                    // ui32 modifier_codes[total_mod_map_keys];
+
+                    // Когда пользователь нажимает LeftCtrl (KeyCode 50) и букву Q (KeyCode 24):
+                    // - Из Блока 3 (modifier_map) смотрим, что KeyCode 50 взводит бит 0x04 (Control).
+                    // - Из Блока 2 (key_sym_map_desc) для KeyCode 24 берем kt_index (например KeyType=2).
+                    // - Идем в Блок 1 (xkb_key_type_desc) под индексом 2 и проверяем, есть ли там правило для маски 0x04 (Control).
+                    //   - Если правила нет, уровень сдвига остается дефолтным (level = 0).
+                    // - Возвращаемся в Блок 2 и забираем из all_syms латинский код символа 'q'.
+                    // Жесть какая.
                 };
 
-                byte major_opcode;    // xkb_major_opcode
+                byte major_opcode;     // xkb_major_opcode
                 byte minor_opcode = 8; // 8: XkbGetMap.
                 ui16 length       = 7;
                 ui16 device_spec  = UseCoreKbd; // XkbUseCoreKbd (system keybd).
-                ui16 full         = KeySymsMask; // XkbKeySymsMask (only KeySym).
-                ui16 partial      = 0;
-                byte first_type   = 0;
-                byte num_types    = 0;
-                byte first_key    = 8;   // s.min_keycode.
-                byte num_keys     = 255; // s.max_keycode - s.min_keycode + 1 (all keys).
-                ui32 pad[6]       = {};
-
-                //byte first_key_act      = 0;
-                //byte num_acts           = 0;
-                //byte first_key_behavior = 0;
-                //byte num_behaviors      = 0;
-                //byte first_key_explicit = 0;
-                //byte num_explicit       = 0;
-                //byte first_mod_map      = 0;
-                //byte num_mod_maps       = 0;
-                //byte first_vmod_map     = 0;
-                //byte num_vmod_maps      = 0;
-                //ui16 pad1               = 0;
+                ui16 full         = AllClientInfoMask; // Request complete (full) client tables. Bit field.
+                ui16 partial      = 0; // Request tables for key range (if non zero).
+                byte first_type         = 0; // types like OneLevel/TwoLevel/Alphabetic.
+                byte num_types          = 0; //
+                byte first_key_sym;   // s.min_keycode.
+                byte num_key_syms;    // s.max_keycode - s.min_keycode + 1 (all keys).
+                byte first_key_act      = 0; // Request key actions: like CapsLock or mouse pointer mover.
+                byte num_acts           = 0;
+                byte first_key_behavior = 0; // like radio button, autorepeat, lock toggle.
+                byte num_behaviors      = 0;
+                ui16 virtual_mods       = 0; // like NumLock, AltGr...
+                byte first_key_explicit = 0; // Explicit properties (user specified vs set by x-server). List of user specified key properties (strong fixed by user).
+                byte num_explicit       = 0;
+                byte first_mod_map_key  = 0; // Modifiers binding to bitfield: Shift, Ctrl, Lock, Mod1–Mod5.
+                byte num_mod_map_keys   = 0;
+                byte first_vmod_map_key = 0; // Virtual modifier mapping: like AltGr to Mod5 bit.
+                byte num_vmod_map_keys  = 0;
+                ui16 pad1               = 0;
             };
-            struct per_client_flags // 21: XkbXPerClientFlags.
+            struct per_client_flags // 21: XkbXPerClientFlags (switch autorepeat mode).
             {
                 struct reply
                 {
@@ -1761,6 +1891,7 @@ namespace netxs::x11
         ui32                                  atom_net_number_of_desktops = 0;
         ui32                                  atom_net_current_desktop = 0;
         ui32                                  atom_net_workarea = 0; // workarea = desktop_area if is not set (atom_net_workarea=0).
+        ui32                                  atom_xkb_rules_names = 0; // Triggered on root_window when the list of keyboard layouts changes.
 
         byte                                  xfixes_major_opcode = 0;
         byte                                  xfixes_first_event = 0;
@@ -1955,7 +2086,7 @@ namespace netxs::x11
             {
                 auto extra_data_size = ev.length * sizeof(ui32);
                 read_buffer.resize(32 + extra_data_size);
-                x11connection->recv(read_buffer.data() + 32, extra_data_size); // Blocking call.
+                x11connection->recv_all(read_buffer.data() + 32, extra_data_size); // Blocking call.
             }
             if constexpr (debugmode) log("%%seq=%%", prompt::x11, r.sequence);
             if (r.callback)
@@ -2016,7 +2147,9 @@ namespace netxs::x11
         }
         auto event_str(si32 e)
         {
-            return e == shm_completion_event ? "ShmCompletionEvent" : x11::event::str(e);
+            return e == shm_completion_event ? "ShmCompletionEvent"
+                 : e == xkb_first_event      ? "XkbEvent"
+                                             : x11::event::str(e);
         }
         template<bool B = true>
         auto str() const
@@ -2143,7 +2276,7 @@ namespace netxs::x11
             auto errdetails = text{};
             sendrq<x11::req::query_extension>({}, extension_name);
             auto reply = x11::req::query_extension::reply{};
-            if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply))
+            if (x11connection->recv_all((char*)&reply, sizeof(reply)).size() == sizeof(reply))
             if (reply.present)
             {
                 major_opcode = reply.major_opcode;
@@ -2159,7 +2292,7 @@ namespace netxs::x11
                     sendrq<ExtensionQueryVersion>({ .major_opcode = reply.major_opcode });
                 }
                 auto v_reply = typename ExtensionQueryVersion::reply{};
-                if (x11connection->recv((char*)&v_reply, sizeof(v_reply)).size() == sizeof(v_reply))
+                if (x11connection->recv_all((char*)&v_reply, sizeof(v_reply)).size() == sizeof(v_reply))
                 if (v_reply.status == x11::event::Reply)
                 if (v_reply.server_major_version > required_major_version
                 || (v_reply.server_major_version == required_major_version && v_reply.server_minor_version >= required_minor_version)) // Check min version major.minor.
@@ -2419,7 +2552,7 @@ namespace netxs::x11
             {
                 sendrq<x11::req::intern_atom>({ .only_if_exists = !create }, name); // 0: Create if absent. 1: Don't create.
                 auto reply = x11::req::intern_atom::reply{};
-                if (x11connection->recv((char*)&reply, sizeof(reply)).size() == 32 && reply.type == x11::event::Reply)
+                if (x11connection->recv_all((char*)&reply, sizeof(reply)).size() == 32 && reply.type == x11::event::Reply)
                 {
                     if constexpr (debugmode) log("%%Received atom for '%%'=0x%%", prompt::x11, name, reply.atom_id);
                     return reply.atom_id;
@@ -2460,6 +2593,7 @@ namespace netxs::x11
             atom_net_active_window      = get_atom_id("_NET_ACTIVE_WINDOW",      true);
             atom_net_number_of_desktops = get_atom_id("_NET_NUMBER_OF_DESKTOPS", true);
             atom_net_current_desktop    = get_atom_id("_NET_CURRENT_DESKTOP",    true);
+            atom_xkb_rules_names        = get_atom_id("_XKB_RULES_NAMES",        true);
             return true;
         }
         auto get_props()
@@ -2472,12 +2606,12 @@ namespace netxs::x11
                                                  .prop_type   = atom_cardinal,
                                                  .long_length = 4 });
                 auto reply = x11::req::get_property::reply{};
-                if (x11connection->recv((char*)&reply, sizeof(reply)).size() == 32 && reply.type == x11::event::Reply && reply.prop_type == atom_cardinal)
+                if (x11connection->recv_all((char*)&reply, sizeof(reply)).size() == 32 && reply.type == x11::event::Reply && reply.prop_type == atom_cardinal)
                 {
                     //todo unify
                     auto payload_size = reply.length * 4;
                     auto buffer = text(payload_size, '\0');
-                    if (x11connection->recv(buffer.data(), buffer.size()).size() != buffer.size()) return faux;
+                    if (x11connection->recv_all(buffer.data(), buffer.size()).size() != buffer.size()) return faux;
                     auto ptr = (si32*)buffer.data();
                     auto x = netxs::start_lifetime_as<si32>(ptr + 0);
                     auto y = netxs::start_lifetime_as<si32>(ptr + 1);
@@ -2490,6 +2624,36 @@ namespace netxs::x11
             }
             return ok;
         }
+        auto get_atom_name(ui32 atom)
+        {
+            auto atom_name = text{};
+            auto lock = std::lock_guard{ sync_mutex };
+            auto seq_num = syncrq(sync_buffer, x11::req::get_atom_name{ .atom = atom });
+            if constexpr (debugmode) log("get_atom_name: atom=0x%% seq=%%", utf::to_hex(atom), seq_num);
+            sync_x11connection->send(sync_buffer);
+            auto ev = x11::event::any{};
+            while (sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
+            {
+                auto type = ev.type & 0x7f;
+                if (type == x11::event::Error)
+                {
+                    if constexpr (debugmode) log(ansi::err("get_atom_name: seq=%% error: %%", ev.sequence, get_error(ev)));
+                }
+                else if ((type == x11::event::Reply || type == x11::event::GenericEvent) && ev.length)
+                {
+                    sync_buffer.assign(ev.length * 4, '\0');
+                    if (sync_x11connection->recv_all(sync_buffer.data(), sync_buffer.size()).size() == sync_buffer.size())
+                    if (ev.sequence == seq_num)
+                    {
+                        auto reply = netxs::start_lifetime_as<x11::req::get_atom_name::reply>(ev);
+                        atom_name = text{ sync_buffer.data(), reply.name_len };
+                    }
+                }
+                if (ev.sequence == seq_num) break;
+            }
+            sync_buffer.clear();
+            return atom_name;
+        }
         auto enable_detectable_autorepeat()
         {
             sendrq<x11::req::xkb::per_client_flags>({ .major_opcode = xkb_major_opcode,
@@ -2497,7 +2661,7 @@ namespace netxs::x11
                                                       .change_mask  = x11::req::xkb::DetectableAutoRepeatMask,
                                                       .value        = x11::req::xkb::DetectableAutoRepeat });
             auto reply = x11::req::xkb::per_client_flags::reply{};
-            if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply) && reply.type == x11::event::Reply)
+            if (x11connection->recv_all((char*)&reply, sizeof(reply)).size() == sizeof(reply) && reply.type == x11::event::Reply)
             {
                 if constexpr (debugmode)
                 {
@@ -2544,7 +2708,7 @@ namespace netxs::x11
             ////                                //                                  | x11::icccm::wm_size_hints::PBaseSize });
             //sendrq(x11::req::map_window{ .window_id = new_window_id });
             //auto buffer = std::array<char, 32>{};
-            //while (x11connection->recv(buffer.data(), buffer.size()).size() == 32) // Wait for ConfigureNotify.
+            //while (x11connection->recv_all(buffer.data(), buffer.size()).size() == 32) // Wait for ConfigureNotify.
             //{
             //    auto ev = netxs::start_lifetime_as<x11::event::any>(buffer.data());
             //    if constexpr (debugmode) log("Next event: %%", event_str(ev.type));
@@ -2568,7 +2732,7 @@ namespace netxs::x11
             //}
             //sendrq(x11::req::unmap_window{ .window_id = new_window_id });
             //sendrq(x11::req::destroy_window{ .window_id = new_window_id });
-            //while (x11connection->recv(buffer.data(), buffer.size()).size() == 32) // Cleanup.
+            //while (x11connection->recv_all(buffer.data(), buffer.size()).size() == 32) // Cleanup.
             //{
             //    auto ev = netxs::start_lifetime_as<x11::event::any>(buffer.data());
             //    if constexpr (debugmode) log("Next event (cleanup stage): %%", event_str(ev.type));
@@ -2601,6 +2765,7 @@ namespace netxs::x11
         }
         auto listen_root_events() // Subscribe on root's property change (to track some desktop window has received focus).
         {
+            //sendrq(x11::req::xkb::select_events{ .major_opcode = xkb_major_opcode }); // Subscribe on keyboard device events.
             sendrq<x11::req::change_window_attrs>({ .window_id = root_window_id },
                 x11::req::change_window_attrs::payload{ .event_mask = x11::event::mask::PropertyChange      // Track global input focus changes.
                                                                     | x11::event::mask::StructureNotify }); // Track root window size changes.
@@ -2767,6 +2932,7 @@ namespace netxs::x11
             event_mask_bits |= 1u << x11::req::xi2::event::FocusIn;
             event_mask_bits |= 1u << x11::req::xi2::event::FocusOut;
             event_mask_bits |= 1u << x11::req::xi2::event::DeviceChanged;
+            //event_mask_bits |= 1u << x11::req::xi2::event::PropertyEvent;
             event_mask_bits |= 1u << x11::req::xi2::event::HierarchyChanged;
             sendrq(x11::req::xi2::select_events{ .major_opcode = xi2_major_opcode,
                                                  .window_id    = (ui32)master_window_id, },
@@ -2776,42 +2942,6 @@ namespace netxs::x11
                                                 .mask_len = 2,
                                                 .mask1    = event_mask_bits,
                                             });
-        }
-        auto load_keyboard_map()
-        {
-            sendrq(x11::req::xkb::get_map{ .major_opcode = xkb_major_opcode,
-                                           .first_key    = s.min_keycode,
-                                           .num_keys     = (byte)(s.max_keycode - s.min_keycode + 1) });
-            auto reply = x11::req::xkb::get_map::reply{};
-            if (x11connection->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply))
-            {
-                auto payload_size = reply.length * 4;
-                auto buffer = text(payload_size, '\0');
-                if (x11connection->recv(buffer.data(), buffer.size()).size() != buffer.size()) return faux;
-                auto q = qiew{ buffer };
-                auto offset = reply.num_keys * 4;
-                auto ptr = q.data();
-                for (auto i = 0u; i < reply.num_keys; ++i)
-                {
-                    auto keycode = (byte)(reply.first_key + i);
-                    auto& map_entry = key_map[keycode];
-                    auto info = netxs::start_lifetime_as<x11::req::xkb::get_map::reply::key_behavior_info>(q.data());
-                    map_entry.num_groups = info.num_groups;
-                    map_entry.width      = info.width;
-                    auto total_syms_for_key = info.num_groups * info.width;
-                    if (total_syms_for_key)
-                    {
-                        auto total_syms_for_key_bytes = total_syms_for_key * 4;
-                        map_entry.syms.resize(total_syms_for_key);
-                        if (q.size() < (size_t)total_syms_for_key_bytes) break;
-                        std::memcpy(map_entry.syms.data(), ptr + offset, total_syms_for_key_bytes);
-                        offset += total_syms_for_key_bytes;
-                    }
-                    q.remove_prefix(sizeof(info));
-                }
-                return true;
-            }
-            return faux;
         }
         void set_x11_display_size(twod size)
         {
@@ -2824,10 +2954,10 @@ namespace netxs::x11
             {
                 link->send(auth_packet);
                 auto reply = x11::session_t::auth::reply{};
-                if (link->recv((char*)&reply, sizeof(reply)).size() == sizeof(reply))
+                if (link->recv_all((char*)&reply, sizeof(reply)).size() == sizeof(reply))
                 {
                     auto buffer = text(reply.additional_length * 4, '\0');
-                    link->recv(buffer.data(), buffer.size());
+                    link->recv_all(buffer.data(), buffer.size());
                     if (reply.status == x11::event::Reply)
                     {
                         auto sync_session_state = netxs::start_lifetime_as<x11::session_t::session_init>(buffer.data());
@@ -2844,7 +2974,7 @@ namespace netxs::x11
                         // Register as a parallel XKB client.
                         syncrq(x11::req::xkb::query_version{ .major_opcode = xkb_major_opcode });
                         buffer.resize(x11::recv_packet_size);
-                        if (sync_x11connection->recv(buffer.data(), x11::recv_packet_size).size() != x11::recv_packet_size)
+                        if (sync_x11connection->recv_all(buffer.data(), x11::recv_packet_size).size() != x11::recv_packet_size)
                         {
                             if constexpr (debugmode) log(ansi::err("Unexpected error while XKB activation"));
                         }
@@ -2931,19 +3061,19 @@ namespace netxs::x11
         auto session_ptr = ptr::shared<x11::session_t>();
         auto& session = *session_ptr;
         auto reply = x11::session_t::auth::reply{};
-        if (auto l1 = x11connection->recv((char*)&reply, sizeof(reply)); l1.size() == sizeof(reply))
+        if (auto l1 = x11connection->recv_all((char*)&reply, sizeof(reply)); l1.size() == sizeof(reply))
         {
             auto remaining_bytes = (size_t)reply.additional_length * 4;
             auto buffer = text(remaining_bytes, '\0');
             if (reply.status == x11::event::Error)
             {
-                log("%%Connection rejected: '%%'", prompt::x11, utf::debase<faux, faux>(x11connection->recv(buffer.data(), buffer.size())));
+                log("%%Connection rejected: '%%'", prompt::x11, utf::debase<faux, faux>(x11connection->recv_all(buffer.data(), buffer.size())));
             }
             else if (reply.status != x11::event::Reply)
             {
                 log("%%Unknown response status", prompt::x11);
             }
-            else if (auto l3 = x11connection->recv(buffer.data(), buffer.size()); l3.size() != buffer.size())
+            else if (auto l3 = x11connection->recv_all(buffer.data(), buffer.size()); l3.size() != buffer.size())
             {
                 log("%%Error reading response payload", prompt::x11);
             }
@@ -3046,5 +3176,12 @@ namespace netxs::x11
             }
         }
         return !!x11::session_ptr;
+    }
+
+    namespace key
+    {
+        static constexpr auto NumLock    = 0xFF7F; // XK_Num_Lock
+        static constexpr auto CapsLock   = 0xFFE5; // XK_Caps_Lock
+        static constexpr auto ScrollLock = 0xFF14; // XK_Scroll_Lock
     }
 }
