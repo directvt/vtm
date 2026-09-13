@@ -4839,6 +4839,7 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
+                    //todo try to make it sync (drop enqueue) (Key press events can precede focus events because they are sent synchronously!(X11))
                     base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
@@ -6622,14 +6623,15 @@ namespace netxs::gui
         {
             struct key_sym_t
             {
-                byte              layout_wrap_mode{};
-                byte              layout_count{};
-                byte              behavior_type{};
-                std::vector<ui32> syms; // [key_sym_map_desc.num_syms]
+                byte                layout_wrap_mode;
+                byte                layout_count;
+                byte                behavior_type;
+                byte                width;
+                std::array<ui32, 8> syms;
             };
-            std::vector<key_sym_t>  key_syms;
-            si32                    key_count{};
-            si32                    latin_key_count{};
+            std::array<key_sym_t, 256> key_syms{};
+            si32                       key_count{};
+            si32                       latin_key_count{};
             bool is_latin() { return latin_key_count >= 26; }
         };
         struct lock_indicators
@@ -7129,22 +7131,10 @@ namespace netxs::gui
             {
                 if constexpr (debugmode) log("2. KeySymsMask: first_key_sym=%% total_syms=%% num_key_syms=%%", (si32)reply.first_key_sym, (si32)reply.total_syms, (si32)reply.num_key_syms);
                 auto max_key_code = reply.first_key_sym + reply.num_key_syms;
-                for (auto& l : layouts) // Clear layout buffers.
-                {
-                    l.key_syms.resize(max_key_code);
-                    l.latin_key_count = {};
-                    l.key_count = {};
-                }
+                layouts = {}; // Clear layout buffers.
                 for (auto key_code = (si32)reply.first_key_sym; key_code < max_key_code; key_code++)
                 {
                     auto key_desc = netxs::start_lifetime_as<x11::req::xkb::get_map::reply::key_sym_map_desc>(q.data());
-                    auto i0 = (si32)key_desc.kt_index[0];
-                    auto i1 = (si32)key_desc.kt_index[1];
-                    auto i2 = (si32)key_desc.kt_index[2];
-                    auto i3 = (si32)key_desc.kt_index[3];
-                    auto group_info = (si32)key_desc.group_info;
-                    auto width      = key_desc.width;
-                    auto num_syms   = key_desc.num_syms;
                     auto num_groups = (byte)(key_desc.group_info & x11::req::xkb::get_map::reply::key_sym_map_desc::GroupCountMask);
                     auto wrap_mode  = (byte)(key_desc.group_info & x11::req::xkb::get_map::reply::key_sym_map_desc::GroupsWrapMask);
                     auto wrap_str   = wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_WrapIntoRange     ? "Wrap"
@@ -7154,9 +7144,9 @@ namespace netxs::gui
                     if constexpr (debugmode)
                     {
                         log("key_syms: keyCode=%% kt_index=%%/%%/%%/%% group_info=%% g_count=%% g_wrap=%% width=%% n_syms=%%",
-                            (si32)key_code, i0, i1, i2, i3,
-                            utf::to_bin((byte)group_info), (si32)num_groups, wrap_str,
-                            (si32)width, (si32)num_syms);
+                            (si32)key_code, (si32)key_desc.kt_index[0], (si32)key_desc.kt_index[1], (si32)key_desc.kt_index[2], (si32)key_desc.kt_index[3],
+                            utf::to_bin(key_desc.group_info), (si32)num_groups, wrap_str,
+                            (si32)key_desc.width, (si32)key_desc.num_syms);
                     }
                     q.remove_prefix(sizeof(key_desc));
                     // Peek led modifiers for block 3.
@@ -7171,29 +7161,24 @@ namespace netxs::gui
                         key_rec.behavior_type    = key_desc.kt_index[layout_index];
                         key_rec.layout_wrap_mode = wrap_mode;
                         key_rec.layout_count     = num_groups;
-                        if (layout_index < num_groups && width)
+                        key_rec.width            = key_desc.width;
+                        if (layout_index < num_groups && key_desc.width)
                         {
                             auto shift0_keysym = netxs::start_lifetime_as<ui32>(q.data());
                             l.key_count++;
                             if (shift0_keysym >= 'a' && shift0_keysym <= 'z') l.latin_key_count++;
-                            key_rec.syms.reserve(width);
-                            auto count = width;
-                            while (count--)
+                            for (auto i = 0; i < key_desc.width; i++)
                             {
                                 auto keysym = netxs::start_lifetime_as<ui32>(q.data());
-                                key_rec.syms.push_back(keysym);
+                                key_rec.syms[i] = keysym;
                                 auto unicode = _keysym_to_unicode(keysym);
                                 if constexpr (debugmode)
                                 {
                                     log<faux>("  %% %%", utf::debase437(utf::to_utf_from_code(unicode)), utf::to_hex(keysym));
-                                    if (count == 0) log("");
+                                    if (i == key_desc.width - 1) log("");
                                 }
                                 q.remove_prefix(sizeof(ui32));
                             }
-                        }
-                        else // Clear the rest layout buffers.
-                        {
-                            key_rec.syms.clear();
                         }
                     }
                 }
@@ -8231,191 +8216,176 @@ namespace netxs::gui
             //    if constexpr (debugmode) log(ansi::clr(greenlt, "XI2: Property changed"));
             //    _keybd_request_state();
             //}
-            else if (d.evtype == x11::req::xi2::event::KeyPress
-                  || d.evtype == x11::req::xi2::event::KeyRelease)
+            else if (is_master) // Ignore slave devices.
             {
-                if (!is_master) return true; // Ignore slave keyboard.
-                auto k = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
-                auto is_pressed = d.evtype == x11::req::xi2::event::KeyPress;
-                auto s_keycode  = k.detail & 0xFF; // Native keycode.
-                auto repeated   = is_pressed && netxs::get_bit(vkstat, s_keycode);
-                auto xi_mods    = k.mods.effective; // All modifiers.
-                auto layout_id  = (byte)(k.group.effective & 0x03);
-                //todo track modifiers on our side
-                netxs::set_bit(vkstat, s_keycode, is_pressed);
-                _set_keyboard_led_state(k.mods.locked); // NumLocks.
-                if (xlayout != layout_id)
+                if (d.evtype == x11::req::xi2::event::KeyPress || d.evtype == x11::req::xi2::event::KeyRelease)
                 {
-                    keybd_turn_layout(layout_id);
-                }
-                if constexpr (debugmode)
-                {
-                    log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%",
-                        prompt::x11, k.sourceid, session.input_devices[k.sourceid].name,
-                        is_pressed ? (repeated ? "Repeat" : "Press") : "Release", s_keycode,
-                        utf::to_hex(xi_mods),
-                        utf::to_hex(led_state),
-                        (si32)layout_id);
-                    log("   mods:    pressed=0x%% latched=0x%% locked=0x%% effective=0x%%",
-                        utf::to_hex(k.mods.pressed),
-                        utf::to_hex(k.mods.latched),
-                        utf::to_hex(k.mods.locked),
-                        utf::to_hex(k.mods.effective));
-                    log("  group:    pressed=0x%% latched=0x%% locked=0x%% effective=0x%%",
-                        utf::to_hex(k.group.base_group),
-                        utf::to_hex(k.group.latched),
-                        utf::to_hex(k.group.locked),
-                        utf::to_hex(k.group.effective));
-                    keybd_print_vkstat("KeyPress");
-                }
-                //todo get utf8 cluster
-                //todo compose
-                //todo deadkeys
-                //todo Alt+numpad
-                auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
-                auto cluster = utf::to_utf_from_code(layouts[layout_id].key_syms[s_keycode].syms[0]);
-                auto virtcod = s_keycode;
-                auto scancod = std::max(0, (si32)s_keycode - 8);
-                auto extflag = 0;
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
-            }
-            else if (d.evtype == x11::req::xi2::event::ButtonPress
-                  || d.evtype == x11::req::xi2::event::ButtonRelease
-                  || d.evtype == x11::req::xi2::event::Motion)
-            {
-                if (!is_master) return true; // Ignore slave mouse.
-                master_pointer_id = device_id;
-                auto m = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
-                auto& dev = session.input_devices[m.sourceid];
-                auto emulated = !!(m.flags & x11::req::xi2::event::km::PointerEmulated);
-                //auto xi_mods = m.mods.effective;
-                auto mouse_coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
-                auto moved = _check_if_mouse_moved(mouse_coor, faux);
-                if constexpr (debugmode)
-                {
-                    static auto start_time = datetime::now();
-                    auto rel_mouse_coor = fp2d{ m.event_x.to_fp32(), m.event_y.to_fp32() };
-                    log("%%Mouse: %% sourceid=%% '%%' coor=%% rel_coor=%% wincoor=%% mods=0x%% flags=0x%% emulated=%%", prompt::x11,
-                        ansi::clr(yellowlt, datetime::round<si32>(datetime::now() - start_time), "ms"), m.sourceid, session.input_devices[m.sourceid].name,
-                        moved ? ansi::clr(tint::greenlt, mouse_coor) : utf::concat(mouse_coor),
-                        moved ? ansi::clr(tint::greenlt, rel_mouse_coor) : utf::concat(rel_mouse_coor),
-                        mouse_coor - rel_mouse_coor,
-                        utf::to_hex(m.mods.effective), utf::to_hex(m.flags), (si32)emulated);
-                }
-                if (d.evtype != x11::req::xi2::event::Motion && !emulated) // ButtonPress or ButtonRelease.
-                {
-                    auto is_pressed = d.evtype == x11::req::xi2::event::ButtonPress;
-                    if (is_pressed && !moved) // Sync mouse position before any click (click on unfocused window).
+                    auto k = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
+                    auto is_pressed = d.evtype == x11::req::xi2::event::KeyPress;
+                    auto s_keycode  = k.detail & 0xFF; // Native keycode.
+                    auto repeated   = is_pressed && netxs::get_bit(vkstat, s_keycode);
+                    auto xi_mods    = k.mods.effective; // All modifiers.
+                    auto layout_id  = (byte)(k.group.effective & 0x03);
+                    //todo track modifiers on our side
+                    netxs::set_bit(vkstat, s_keycode, is_pressed);
+                    _set_keyboard_led_state(k.mods.locked); // NumLocks.
+                    if (xlayout != layout_id)
                     {
-                        mouse_moved();
+                        keybd_turn_layout(layout_id);
                     }
-                    auto button_id  = m.detail;
-                    if constexpr (debugmode) log("  Mouse Button%%: bttn_id=%%", is_pressed ? "Press" : "Release", button_id);
-                    // Fix bug with pressed buttons right after startup.
-                    if (is_pressed || stream.m.buttons) // Filter fake button release.
+                    if constexpr (debugmode)
                     {
-                             if (button_id == 1) mouse_press(bttn::left,   is_pressed);
-                        else if (button_id == 2) mouse_press(bttn::middle, is_pressed);
-                        else if (button_id == 3) mouse_press(bttn::right,  is_pressed);
-                        //else if (button_id == 4 && is_pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
-                        //else if (button_id == 5 && is_pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
-                        //else if (button_id == 6 && is_pressed) mouse_wheel(120, 1); // WheelLeft
-                        //else if (button_id == 7 && is_pressed) mouse_wheel(-120, 1);  // WheelRight
-                        else if (button_id == 8) mouse_press(bttn::xbutton1, is_pressed);
-                        else if (button_id == 9) mouse_press(bttn::xbutton2, is_pressed);
+                        log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", s_keycode, utf::to_hex(xi_mods), utf::to_hex(led_state), (si32)layout_id);
+                        log("   mods:    pressed=%% latched=%% locked=%% effective=%%", utf::to_bin((byte)k.mods.pressed), utf::to_bin((byte)k.mods.latched), utf::to_bin((byte)k.mods.locked), utf::to_bin((byte)k.mods.effective));
+                        log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
+                        keybd_print_vkstat("KeyPress");
                     }
+                    //todo get utf8 cluster
+                    //todo compose
+                    //todo deadkeys
+                    //todo Alt+numpad
+                    auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
+                    auto symcode = layouts[layout_id].key_syms[s_keycode].syms[0]; //todo apply key behavior
+                    auto unicode = _keysym_to_unicode(symcode); //todo apply compose
+                    auto cluster = utf::to_utf_from_code(unicode);
+                    auto virtcod = s_keycode;
+                    auto scancod = std::max(0, (si32)s_keycode - 8);
+                    auto extflag = 0;
+                    keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
                 }
-                //else if (d.evtype == x11::req::xi2::event::Motion)
-                //{
-                //}
-                if (m.valuators_len > 0)
+                else if (d.evtype == x11::req::xi2::event::ButtonPress
+                      || d.evtype == x11::req::xi2::event::ButtonRelease
+                      || d.evtype == x11::req::xi2::event::Motion)
                 {
-                    auto mask_ptr = m.valuators_mask_ptr(packet.data());
-                    auto data_ptr = m.valuators_data_ptr(packet.data());
-                    auto data_index = 0u;
-                    for (auto word_idx = 0u; word_idx < (ui32)m.valuators_len; ++word_idx)
+                    master_pointer_id = device_id;
+                    auto m = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
+                    auto& dev = session.input_devices[m.sourceid];
+                    auto emulated = !!(m.flags & x11::req::xi2::event::km::PointerEmulated);
+                    //auto xi_mods = m.mods.effective;
+                    auto mouse_coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
+                    auto moved = _check_if_mouse_moved(mouse_coor, faux);
+                    if constexpr (debugmode)
                     {
-                        auto mask = mask_ptr[word_idx];
-                        while (mask)
+                        static auto start_time = datetime::now();
+                        auto rel_mouse_coor = fp2d{ m.event_x.to_fp32(), m.event_y.to_fp32() };
+                        log("%%Mouse: %% sourceid=%% '%%' coor=%% rel_coor=%% wincoor=%% mods=0x%% flags=0x%% emulated=%%", prompt::x11,
+                            ansi::clr(yellowlt, datetime::round<si32>(datetime::now() - start_time), "ms"), m.sourceid, session.input_devices[m.sourceid].name,
+                            moved ? ansi::clr(tint::greenlt, mouse_coor) : utf::concat(mouse_coor),
+                            moved ? ansi::clr(tint::greenlt, rel_mouse_coor) : utf::concat(rel_mouse_coor),
+                            mouse_coor - rel_mouse_coor,
+                            utf::to_hex(m.mods.effective), utf::to_hex(m.flags), (si32)emulated);
+                    }
+                    if (d.evtype != x11::req::xi2::event::Motion && !emulated) // ButtonPress or ButtonRelease.
+                    {
+                        auto is_pressed = d.evtype == x11::req::xi2::event::ButtonPress;
+                        if (is_pressed && !moved) // Sync mouse position before any click (click on unfocused window).
                         {
-                            auto bit_idx = std::countr_zero(mask);
-                            auto axis = (word_idx * 32) + bit_idx;
-                            auto axis_value = netxs::start_lifetime_as<fx32>(data_ptr + data_index);
-                            data_index++;
-                            auto current_value = axis_value.to_fp64();
-                            if constexpr (debugmode) log("\t Axis %% changed to fp64=%%", axis, current_value);
-                            if (dev.axes.size() <= axis) dev.axes.resize(axis + 1);
-                            auto& axis_info = dev.axes[axis];
-                            auto delta = std::exchange(axis_info.last_val, current_value) - current_value;
-                            if (axis_info.is_scroll)
+                            mouse_moved();
+                        }
+                        auto button_id  = m.detail;
+                        if constexpr (debugmode) log("  Mouse Button%%: bttn_id=%%", is_pressed ? "Press" : "Release", button_id);
+                        // Workaround bug with pressed buttons right after startup.
+                        if (is_pressed || stream.m.buttons) // Filter fake button release.
+                        {
+                                 if (button_id == 1) mouse_press(bttn::left,   is_pressed);
+                            else if (button_id == 2) mouse_press(bttn::middle, is_pressed);
+                            else if (button_id == 3) mouse_press(bttn::right,  is_pressed);
+                            //else if (button_id == 4 && is_pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
+                            //else if (button_id == 5 && is_pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
+                            //else if (button_id == 6 && is_pressed) mouse_wheel(120, 1); // WheelLeft
+                            //else if (button_id == 7 && is_pressed) mouse_wheel(-120, 1);  // WheelRight
+                            else if (button_id == 8) mouse_press(bttn::xbutton1, is_pressed);
+                            else if (button_id == 9) mouse_press(bttn::xbutton2, is_pressed);
+                        }
+                    }
+                    //else if (d.evtype == x11::req::xi2::event::Motion)
+                    //{
+                    //}
+                    if (m.valuators_len > 0)
+                    {
+                        auto mask_ptr = m.valuators_mask_ptr(packet.data());
+                        auto data_ptr = m.valuators_data_ptr(packet.data());
+                        auto data_index = 0u;
+                        for (auto word_idx = 0u; word_idx < (ui32)m.valuators_len; ++word_idx)
+                        {
+                            auto mask = mask_ptr[word_idx];
+                            while (mask)
                             {
-                                //todo test
-                                //static auto kk = 1.0;
-                                //kk = std::clamp(kk + (delta > 0 ? 0.1 : -0.1), 0.0, 1.0);
-                                //layer_opacity((ui32)master.fg_hWnd, kk);
-
-                                wdelta = axis_info.inc_step;
-                                if (os::dtvt::wheelrate) delta *= os::dtvt::wheelrate;
-                                axis_info.vertical ? mouse_wheel(delta, faux)
-                                                   : mouse_wheel(delta, true);
-                                if constexpr (debugmode) log("\t delta=%% cur_val=%% (fullstep=%%)", delta, current_value, wdelta);
+                                auto bit_idx = std::countr_zero(mask);
+                                auto axis = (word_idx * 32) + bit_idx;
+                                auto axis_value = netxs::start_lifetime_as<fx32>(data_ptr + data_index);
+                                data_index++;
+                                auto current_value = axis_value.to_fp64();
+                                if constexpr (debugmode) log("\t Axis %% changed to fp64=%%", axis, current_value);
+                                if (dev.axes.size() <= axis) dev.axes.resize(axis + 1);
+                                auto& axis_info = dev.axes[axis];
+                                auto delta = std::exchange(axis_info.last_val, current_value) - current_value;
+                                if (axis_info.is_scroll)
+                                {
+                                    //todo test
+                                    //static auto kk = 1.0;
+                                    //kk = std::clamp(kk + (delta > 0 ? 0.1 : -0.1), 0.0, 1.0);
+                                    //layer_opacity((ui32)master.fg_hWnd, kk);
+                                    wdelta = axis_info.inc_step;
+                                    if (os::dtvt::wheelrate) delta *= os::dtvt::wheelrate;
+                                    axis_info.vertical ? mouse_wheel(delta, faux)
+                                                       : mouse_wheel(delta, true);
+                                    if constexpr (debugmode) log("\t delta=%% cur_val=%% (fullstep=%%)", delta, current_value, wdelta);
+                                }
+                                mask &= mask - 1;
                             }
-                            mask &= mask - 1;
                         }
                     }
                 }
-            }
-            else if (d.evtype == x11::req::xi2::event::Enter || d.evtype == x11::req::xi2::event::Leave)
-            {
-                if (!is_master) return true; // Ignore slave devices.
-                master_pointer_id = device_id;
-                auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
-                auto hover = d.evtype == x11::req::xi2::event::Enter;
-                if constexpr (debugmode) log("%%Hover: sourceid=%% '%%' mode=%% mods=0x%% leds=0x%% hover=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, (si32)f.mode, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)hover);
-                _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
-                if (!hover && f.mode == 0/*Normal*/)
+                else if (d.evtype == x11::req::xi2::event::Enter || d.evtype == x11::req::xi2::event::Leave)
                 {
-                    mouse_leave();
+                    master_pointer_id = device_id;
+                    auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
+                    auto hover = d.evtype == x11::req::xi2::event::Enter;
+                    if constexpr (debugmode) log("%%Hover: sourceid=%% '%%' mode=%% mods=0x%% leds=0x%% hover=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, (si32)f.mode, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)hover);
+                    _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
+                    if (!hover && f.mode == 0/*Normal*/)
+                    {
+                        mouse_leave();
+                    }
+                    else if (!hover) // Sometimes, system reports nothing when mouse leaving (mouse moved +/- 1px w/o reporting).
+                    {
+                        //todo They sometime (after drag) also return broken coords (+/- 1px):
+                        //session.accumrq(batch_buffer, x11::req::query_pointer{ .window_id = session.root_window_id }, {},
+                        //[&](auto& ev, view payload)
+                        //{
+                        //    if (ev.type != x11::event::Error)
+                        //    {
+                        //        auto m = netxs::start_lifetime_as<x11::req::query_pointer::reply>(payload.data());
+                        //        auto coor = fp2d{ m.root_x, m.root_y };
+                        //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
+                        //        _check_if_mouse_moved(coor, faux);
+                        //    }
+                        //});
+                        //session.sendrq(x11::req::xi2::query_pointer{ .major_opcode = session.xi2_major_opcode,
+                        //                                             .window_id    = (ui32)master.wm_hWnd,
+                        //                                             .device_id    = device_id }, {},
+                        //[&](auto& ev, view payload)
+                        //{
+                        //    if (ev.type != x11::event::Error)
+                        //    {
+                        //        auto m = netxs::start_lifetime_as<x11::req::xi2::query_pointer::reply>(payload.data());
+                        //        auto coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
+                        //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
+                        //        _check_if_mouse_moved(coor, faux);
+                        //    }
+                        //});
+                    }
                 }
-                else if (!hover) // Sometimes, system reports nothing when mouse leaving (mouse moved +/- 1px w/o reporting).
+                else if (d.evtype == x11::req::xi2::event::FocusIn || d.evtype == x11::req::xi2::event::FocusOut)
                 {
-                    //todo They sometime (after drag) also return broken coords (+/- 1px):
-                    //session.accumrq(batch_buffer, x11::req::query_pointer{ .window_id = session.root_window_id }, {},
-                    //[&](auto& ev, view payload)
-                    //{
-                    //    if (ev.type != x11::event::Error)
-                    //    {
-                    //        auto m = netxs::start_lifetime_as<x11::req::query_pointer::reply>(payload.data());
-                    //        auto coor = fp2d{ m.root_x, m.root_y };
-                    //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
-                    //        _check_if_mouse_moved(coor, faux);
-                    //    }
-                    //});
-                    //session.sendrq(x11::req::xi2::query_pointer{ .major_opcode = session.xi2_major_opcode,
-                    //                                             .window_id    = (ui32)master.wm_hWnd,
-                    //                                             .device_id    = device_id }, {},
-                    //[&](auto& ev, view payload)
-                    //{
-                    //    if (ev.type != x11::event::Error)
-                    //    {
-                    //        auto m = netxs::start_lifetime_as<x11::req::xi2::query_pointer::reply>(payload.data());
-                    //        auto coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
-                    //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
-                    //        _check_if_mouse_moved(coor, faux);
-                    //    }
-                    //});
+                    auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
+                    auto focused = d.evtype == x11::req::xi2::event::FocusIn;
+                    if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%% layout=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused, (si32)f.group.effective);
+                    _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
+                    _toggle_foreground(focused);
+                    focus_event(focused);
                 }
-            }
-            else if (d.evtype == x11::req::xi2::event::FocusIn || d.evtype == x11::req::xi2::event::FocusOut)
-            {
-                if (!is_master) return true; // Ignore slave devices.
-                auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
-                auto focused = d.evtype == x11::req::xi2::event::FocusIn;
-                auto layout_id = f.group.effective & 0x03; // 0..3
-                if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%% layout=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused, (si32)layout_id);
-                _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
-                _toggle_foreground(focused);
-                focus_event(focused);
             }
             if constexpr (debugmode) log("End ----------------------------------------");
             return true;
