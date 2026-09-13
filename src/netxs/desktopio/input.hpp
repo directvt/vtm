@@ -63,11 +63,12 @@ namespace netxs::input
 
     namespace vkey
     {
+        static constexpr auto undef    = 0x00; // Unknown/unsupported
         static constexpr auto lbutton  = 0x01; // VK_LBUTTON
-        static constexpr auto rbutton  = 0x02; // VK_RBUTTON
-        static constexpr auto mbutton  = 0x04; // VK_MBUTTON
-        static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1
-        static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2
+        //static constexpr auto rbutton  = 0x02; // VK_RBUTTON
+        //static constexpr auto mbutton  = 0x04; // VK_MBUTTON
+        //static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1
+        //static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2
 
         static constexpr auto shift    = 0x10; // VK_SHIFT
         static constexpr auto ctrl     = 0x11; // VK_CONTROL
@@ -86,7 +87,11 @@ namespace netxs::input
         static constexpr auto ralt     = 0xA5; // VK_RMENU
         static constexpr auto lsuper   = 0x5B; // VK_LWIN
         static constexpr auto rsuper   = 0x5C; // VK_RWIN
-        static constexpr auto grselect = 0xDF; // VK_OEM_8 GroupSelect (Level5Shift) on Canadian layout
+        static constexpr auto lhyper   = 0x88; // VK_LHYPER* +extflag
+        static constexpr auto rhyper   = 0x89; // VK_RHYPER* +extflag
+        static constexpr auto lmeta    = 0x8A; // VK_LMETA* +extflag
+        static constexpr auto rmeta    = 0x8B; // VK_RMETA* +extflag
+        static constexpr auto grselect = 0xDF; // VK_OEM_8+extflag GroupSelect (Level5Shift) on Canadian layout
 
         static constexpr auto prntscrn = 0x2C; // VK_SNAPSHOT (SysReq, Alt+PrntScrn)
         static constexpr auto cancel   = 0x03; // VK_CANCEL (Break, Ctrl+Pause)
@@ -102,7 +107,7 @@ namespace netxs::input
         static constexpr auto down     = 0x28; // VK_DOWN
         static constexpr auto insert   = 0x2D; // VK_INSERT
         static constexpr auto del      = 0x2E; // VK_DELETE
-        static constexpr auto divide   = 0x6F; // VK_DIVIDE
+        //static constexpr auto divide   = 0x6F; // VK_DIVIDE
 
         static constexpr auto f11      = 0x7A; // VK_F11
         static constexpr auto f12      = 0x7B; // VK_F12
@@ -117,9 +122,9 @@ namespace netxs::input
         static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA
         static constexpr auto intl_yen = 0xDC; // VK_OEM_5
 
-        static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY
-        static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO
-        static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW
+        //static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY
+        //static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO
+        //static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW
 
         static constexpr auto numpad0  = 0x60; // VK_NUMPAD0
         static constexpr auto numpad1  = 0x61; // VK_NUMPAD1
@@ -174,10 +179,10 @@ namespace netxs::input
             X( 7  , 0, 0x110, RightShift         , "Shift"             , ""    , 0     , 57447, 'u', 1, -1    , -1    , "0036100636101036100e36101436101636100236100a36100c36101836100436100836101a36101236102036101e36101c36102236102436102836102636102a36103036102e36102c36103436103636103236103836103a36103e36103c36104036104236104436104636104836104e36105036104a36104c36105236105636105836105436105a36105c36105e36106036106436106c36106236106a36106636106836106e36107036107236107c36107436107636107836107a36107e36108036108636108236108436108836108a36108c36108e36109236109036109436109636109836109a36109c3610a036109e3610a23610a43610a63610a83610aa3610ac3610")\
             X(8   , 0, 0x15B, LeftSuper          , "Super"             , ""    , 0     , 57444, 'u', 1, -1    , -1    , "015b5b075b5b115b5b0f5b5b155b5b175b5b035b5b0b5b5b0d5b5b195b5b055b5b095b5b1b5b5b135b5b215b5b1f5b5b1d5b5b235b5b255b5b295b5b275b5b2b5b5b315b5b2f5b5b2d5b5b355b5b375b5b335b5b395b5b3b5b5b3f5b5b3d5b5b415b5b435b5b455b5b475b5b4f5b5b515b5b4b5b5b4d5b5b535b5b575b5b595b5b555b5b5b5b5b5d5b5b5f5b5b615b5b655b5b6d5b5b635b5b6b5b5b675b5b695b5b6f5b5b715b5b735b5b7d5b5b755b5b775b5b795b5b7b5b5b7f5b5b815b5b875b5b835b5b855b5b895b5b8b5b5b8d5b5b935b5b975b5b995b5b9b5b5b9d5b5ba15b5b9f5b5ba35b5ba55b5ba75b5ba95b5bab5b5bad5b5b")\
             X( 9  , 0, 0x15C, RightSuper         , "Super"             , ""    , 0     , 57450, 'u', 1, -1    , -1    , "015c5c075c5c115c5c0f5c5c155c5c175c5c035c5c0b5c5c0d5c5c195c5c055c5c095c5c1b5c5c135c5c215c5c1f5c5c1d5c5c235c5c255c5c295c5c275c5c2b5c5c315c5c2f5c5c2d5c5c355c5c375c5c335c5c395c5c3b5c5c3f5c5c3d5c5c415c5c435c5c455c5c475c5c495c5c4f5c5c515c5c4b5c5c4d5c5c535c5c575c5c595c5c555c5c5b5c5c5d5c5c5f5c5c615c5c655c5c6d5c5c635c5c6b5c5c675c5c695c5c6f5c5c715c5c735c5c7d5c5c755c5c775c5c795c5c7b5c5c7f5c5c815c5c875c5c835c5c855c5c895c5c8b5c5c8d5c5c8f5c5c935c5c915c5c955c5c975c5c995c5c9b5c5c9d5c5ca15c5c9f5c5ca35c5ca55c5ca75c5ca95c5cab5c5cad5c5c")\
-            X(10  , 0, 0    , LeftHyper          , "Hyper"             , ""    , 0     , 57445, 'u', 1, -1    , -1    , "")\
-            X( 11 , 0, 0    , RightHyper         , "Hyper"             , ""    , 0     , 57451, 'u', 1, -1    , -1    , "")\
-            X(12  , 0, 0    , LeftMeta           , "Meta"              , ""    , 0     , 57446, 'u', 1, -1    , -1    , "")\
-            X( 13 , 0, 0    , RightMeta          , "Meta"              , ""    , 0     , 57452, 'u', 1, -1    , -1    , "")\
+            X(10  , 0, 0x188, LeftHyper          , "Hyper"             , ""    , 0     , 57445, 'u', 1, -1    , -1    , "")\
+            X( 11 , 0, 0x189, RightHyper         , "Hyper"             , ""    , 0     , 57451, 'u', 1, -1    , -1    , "")\
+            X(12  , 0, 0x18A, LeftMeta           , "Meta"              , ""    , 0     , 57446, 'u', 1, -1    , -1    , "")\
+            X( 13 , 0, 0x18B, RightMeta          , "Meta"              , ""    , 0     , 57452, 'u', 1, -1    , -1    , "")\
             X(14  , 0, 0x190, NumLock            , "NumLock"           , ""    , 0     , 57360, 'u', 1, -1    , -1    , "0145900745901145900f45901545901745900345900b45900d45901945900545900945901b45901345902145901f45901d45902345902545902945902745902b45903145902f45902d45903545903745903345903945903b45903f45903d45904145904345904545904745904945904f45905145904b45904d45905345905745905945905545905b45905d45905f45906145906545906d45906345906b45906745906945906f45907145907345907d45907545907745907945907b45907f45908145908745908345908545908945908b45908d45908f45909345909145909545909745909945909b45909d4590a145909f4590a34590a54590a74590a94590ab4590ad4590")\
             X(16  , 0, 0x014, CapsLock           , "CapsLock"          , ""    , 0     , 57358, 'u', 1, -1    , -1    , "003a14063a14103a140e3a14143a14163a14023a140a3a140c3a14183a14043a14083a141a3a14123a14203a141e3a141c3a14223a14243a14283a14263a142a3a14303a142e3a142c3a14343a14363a14323a14383a143a3a143e3a143c3a14403a14423a14443a14463a14483a144e3a14503a144a3a144c3a14523a14563a14583a14543a145a3a145c3a145e3a14603a14643a146c3a14623a146a3a14663a14683a146e3a14703a14723a147c3a14743a14763a14783a147a3a147e3a14803a14863a14823a14843a14883a148a3a148c3a148e3a14923a14903a14943a14963a14983a149a3a149c3a14a03a149e3a14a23a14a43a14a63a14a83a14aa3a14ac3a14")\
             X(18  , 0, 0x091, ScrollLock         , "ScrollLock"        , ""    , 0     , 57359, 'u', 1, -1    , -1    , "0046910646911046910e46911446911646910246910a46910c46911846910446910846911a46911246912046911e46911c46912246912446912846912646912a46913046912e46912c46913446913646913246913846913a46913e46913c46914046914246914446914646914846914e46915046914a46914c46915246915646915846915446915a46915c46915e46916046916446916c46916246916a46916646916846916e46917046917246917c46917446917646917846917a46917e46918046918646918246918446918846918a46918c46918e46919246919046919446919646919846919a46919c4691a046919e4691a24691a44691a64691a84691aa4691ac4691")\

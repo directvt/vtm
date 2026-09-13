@@ -3573,7 +3573,8 @@ namespace netxs::gui
         virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
-        virtual si32 keybd_mods_state() = 0;
+        virtual si32 keybd_read_state() = 0;
+        virtual si32 keybd_test_state() = 0;
         virtual void keybd_turn_layout(ui32 hkl) = 0;
         virtual void keybd_sync_layout()
         {
@@ -4343,7 +4344,7 @@ namespace netxs::gui
         auto get_mods_state()
         {
             return mfocus.focused()? keymod
-                                   : keybd_mods_state();
+                                   : keybd_read_state();
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
@@ -4621,25 +4622,8 @@ namespace netxs::gui
                               bool synth = faux,
                               byte payload = input::keybd::type::keypress)
         {
-            auto state = 0;
-            if (synth)
-            {
-                state = keymod;
-            }
-            else
-            {
-                if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
-                if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
-                if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
-                if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
-                if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
-                if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-                if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-                if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
-                if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
-                if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
-                if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-            }
+            auto state = synth ? keymod
+                               : keybd_test_state();
             auto changed = std::exchange(keymod, state) != keymod || synth;
 
             if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
@@ -5937,20 +5921,36 @@ namespace netxs::gui
             //keybd_print_vkstat("keybd_read_input");
             return true;
         }
-        si32 keybd_mods_state()
+        si32 keybd_test_state()
         {
             auto state = 0;
+            if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+            if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
+            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            return state;
+        }
+        si32 keybd_read_state()
+        {
+            auto state = 0;
+            if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
+            if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
             if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
             if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
             if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
             if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
             if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
-            if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
+            if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
             if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
             if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
-            if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
-            if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
-            if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
             return state;
         }
         void keybd_load_vkstat(void* ptr, ui32 len)
@@ -6658,6 +6658,8 @@ namespace netxs::gui
         std::vector<x11_key_type_t> key_types;
         std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
         lock_indicators             led_indicators; // window: Lock indicator bindings with modifier bitfield (dynamic).
+        std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
+        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -7085,9 +7087,9 @@ namespace netxs::gui
             auto reply = netxs::start_lifetime_as<x11::req::xkb::get_map::reply>(q.data());
             if constexpr (debugmode) log(" layout: payload_size=%% present_mask=%% min_key=%% max_key=%%", q.size(), utf::to_bin(reply.present), (si32)reply.min_key_code, (si32)reply.max_key_code);
             q.remove_prefix(sizeof(reply));
-            auto caps_lock_keycode   = -1u;
-            auto num_lock_keycode    = -1u;
-            auto scroll_lock_keycode = -1u;
+            keycode_to_vkey = {};
+            vkey_to_keycode = {};
+            layouts         = {}; // Clear layout buffers.
             if constexpr (debugmode) log("Parse keyboard layouts");
             if (reply.present & x11::req::xkb::KeyTypesMask)
             {
@@ -7131,7 +7133,6 @@ namespace netxs::gui
             {
                 if constexpr (debugmode) log("2. KeySymsMask: first_key_sym=%% total_syms=%% num_key_syms=%%", (si32)reply.first_key_sym, (si32)reply.total_syms, (si32)reply.num_key_syms);
                 auto max_key_code = reply.first_key_sym + reply.num_key_syms;
-                layouts = {}; // Clear layout buffers.
                 for (auto key_code = (si32)reply.first_key_sym; key_code < max_key_code; key_code++)
                 {
                     auto key_desc = netxs::start_lifetime_as<x11::req::xkb::get_map::reply::key_sym_map_desc>(q.data());
@@ -7150,10 +7151,12 @@ namespace netxs::gui
                     }
                     q.remove_prefix(sizeof(key_desc));
                     // Peek led modifiers for block 3.
-                    auto peek_keysym = netxs::start_lifetime_as<ui32>(q.data());
-                         if (peek_keysym == x11::key::NumLock   ) num_lock_keycode    = key_code;
-                    else if (peek_keysym == x11::key::CapsLock  ) caps_lock_keycode   = key_code;
-                    else if (peek_keysym == x11::key::ScrollLock) scroll_lock_keycode = key_code;
+                    if (auto peek_keysym = netxs::start_lifetime_as<ui32>(q.data()))
+                    if (auto virtcode = x11::key::keysym_to_vkey(peek_keysym))
+                    {
+                        keycode_to_vkey[key_code] = virtcode;
+                        vkey_to_keycode[virtcode] = key_code;
+                    }
                     for (auto layout_index = 0u; layout_index < layouts.size(); layout_index++) // Fill existing layout buffers.
                     {
                         auto& l = layouts[layout_index];
@@ -7200,9 +7203,9 @@ namespace netxs::gui
                 {
                     auto key_code = (byte)q.pop_front();
                     auto mod_mask = (byte)q.pop_front();
-                         if (key_code == caps_lock_keycode  ) led_indicators.caps_mask   = mod_mask;
-                    else if (key_code == num_lock_keycode   ) led_indicators.num_mask    = mod_mask;
-                    else if (key_code == scroll_lock_keycode) led_indicators.scroll_mask = mod_mask;
+                         if (keycode_to_vkey[key_code] == vkey::numlock ) led_indicators.num_mask    = mod_mask;
+                    else if (keycode_to_vkey[key_code] == vkey::capslock) led_indicators.caps_mask   = mod_mask;
+                    else if (keycode_to_vkey[key_code] == vkey::scrllock) led_indicators.scroll_mask = mod_mask;
                 }
                 if constexpr (debugmode) log("3. ModifierMapMask: first_mod_map_key=%% num_mod_map_keys=%% total_mod_map_keys=%%", (si32)reply.first_mod_map_key, (si32)reply.num_mod_map_keys, (si32)reply.total_mod_map_keys,
                     "\n    caps_mask=", utf::to_bin((byte)led_indicators.caps_mask),
@@ -7276,7 +7279,7 @@ namespace netxs::gui
 
         bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
         {
-            return netxs::get_bit(vkstat, virtcod);
+            return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
         }
         bool keybd_test_toggled(si32 virtcod)
         {
@@ -7290,10 +7293,9 @@ namespace netxs::gui
             _keybd_request_state();
             return keybd_test_pressed(virtcod);
         }
-        si32 keybd_mods_state()
+        si32 keybd_test_state()
         {
             auto state = 0;
-            _keybd_request_state();
             if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
             if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
             if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
@@ -7302,9 +7304,19 @@ namespace netxs::gui
             if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt;
             if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
             if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            if (keybd_test_pressed(vkey::lhyper  )) state |= mods::LHyper;
+            if (keybd_test_pressed(vkey::rhyper  )) state |= mods::RHyper;
+            if (keybd_test_pressed(vkey::lmeta   )) state |= mods::LMeta;
+            if (keybd_test_pressed(vkey::rmeta   )) state |= mods::RMeta;
             if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
             if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
             if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+            return state;
+        }
+        si32 keybd_read_state()
+        {
+            _keybd_request_state();
+            auto state = keybd_test_state();
             return state;
         }
         bool keybd_read_input() { return true; }
@@ -8222,12 +8234,10 @@ namespace netxs::gui
                 {
                     auto k = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
                     auto is_pressed = d.evtype == x11::req::xi2::event::KeyPress;
-                    auto s_keycode  = k.detail & 0xFF; // Native keycode.
-                    auto repeated   = is_pressed && netxs::get_bit(vkstat, s_keycode);
-                    auto xi_mods    = k.mods.effective; // All modifiers.
+                    auto keycode    = k.detail & 0xFF; // Native keycode.
+                    auto repeated   = is_pressed && netxs::get_bit(vkstat, keycode);
                     auto layout_id  = (byte)(k.group.effective & 0x03);
-                    //todo track modifiers on our side
-                    netxs::set_bit(vkstat, s_keycode, is_pressed);
+                    netxs::set_bit(vkstat, keycode, is_pressed);
                     _set_keyboard_led_state(k.mods.locked); // NumLocks.
                     if (xlayout != layout_id)
                     {
@@ -8235,21 +8245,21 @@ namespace netxs::gui
                     }
                     if constexpr (debugmode)
                     {
-                        log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", s_keycode, utf::to_hex(xi_mods), utf::to_hex(led_state), (si32)layout_id);
+                        log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", keycode, utf::to_hex(k.mods.effective), utf::to_hex(led_state), (si32)layout_id);
                         log("   mods:    pressed=%% latched=%% locked=%% effective=%%", utf::to_bin((byte)k.mods.pressed), utf::to_bin((byte)k.mods.latched), utf::to_bin((byte)k.mods.locked), utf::to_bin((byte)k.mods.effective));
                         log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
-                        keybd_print_vkstat("KeyPress");
+                        //keybd_print_vkstat("KeyPress");
                     }
                     //todo get utf8 cluster
                     //todo compose
                     //todo deadkeys
                     //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
-                    auto symcode = layouts[layout_id].key_syms[s_keycode].syms[0]; //todo apply key behavior
+                    auto symcode = layouts[layout_id].key_syms[keycode].syms[0]; //todo apply key behavior with k.mods.effective
                     auto unicode = _keysym_to_unicode(symcode); //todo apply compose
                     auto cluster = utf::to_utf_from_code(unicode);
-                    auto virtcod = s_keycode;
-                    auto scancod = std::max(0, (si32)s_keycode - 8);
+                    auto virtcod = keycode_to_vkey[keycode];//todo 
+                    auto scancod = std::max(0, (si32)keycode - 8);
                     auto extflag = 0;
                     keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
                 }

@@ -3180,8 +3180,63 @@ namespace netxs::x11
 
     namespace key
     {
-        static constexpr auto NumLock    = 0xFF7F; // XK_Num_Lock
-        static constexpr auto CapsLock   = 0xFFE5; // XK_Caps_Lock
-        static constexpr auto ScrollLock = 0xFF14; // XK_Scroll_Lock
+        #define key_list \
+           /* VKeyName  XKeyName          KeySym */\
+            X(lbutton , Pointer_Button1 , 0XFEE9) /* VK_LBUTTON */\
+            X(altgr   , ISO_Level3_Shift, 0XFE03) \
+            X(grselect, ISO_Level5_Shift, 0XFE11) /* VK_OEM_8 GroupSelect (Level5Shift) on Canadian layout */\
+            X(numlock , Num_Lock        , 0XFF7F) /* VK_NUMLOCK  */\
+            X(capslock, Caps_Lock       , 0XFFE5) /* VK_CAPITAL  */\
+            X(scrllock, Scroll_Lock     , 0XFF14) /* VK_SCROLL   */\
+            X(lshift  , Shift_L         , 0XFFE1) /* VK_LSHIFT   */\
+            X(rshift  , Shift_R         , 0XFFE2) /* VK_RSHIFT   */\
+            X(lctrl   , Control_L       , 0XFFE3) /* VK_LCONTROL */\
+            X(rctrl   , Control_R       , 0XFFE4) /* VK_RCONTROL */\
+            X(lalt    , Alt_L           , 0XFFE9) /* VK_LMENU    */\
+            X(ralt    , Alt_R           , 0XFFEA) /* VK_RMENU    */\
+            X(lsuper  , Super_L         , 0XFFEB) /* VK_LWIN     */\
+            X(rsuper  , Super_R         , 0XFFEC) /* VK_RWIN     */\
+            X(undef   , Hyper_L         , 0XFFED) /* VK_LWIN     */\
+            X(undef   , Hyper_R         , 0XFFEE) /* VK_RWIN     */\
+            X(prntscrn, Print           , 0XFF61) /* VK_SNAPSHOT (SysReq, Alt+PrntScrn) */ \
+            X(cancel  , Cancel          , 0XFF69) /* VK_CANCEL (Break, Ctrl+Pause) */ \
+            X(clear   , Clear           , 0XFF0B) /* VK_CLEAR    */ \
+            X(enter   , Return          , 0XFF0D) /* VK_RETURN   */ \
+            X(pgup    , Prior           , 0XFF55) /* VK_PRIOR    */ \
+            X(pgdn    , Next            , 0XFF56) /* VK_NEXT     */ \
+            X(end     , End             , 0XFF57) /* VK_END      */ \
+            X(home    , Home            , 0XFF50) /* VK_HOME     */ \
+            X(left    , Left            , 0XFF51) /* VK_LEFT     */ \
+            X(up      , Up              , 0XFF52) /* VK_UP       */ \
+            X(right   , Right           , 0XFF53) /* VK_RIGHT    */ \
+            X(down    , Down            , 0XFF54) /* VK_DOWN     */ \
+            X(insert  , Insert          , 0XFF63) /* VK_INSERT   */ \
+            X(del     , Delete          , 0XFFFF) /* VK_DELETE   */ \
+            X(f11     , F11             , 0XFFC8) /* VK_F11      */ \
+            X(f12     , F12             , 0XFFC9) /* VK_F12      */ \
+            X(key_0   , 0               , 0X0030) /* VK_0        */ \
+            X(numpad0 , KP_0            , 0XFFB0) /* VK_NUMPAD0  */ \
+            X(numpad1 , KP_1            , 0XFFB1) /* VK_NUMPAD1  */ \
+            X(numpad2 , KP_2            , 0XFFB2) /* VK_NUMPAD2  */ \
+            X(numpad3 , KP_3            , 0XFFB3) /* VK_NUMPAD3  */ \
+            X(numpad4 , KP_4            , 0XFFB4) /* VK_NUMPAD4  */ \
+            X(numpad5 , KP_5            , 0XFFB5) /* VK_NUMPAD5  */ \
+            X(numpad6 , KP_6            , 0XFFB6) /* VK_NUMPAD6  */ \
+            X(numpad7 , KP_7            , 0XFFB7) /* VK_NUMPAD7  */ \
+            X(numpad8 , KP_8            , 0XFFB8) /* VK_NUMPAD8  */ \
+            X(numpad9 , KP_9            , 0XFFB9) /* VK_NUMPAD9  */ \
+            X(numpadD , KP_Decimal      , 0XFFAE) /* VK_DECIMAL  */
+        // Sync with input::vkey::* from input.hpp.
+        constexpr byte keysym_to_vkey(ui32 keysym)
+        {
+            auto vk = (byte)0;
+            switch (keysym)
+            {
+                #define X(VKeyName, XKeyName, KeySym) case KeySym: vk = input::vkey::VKeyName; break;
+                    key_list
+                #undef key_list
+            }
+            return vk;
+        }
     }
 }
