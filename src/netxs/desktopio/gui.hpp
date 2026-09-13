@@ -7072,9 +7072,9 @@ namespace netxs::gui
         auto _keysym_to_unicode(ui32 keysym)
         {
             auto unicode = ui32{};
-            if (keysym >= 0x0020 && keysym <= 0x007E)
+            if (keysym <= 0xFFFF)
             {
-                unicode = keysym;
+                unicode = x11::key::sym_to_unicode[keysym];
             }
             else if ((keysym & 0xFF000000) == 0x01000000)
             {
