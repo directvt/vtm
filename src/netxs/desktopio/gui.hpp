@@ -7069,19 +7069,6 @@ namespace netxs::gui
         {
             led_state = state;
         }
-        auto _keysym_to_unicode(ui32 keysym)
-        {
-            auto unicode = ui32{};
-            if (keysym <= 0xFFFF)
-            {
-                unicode = x11::key::sym_to_unicode[keysym];
-            }
-            else if ((keysym & 0xFF000000) == 0x01000000)
-            {
-                unicode = keysym & 0x00FFFFFF;
-            }
-            return unicode;
-        }
         void _parse_layouts(qiew q)
         {
             auto reply = netxs::start_lifetime_as<x11::req::xkb::get_map::reply>(q.data());
@@ -7174,10 +7161,9 @@ namespace netxs::gui
                             {
                                 auto keysym = netxs::start_lifetime_as<ui32>(q.data());
                                 key_rec.syms[i] = keysym;
-                                auto unicode = _keysym_to_unicode(keysym);
                                 if constexpr (debugmode)
                                 {
-                                    log<faux>("  %% %%", utf::debase437(utf::to_utf_from_code(unicode)), utf::to_hex(keysym));
+                                    log<faux>("  %% %%", utf::debase437(utf::to_utf_from_code(x11::key::sym_to_unicode(keysym))), utf::to_hex(keysym));
                                     if (i == key_desc.width - 1) log("");
                                 }
                                 q.remove_prefix(sizeof(ui32));
@@ -8243,24 +8229,24 @@ namespace netxs::gui
                     {
                         keybd_turn_layout(layout_id);
                     }
-                    if constexpr (debugmode)
-                    {
-                        log("%%sourceid=%% '%%' Key%%: keycode=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", keycode, utf::to_hex(k.mods.effective), utf::to_hex(led_state), (si32)layout_id);
-                        log("   mods:    pressed=%% latched=%% locked=%% effective=%%", utf::to_bin((byte)k.mods.pressed), utf::to_bin((byte)k.mods.latched), utf::to_bin((byte)k.mods.locked), utf::to_bin((byte)k.mods.effective));
-                        log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
-                        //keybd_print_vkstat("KeyPress");
-                    }
                     //todo get utf8 cluster
                     //todo compose
                     //todo deadkeys
                     //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
                     auto symcode = layouts[layout_id].key_syms[keycode].syms[0]; //todo apply key behavior with k.mods.effective
-                    auto unicode = _keysym_to_unicode(symcode); //todo apply compose
+                    auto unicode = x11::key::sym_to_unicode(symcode); //todo apply compose
                     auto cluster = utf::to_utf_from_code(unicode);
                     auto virtcod = keycode_to_vkey[keycode];//todo 
                     auto scancod = std::max(0, (si32)keycode - 8);
                     auto extflag = 0;
+                    if constexpr (debugmode)
+                    {
+                        log("%%sourceid=%% '%%' Key%%: keycode=%% sym=%% name=%% test_name_to_sym=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", keycode, utf::to_hex(symcode), x11::key::sym_to_name(symcode), utf::to_hex(x11::key::name_to_sym(x11::key::sym_to_name(symcode))), utf::to_hex(k.mods.effective), utf::to_hex(led_state), (si32)layout_id);
+                        log("   mods:    pressed=%% latched=%% locked=%% effective=%%", utf::to_bin((byte)k.mods.pressed), utf::to_bin((byte)k.mods.latched), utf::to_bin((byte)k.mods.locked), utf::to_bin((byte)k.mods.effective));
+                        log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
+                        //keybd_print_vkstat("KeyPress");
+                    }
                     keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
                 }
                 else if (d.evtype == x11::req::xi2::event::ButtonPress
