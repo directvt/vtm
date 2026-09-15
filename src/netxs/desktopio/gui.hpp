@@ -6660,6 +6660,7 @@ namespace netxs::gui
         lock_indicators             led_indicators; // window: Lock indicator bindings with modifier bitfield (dynamic).
         std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
+        x11::compose                compose;        // window: POSIX Compose state machine.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -8230,7 +8231,6 @@ namespace netxs::gui
                         keybd_turn_layout(layout_id);
                     }
                     //todo get utf8 cluster
-                    //todo compose
                     //todo deadkeys
                     //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
@@ -8240,6 +8240,26 @@ namespace netxs::gui
                     auto virtcod = keycode_to_vkey[keycode];//todo 
                     auto scancod = std::max(0, (si32)keycode - 8);
                     auto extflag = 0;
+                    if (is_pressed)
+                    {
+                        auto res = compose.process_keysym(symcode);
+                        if (res.stat == x11::compose::status::matching || res.stat == x11::compose::status::invalidated)
+                        {
+                            //todo composing
+                            //return;
+                        }
+                        else if (res.stat == x11::compose::status::completed)
+                        {
+                            if constexpr (debugmode) log("got compose result: %%", res.utf8);
+                            //todo got utf8
+                            //return;
+                        }
+                        else if (res.stat == x11::compose::status::ignored)
+                        {
+                            if constexpr (debugmode) log("compose ignored");
+                            //return;
+                        }
+                    }
                     if constexpr (debugmode)
                     {
                         log("%%sourceid=%% '%%' Key%%: keycode=%% sym=%% name=%% test_name_to_sym=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", keycode, utf::to_hex(symcode), x11::key::sym_to_name(symcode), utf::to_hex(x11::key::name_to_sym(x11::key::sym_to_name(symcode))), utf::to_hex(k.mods.effective), utf::to_hex(led_state), (si32)layout_id);

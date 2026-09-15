@@ -85,7 +85,6 @@
                     os::logstd("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
 namespace netxs::os
 {
-    namespace fs = std::filesystem;
     namespace key = input::key;
     using page = ui::page;
     using para = ui::para;
@@ -2243,7 +2242,7 @@ namespace netxs::os
         auto cwd()
         {
             auto err = std::error_code{};
-            auto cwd = std::filesystem::current_path(err).string();
+            auto cwd = os::fs::current_path(err).string();
             return cwd;
         }
         // os::env: Set current working directory.

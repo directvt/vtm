@@ -3360,13 +3360,13 @@ namespace netxs::x11
             std::sort(idx.begin(), idx.end(), [](auto a, auto b) { return _symdef[a].name < _symdef[b].name; });
             return idx;
         }();
-        auto sym_to_unicode(ui32 keysym)
+        constexpr auto sym_to_unicode(ui32 keysym)
         {
             return keysym <= 0xFFFF                   ? _sym_to_unicode[keysym]
                 : (keysym & 0xFF000000) == 0x01000000 ? keysym & 0x00FFFFFF
                                                       : 0u;
         }
-        auto sym_to_name(ui32 keysym)
+        constexpr auto sym_to_name(ui32 keysym)
         {
             auto it = std::lower_bound(_symdef.begin(), _symdef.end(), keysym, [](auto& rec, ui32 val){return rec.keysym < val; });
             if (it != _symdef.end() && it->keysym == keysym)
@@ -3375,7 +3375,7 @@ namespace netxs::x11
             }
             return "undef"sv;
         }
-        auto name_to_sym(view name)
+        constexpr auto name_to_sym(view name)
         {
             auto it = std::lower_bound(_index_name_to_symdef.begin(), _index_name_to_symdef.end(), name, [](ui16 idx, view val){ return _symdef[idx].name < val; });
             if (it != _index_name_to_symdef.end())
@@ -3388,4 +3388,259 @@ namespace netxs::x11
             return 0u;
         }
     }
+
+    struct compose
+    {
+        struct rule_t
+        {
+            std::vector<ui32> keysyms;
+            text              utf8;
+        };
+        struct node_t
+        {
+            using list = std::vector<netxs::sptr<node_t>>;
+
+            ui32 keysym = 0; // Triggerred keysym.
+            text utf8;       // Final UTF-8 string if non-empty.
+            list next;       // Next hop list sorted (by keysym).
+
+            auto find_next(ui32 keysym)
+            {
+                auto it = std::lower_bound(next.begin(), next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
+                if (it != next.end() && (*it)->keysym == keysym)
+                {
+                    return *it;
+                }
+                return netxs::sptr<node_t>{};
+            }
+            text to_string(si32 level) const
+            {
+                auto s = text{};
+                if (utf8.empty())
+                {
+                    for (auto& n : next)
+                    {
+                        s += utf::fprint("<%%> %%", x11::key::sym_to_name(keysym), n->to_string(level + 1));
+                    }
+                }
+                else
+                {
+                    s += utf::fprint("<%%> : '%%'\n%%", x11::key::sym_to_name(keysym), utf::debase437(utf8), text(level, '\t'));
+                }
+                return s;
+            }
+        };
+        enum class status
+        {
+            ignored,     // Plain input.
+            matching,    // Waiting the next keysym.
+            completed,   // Got utf8 string.
+            invalidated, // Aborted.
+        };
+        struct input_result
+        {
+            status stat;
+            text   utf8; // Filled when completed.
+        };
+
+        netxs::sptr<node_t> current_state = nullptr;
+        netxs::sptr<node_t> root = ptr::shared(node_t{});
+        text                locale;
+
+        compose()
+        {
+            if (auto raw_locale = std::setlocale(LC_ALL, "")) // "ru_RU.UTF-8" or "sr_RS@latin"
+            {
+                locale = text{ raw_locale };
+                if constexpr (debugmode) log("Current locale: '%%'", locale);
+                //todo filter locale by /usr/share/X11/locale/locale.alias (simplified locale name -> full locale name)
+            }
+            else
+            {
+                locale = "en_US.UTF-8";
+                if constexpr (debugmode) log("Fallback to locale: '%%'", locale);
+            }
+            auto compose_file = os::fs::path{};
+            auto include_stack = std::vector<os::fs::path>{};
+            // 1.
+            if (auto home = os::env::get("HOME"); home.size())
+            {
+                if (auto user_xcompose = os::fs::path{ home } / ".XCompose"; os::fs::exists(user_xcompose))
+                {
+                    compose_file = std::move(user_xcompose);
+                }
+            }
+            // 2.
+            if (compose_file.empty())
+            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
+            if (auto xlocaledir_path = os::fs::path{ xlocaledir } / locale / "Compose"; os::fs::exists(xlocaledir_path))
+            {
+                compose_file = std::move(xlocaledir_path);
+            }
+            // 3.
+            if (compose_file.empty())
+            {
+                compose_file = os::fs::path{ "/usr/share/X11/locale" } / locale / "Compose";
+            }
+            if constexpr (debugmode) log(" Compose file: '%%'", compose_file.string());
+            _load_compose_file(compose_file, include_stack);
+            if constexpr (debugmode)
+            {
+                log("   root->next.size=", root->next.size());
+                for (auto& next : root->next)
+                {
+                    auto s = next->to_string(1);
+                    log("%%", s);
+                }
+            }
+        }
+
+        auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
+        {
+            utf::trim_front(line, "\t ");
+            if (line.empty() || line.front() == '#')
+            {
+                return std::monostate{};
+            }
+            if (line.starts_with("include"))
+            {
+                line.remove_prefix(sizeof("include") - 1/*trailing null*/); // Remove 'include' keyword.
+                utf::trim_front(line, "\t ");
+                if (line && line.front() == '"')
+                if (auto raw_path = utf::take_quote(line, '"'); raw_path.size())
+                {
+                    auto include_path = text{};
+                    include_path = raw_path;
+                    return include_path;
+                }
+                return std::monostate{};
+            }
+            auto keysyms = std::vector<ui32>{};
+            while (line && line.front() == '<') // Parse rule line: <key_name> ... <key_name>.
+            {
+                if (auto keyname = utf::take_quote(line, '>'); keyname.size())
+                if (auto keysym = x11::key::name_to_sym(keyname))
+                {
+                    keysyms.push_back(keysym);
+                    utf::trim_front(line, "\t ");
+                    continue;
+                }
+                return std::monostate{}; // Unknown key name.
+            }
+            if (keysyms.size() && line.size() && line.front() == ':')
+            {
+                utf::trim_front(line, "\t :"); // Pop ':' with spaces.
+                if (line && line.front() == '"')
+                {
+                    auto rule = rule_t{ .keysyms = std::move(keysyms) };
+                    rule.utf8 = utf::take_quote(line, '"');
+                    return rule;
+                }
+            }
+            return std::monostate{};
+        }
+        auto _resolve_include_path(text raw_path)
+        {
+            if (auto macro_pos = raw_path.find("%L"); macro_pos != text::npos) // Expand %L marco (e.g., en_US.UTF-8).
+            {
+                raw_path.replace(macro_pos, 2, locale);
+            }
+            auto path = os::fs::path{ raw_path };
+            if (path.is_absolute())
+            {
+                return path;
+            }
+            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
+            if (auto xlocaledir_path = os::fs::path{ xlocaledir } / path; os::fs::exists(xlocaledir_path))
+            {
+                return xlocaledir_path;
+            }
+            return os::fs::path{ "/usr/share/X11/locale" } / path;
+        }
+        void _inject_into_trie(std::vector<ui32> const& keysyms, view utf8)
+        {
+            if (keysyms.size())
+            {
+                auto current = root;
+                for (auto keysym : keysyms)
+                {
+                    auto it = std::lower_bound(current->next.begin(), current->next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
+                    if (it == current->next.end() || (*it)->keysym != keysym) // Create new next hop if it is not exist.
+                    {
+                        auto new_node = ptr::shared(node_t{ .keysym = keysym });
+                        it = current->next.insert(it, new_node); // Keep next hop list sorted.
+                    }
+                    current = *it;
+                }
+                current->utf8 = utf8;
+            }
+        }
+        void _load_compose_file(os::fs::path const& file_path, std::vector<os::fs::path>& include_stack)
+        {
+            if (std::find(include_stack.begin(), include_stack.end(), file_path) == include_stack.end())
+            {
+                auto file = std::ifstream{ file_path };
+                if (file.is_open())
+                {
+                    include_stack.push_back(file_path);
+                    auto line = text{};
+                    while (std::getline(file, line))
+                    {
+                        auto res = _parse_line(line);
+                        std::visit([&](auto&& arg)
+                        {
+                            using T = std::decay_t<decltype(arg)>;
+                            if constexpr (std::is_same_v<T, rule_t>) // Add rule.
+                            {
+                                _inject_into_trie(arg.keysyms, arg.utf8);
+                            }
+                            else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
+                            {
+                                auto next_file = _resolve_include_path(arg);
+                                _load_compose_file(next_file, include_stack);
+                            }
+                        }, res);
+                    }
+                    include_stack.pop_back();
+                }
+            }
+        }
+        auto process_keysym(ui32 keysym) -> input_result
+        {
+            // 1. Check activation by the Compose key.
+            if (!current_state)
+            {
+                if (auto next_node = root->find_next(keysym))
+                {
+                    current_state = next_node;
+                    return { status::matching };
+                }
+                return { status::ignored }; // Plain input.
+            }
+            // 2. Try to next step with KeySym.
+            if (auto next_node = current_state->find_next(keysym))
+            {
+                if (!next_node->utf8.empty()) // Got utf8.
+                {
+                    current_state = {};
+                    return { .stat = status::completed, .utf8 = next_node->utf8 };
+                }
+                current_state = next_node;
+                return { status::matching };
+            }
+            // 3. Filter modifiers (e.g., Shift, Ctrl, Alt).
+            if (keysym >= 0xffe1 && keysym <= 0xffee)
+            {
+                return { status::matching }; // Ignore modifiers, wait letters.
+            }
+            // 4. Broken input.
+            current_state = {};
+            return { status::invalidated };
+        }
+        // Explicit reset (e.g., on lost focus).
+        void reset()
+        {
+            current_state = {};
+        }
+    };
 }

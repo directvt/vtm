@@ -253,19 +253,24 @@ namespace netxs
         static constexpr auto anyMeta    = LMeta  | RMeta;
         static constexpr auto anyMod     = anyAlt | anyCtrl | anyShift | anySuper | anyHyper | anyMeta;
     }
-    namespace os::process
+    namespace os
     {
-        auto getid()
+        namespace fs = std::filesystem;
+
+        namespace process
         {
-            auto id = (ui32)
-                #if defined(_WIN32)
-                    ::GetCurrentProcessId();
-                #else
-                    ::getpid();
-                #endif
-            return std::pair{ id, std::chrono::steady_clock::now() };
+            auto getid()
+            {
+                auto id = (ui32)
+                    #if defined(_WIN32)
+                        ::GetCurrentProcessId();
+                    #else
+                        ::getpid();
+                    #endif
+                return std::pair{ id, std::chrono::steady_clock::now() };
+            }
+            static auto id = os::process::getid();
         }
-        static auto id = os::process::getid();
     }
 
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }

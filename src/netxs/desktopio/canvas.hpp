@@ -2005,7 +2005,7 @@ namespace netxs
             static constexpr auto unline_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'11100000; // unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
             static constexpr auto ucolor_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'00000000; // ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
             static constexpr auto cursor_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000011'00000000'00000000; // cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar.
-            static constexpr auto hplink_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000100'00000000'00000000; // hyperlink : 1; // cell: strore string hash.
+            static constexpr auto hplink_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000100'00000000'00000000; // hyperlink : 1; // cell: store string hash.
             static constexpr auto blinks_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00001000'00000000'00000000; // blinks : 1;
             static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00010000'00000000'00000000; // hidden : 1; // Hidden character.
           //static constexpr auto reserv_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11100000'00000000'00000000; // reserv : 11;

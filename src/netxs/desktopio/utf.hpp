@@ -2691,7 +2691,7 @@ namespace netxs::utf
         utf8.remove_prefix(str.size());
         return str;
     }
-    auto take_quote(view& utf8, char delim) // Take the fragment inside the quotes (shadow).
+    auto take_quote(view& utf8, char delim) // Take the fragment inside the quotes (or parentheses: delim=')').
     {
         if (utf8.size() < 2)
         {
@@ -2929,9 +2929,9 @@ namespace netxs::utf
                  << utf::adjust(std::to_string(milli), 3, '0', true)
                  << utf::adjust(std::to_string(micro), 3, '0', true);
     }
-    auto& operator << (std::ostream& s, std::filesystem::file_time_type const& ftime)
+    auto& operator << (std::ostream& s, os::fs::file_time_type const& ftime)
     {
-        auto sct = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+        auto sct = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - os::fs::file_time_type::clock::now() + std::chrono::system_clock::now());
         auto tt = std::chrono::system_clock::to_time_t(sct);
         auto tm = std::tm{};
         #if !defined(_WIN32) // Implementation for gcc 11 (waiting for gcc 13).
