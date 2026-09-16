@@ -3493,7 +3493,16 @@ namespace netxs::x11
             }
             auto compose_file = os::fs::path{};
             auto include_stack = std::vector<os::fs::path>{};
-            // 1.
+            // 1. Check for the presence of the XCOMPOSEFILE file.
+            if (auto xcomposefile = os::env::get("XCOMPOSEFILE"); xcomposefile.size())
+            {
+                if (auto xcomposefile_path = os::fs::path{ xcomposefile }; os::fs::exists(xcomposefile_path))
+                {
+                    compose_file = std::move(xcomposefile_path);
+                }
+            }
+            // 2. Check for the presence of the '~/.XCompose' file.
+            if (compose_file.empty())
             if (auto home = os::env::get("HOME"); home.size())
             {
                 if (auto user_xcompose = os::fs::path{ home } / ".XCompose"; os::fs::exists(user_xcompose))
@@ -3501,17 +3510,11 @@ namespace netxs::x11
                     compose_file = std::move(user_xcompose);
                 }
             }
-            // 2.
+            // 3. Check the system locale path.
             if (compose_file.empty())
-            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
-            if (auto xlocaledir_path = os::fs::path{ xlocaledir } / locale / "Compose"; os::fs::exists(xlocaledir_path))
+            if (auto system_path = _get_system_compose_path() / locale / "Compose"; os::fs::exists(system_path))
             {
-                compose_file = std::move(xlocaledir_path);
-            }
-            // 3.
-            if (compose_file.empty())
-            {
-                compose_file = os::fs::path{ "/usr/share/X11/locale" } / locale / "Compose";
+                compose_file = std::move(system_path);
             }
             if constexpr (debugmode) log(" Compose file: '%%'", compose_file.string());
             _load_compose_file(compose_file, include_stack);
@@ -3526,6 +3529,15 @@ namespace netxs::x11
             }
         }
 
+        os::fs::path _get_system_compose_path()
+        {
+            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
+            if (auto xlocaledir_path = os::fs::path{ xlocaledir }; os::fs::exists(xlocaledir_path))
+            {
+                return xlocaledir_path;
+            }
+            return os::fs::path{ "/usr/share/X11/locale" };
+        }
         auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
         {
             utf::trim_front(line, "\t ");
@@ -3572,21 +3584,22 @@ namespace netxs::x11
         }
         auto _resolve_include_path(text raw_path)
         {
-            if (auto macro_pos = raw_path.find("%L"); macro_pos != text::npos) // Expand %L marco (e.g., en_US.UTF-8).
+            if (raw_path.find("%L") != text::npos) // Expand %L marco with the current locale.
             {
-                raw_path.replace(macro_pos, 2, locale);
+                utf::replace_all(raw_path, "%L", locale);
+            }
+            if (raw_path.find("%H") != text::npos) // Expand %H marco with the home path.
+            {
+                auto home = os::env::get("HOME");
+                utf::replace_all(raw_path, "%H", home);
+            }
+            if (raw_path.find("%S") != text::npos) // Expand %S marco with the system compose path.
+            {
+                utf::replace_all(raw_path, "%S", _get_system_compose_path().string());
             }
             auto path = os::fs::path{ raw_path };
-            if (path.is_absolute())
-            {
-                return path;
-            }
-            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
-            if (auto xlocaledir_path = os::fs::path{ xlocaledir } / path; os::fs::exists(xlocaledir_path))
-            {
-                return xlocaledir_path;
-            }
-            return os::fs::path{ "/usr/share/X11/locale" } / path;
+            return path.is_absolute() ? path
+                                      : _get_system_compose_path() / path;
         }
         void _inject_into_trie(std::vector<ui32> const& keysyms, view utf8)
         {
