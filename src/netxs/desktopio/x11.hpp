@@ -3549,12 +3549,17 @@ namespace netxs::x11
             {
                 line.remove_prefix(sizeof("include") - 1/*trailing null*/); // Remove 'include' keyword.
                 utf::trim_front(line, "\t ");
-                if (line && line.front() == '"')
-                if (auto raw_path = utf::take_quote(line, '"'); raw_path.size())
+                if (line)
                 {
-                    auto include_path = text{};
-                    include_path = raw_path;
-                    return include_path;
+                    if (line.front() == '"')
+                    if (auto raw_path = utf::take_quote(line, '"'); raw_path.size()) // include "<path>"
+                    {
+                        return text{ raw_path.data(), raw_path.size() };
+                    }
+                    if (auto raw_path = utf::get_word(line, " #"); raw_path.size()) // include <path>
+                    {
+                        return text{ raw_path.data(), raw_path.size() };
+                    }
                 }
                 return std::monostate{};
             }
