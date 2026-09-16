@@ -3385,6 +3385,36 @@ namespace netxs::x11
                     return rec.keysym;
                 }
             }
+            if (name.size() > 1)
+            if (auto u = name.front(); u == 'U' || u == 'u') // Uxxxx uxxxx U+xxxx u+xxxx
+            {
+                name.remove_prefix(1);
+                if (name.front() == '+')
+                {
+                    name.remove_prefix(1);
+                }
+                if (name.size())
+                {
+                    auto cp = 0u;
+                    auto valid = true;
+                    for (auto c : name)
+                    {
+                        cp <<= 4;
+                             if (c >= '0' && c <= '9') cp |= c - '0';
+                        else if (c >= 'a' && c <= 'f') cp |= c - 'a' + 10;
+                        else if (c >= 'A' && c <= 'F') cp |= c - 'A' + 10;
+                        else
+                        {
+                            valid = faux;
+                            break;
+                        }
+                    }
+                    if (valid)
+                    {
+                        return 0x01000000 | cp;
+                    }
+                }
+            }
             return 0u;
         }
     }
@@ -3401,7 +3431,7 @@ namespace netxs::x11
             using list = std::vector<netxs::sptr<node_t>>;
 
             ui32 keysym = 0; // Triggerred keysym.
-            text utf8;       // Final UTF-8 string if non-empty.
+            text utf8;       // Final UTF-8 string if next is empty.
             list next;       // Next hop list sorted (by keysym).
 
             auto find_next(ui32 keysym)
@@ -3416,7 +3446,7 @@ namespace netxs::x11
             text to_string(si32 level) const
             {
                 auto s = text{};
-                if (utf8.empty())
+                if (next.size())
                 {
                     for (auto& n : next)
                     {
@@ -3432,7 +3462,7 @@ namespace netxs::x11
         };
         enum class status
         {
-            ignored,     // Plain input.
+            inactive,    // Plain input.
             matching,    // Waiting the next keysym.
             completed,   // Got utf8 string.
             invalidated, // Aborted.
@@ -3440,12 +3470,13 @@ namespace netxs::x11
         struct input_result
         {
             status stat;
-            text   utf8; // Filled when completed.
+            text   utf8;
         };
 
-        netxs::sptr<node_t> current_state = nullptr;
+        netxs::sptr<node_t> current_node = {};
         netxs::sptr<node_t> root = ptr::shared(node_t{});
         text                locale;
+        std::vector<ui32>   input_backup;
 
         compose()
         {
@@ -3561,18 +3592,19 @@ namespace netxs::x11
         {
             if (keysyms.size())
             {
-                auto current = root;
-                for (auto keysym : keysyms)
+                auto node = root;
+                for (auto& keysym : keysyms)
                 {
-                    auto it = std::lower_bound(current->next.begin(), current->next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
-                    if (it == current->next.end() || (*it)->keysym != keysym) // Create new next hop if it is not exist.
+                    auto it = std::lower_bound(node->next.begin(), node->next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
+                    if (it == node->next.end() || (*it)->keysym != keysym)
                     {
                         auto new_node = ptr::shared(node_t{ .keysym = keysym });
-                        it = current->next.insert(it, new_node); // Keep next hop list sorted.
+                        it = node->next.insert(it, new_node);
                     }
-                    current = *it;
+                    node = *it;
                 }
-                current->utf8 = utf8;
+                node->utf8 = utf8;
+                node->next.clear(); // Cut current node branch.
             }
         }
         void _load_compose_file(os::fs::path const& file_path, std::vector<os::fs::path>& include_stack)
@@ -3605,42 +3637,46 @@ namespace netxs::x11
                 }
             }
         }
-        auto process_keysym(ui32 keysym) -> input_result
+        auto process_keysym(ui32 keysym)
         {
-            // 1. Check activation by the Compose key.
-            if (!current_state)
+            if (!current_node) // 1. Check activation by the first key.
             {
                 if (auto next_node = root->find_next(keysym))
                 {
-                    current_state = next_node;
-                    return { status::matching };
+                    if (next_node->next.empty())
+                    {
+                        return input_result{ status::completed, next_node->utf8 }; // Single key chord.
+                    }
+                    input_backup.push_back(keysym);
+                    current_node = next_node;
+                    return input_result{ status::matching };
                 }
-                return { status::ignored }; // Plain input.
+                return input_result{ status::inactive }; // Plain input.
             }
-            // 2. Try to next step with KeySym.
-            if (auto next_node = current_state->find_next(keysym))
+            if (auto next_node = current_node->find_next(keysym)) // 2. Try to next step.
             {
-                if (!next_node->utf8.empty()) // Got utf8.
+                if (next_node->next.empty()) // Got utf8.
                 {
-                    current_state = {};
-                    return { .stat = status::completed, .utf8 = next_node->utf8 };
+                    reset();
+                    return input_result{ .stat = status::completed, .utf8 = next_node->utf8 };
                 }
-                current_state = next_node;
-                return { status::matching };
+                input_backup.push_back(keysym);
+                current_node = next_node;
+                return input_result{ status::matching };
             }
-            // 3. Filter modifiers (e.g., Shift, Ctrl, Alt).
-            if (keysym >= 0xffe1 && keysym <= 0xffee)
+            if (keysym >= 0xffe1 && keysym <= 0xffee) // 3. Filter modifiers (e.g., Shift, Ctrl, Alt).
             {
-                return { status::matching }; // Ignore modifiers, wait letters.
+                input_backup.push_back(keysym);
+                return input_result{ status::matching }; // Ignore modifiers, wait letters.
             }
-            // 4. Broken input.
-            current_state = {};
-            return { status::invalidated };
+            reset(); // 4. Broken input.
+            return input_result{ status::invalidated };
         }
         // Explicit reset (e.g., on lost focus).
         void reset()
         {
-            current_state = {};
+            current_node.reset();
+            input_backup.clear();
         }
     };
 }

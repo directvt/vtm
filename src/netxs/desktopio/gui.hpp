@@ -8243,20 +8243,26 @@ namespace netxs::gui
                     if (is_pressed)
                     {
                         auto res = compose.process_keysym(symcode);
-                        if (res.stat == x11::compose::status::matching || res.stat == x11::compose::status::invalidated)
+                        if (res.stat == x11::compose::status::matching)
                         {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress: %%"), res.utf8);
                             //todo composing
                             //return;
                         }
                         else if (res.stat == x11::compose::status::completed)
                         {
-                            if constexpr (debugmode) log("got compose result: %%", res.utf8);
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: %%"), res.utf8);
                             //todo got utf8
                             //return;
                         }
-                        else if (res.stat == x11::compose::status::ignored)
+                        else if (res.stat == x11::compose::status::invalidated)
                         {
-                            if constexpr (debugmode) log("compose ignored");
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "compose invalidated: %%"), utf::debase437(cluster));
+                            //return;
+                        }
+                        else if (res.stat == x11::compose::status::inactive)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "compose inactive: %%"), utf::debase437(cluster));
                             //return;
                         }
                     }
