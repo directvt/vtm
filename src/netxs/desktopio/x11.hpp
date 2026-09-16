@@ -1367,7 +1367,7 @@ namespace netxs::x11
                 ui16 virtual_mods       = 0; // like NumLock, AltGr...
                 byte first_key_explicit = 0; // Explicit properties (user specified vs set by x-server). List of user specified key properties (strong fixed by user).
                 byte num_explicit       = 0;
-                byte first_mod_map_key  = 0; // Modifiers binding to bitfield: Shift, Ctrl, Lock, Mod1–Mod5.
+                byte first_mod_map_key  = 0; // Modifiers binding to bitfield: like Shift, Ctrl, Lock, Mod1–Mod5.
                 byte num_mod_map_keys   = 0;
                 byte first_vmod_map_key = 0; // Virtual modifier mapping: like AltGr to Mod5 bit.
                 byte num_vmod_map_keys  = 0;
@@ -3482,7 +3482,7 @@ namespace netxs::x11
         {
             if (auto raw_locale = std::setlocale(LC_ALL, "")) // "ru_RU.UTF-8" or "sr_RS@latin"
             {
-                locale = text{ raw_locale };
+                locale = raw_locale;
                 if constexpr (debugmode) log("Current locale: '%%'", locale);
                 //todo filter locale by /usr/share/X11/locale/locale.alias (simplified locale name -> full locale name)
             }
@@ -3510,13 +3510,20 @@ namespace netxs::x11
                     compose_file = std::move(user_xcompose);
                 }
             }
-            // 3. Check the system locale path.
+            // 3. Check the locale specific compose file path.
             if (compose_file.empty())
-            if (auto system_path = _get_system_compose_path() / locale / "Compose"; os::fs::exists(system_path))
+            if (auto compose_dir_file = _get_locale_specific_compose_file(); !compose_dir_file.empty() && os::fs::exists(compose_dir_file))
+            {
+                compose_file = std::move(compose_dir_file);
+            }
+            // 4. Fallback to en_US.UTF-8/Compose.
+            if (compose_file.empty())
+            if (locale != "en_US.UTF-8")
+            if (auto system_path = _get_system_compose_path() / "en_US.UTF-8" / "Compose"; os::fs::exists(system_path))
             {
                 compose_file = std::move(system_path);
             }
-            if constexpr (debugmode) log(" Compose file: '%%'", compose_file.string());
+            log("%%Keyboard input composing file: '%%'", prompt::x11, compose_file.string());
             _load_compose_file(compose_file, include_stack);
             if constexpr (debugmode)
             {
@@ -3538,8 +3545,74 @@ namespace netxs::x11
             }
             return os::fs::path{ "/usr/share/X11/locale" };
         }
+        os::fs::path _get_locale_specific_compose_file()
+        {
+            auto compose_file = os::fs::path{};
+            auto system_compose_path = _get_system_compose_path();
+            auto file_path = system_compose_path / "compose.dir";
+            auto file = std::ifstream{ file_path };
+            if (file.is_open())
+            {
+                auto line = text{};
+                while (std::getline(file, line))
+                {
+                    auto l = qiew{ line };
+                    // Format:
+                    //   <path>[:]<spc><locale>
+                    //   # Comment
+                    utf::trim_front(l, whitespaces);
+                    if (l && l.front() != '#')
+                    {
+                        utf::trim_front(l, " \t");
+                        auto path = utf::get_word(l, " :");
+                        utf::trim_front(l, " \t:");
+                        auto locl = utf::get_word(l, " \t");
+                        if (locl == locale)
+                        {
+                            compose_file = path;
+                            if (!compose_file.is_absolute())
+                            {
+                                compose_file = system_compose_path / compose_file;
+                            }
+                            if constexpr (debugmode) log("Compose file is found in compose.dir='%%'", compose_file.string());
+                            break;
+                        }
+                    }
+                }
+            }
+            return compose_file;
+        }
         auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
         {
+            // Format:
+            //   EVENT [EVENT...] : RESULT [# COMMENT]
+            //     EVENT:
+            //         [([!] ([~] MODIFIER)...) | None] <keysym>
+            //             !:    Modifier must match exactly.
+            //             ~:    Modifier must not be present.
+            //             None: No modifier may be present.
+            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF[FFFF] (0x1000000+code).
+            //     MODIFIER:
+            //todo
+            //             None | Ctrl | Lock | Shift | Alt | Meta | Super | Hyper | Mod1 ... Mod5
+            //         NullSign          Caps
+            //     RESULT:
+            //         "STRING" | keysym | "STRING" keysym
+            //           STRING: UTF-8 string of any size containing:
+            //                      - Octal codes are specified as "\123".
+            //                      - Hexadecimal codes as "\xFFFF".
+            //                      - Escaped \\ and \".
+            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF.
+            // Parsing and composing logic:
+            //  1. Most specific wins: "! Ctrl <keysym1> : A" overrides "<keysym1> : B".
+            //  2. Last match wins: "<keysym> : A2" overrides "<keysym> : A1".
+            //  3. Wait on overlaps:
+            //     <a> <b> : "1"
+            //     <a> <b> <c> : "2"
+            //       'a'       -> wait
+            //       'a''b'    -> wait
+            //       'a''b''x' -> "1x"
+            //       'a''b''c' -> "2"
             utf::trim_front(line, "\t ");
             if (line.empty() || line.front() == '#')
             {
@@ -3589,14 +3662,13 @@ namespace netxs::x11
         }
         auto _resolve_include_path(text raw_path)
         {
-            if (raw_path.find("%L") != text::npos) // Expand %L marco with the current locale.
+            if (raw_path.find("%L") != text::npos) // Expand %L marco with the locale specific compose file.
             {
-                utf::replace_all(raw_path, "%L", locale);
+                utf::replace_all(raw_path, "%L", _get_locale_specific_compose_file().string());
             }
             if (raw_path.find("%H") != text::npos) // Expand %H marco with the home path.
             {
-                auto home = os::env::get("HOME");
-                utf::replace_all(raw_path, "%H", home);
+                utf::replace_all(raw_path, "%H", os::env::get("HOME"));
             }
             if (raw_path.find("%S") != text::npos) // Expand %S marco with the system compose path.
             {
