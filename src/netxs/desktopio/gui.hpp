@@ -6615,9 +6615,11 @@ namespace netxs::gui
         {
             using key_type_desc = x11::req::xkb::get_map::reply::key_type_desc;
             using xkb_kt_map_entry = x11::req::xkb::get_map::reply::key_type_desc::xkb_kt_map_entry;
+            using mods_desc = x11::req::xkb::get_map::reply::key_type_desc::mods_desc;
 
             key_type_desc                 behavior;
             std::vector<xkb_kt_map_entry> map_entries; // [behavior.num_map_entries]
+            std::vector<mods_desc>        preserve_entries; // [behavior.num_map_entries]
         };
         struct kb_layout_t
         {
@@ -7112,8 +7114,21 @@ namespace netxs::gui
                     }
                     if (kt.behavior.preserve)
                     {
+                        kt.preserve_entries.resize(kt.behavior.num_map_entries);
                         auto size = kt.behavior.num_map_entries * sizeof(x11::req::xkb::get_map::reply::key_type_desc::mods_desc);
+                        std::memcpy(kt.preserve_entries.data(), q.data(), size);
                         q.remove_prefix(size);
+                        if constexpr (debugmode)
+                        {
+                            auto index = 0;
+                            for (auto& m : kt.preserve_entries)
+                            {
+                                log("\t\t preserve_entry %%: ", index++,
+                                "\n\t\t           mask=", utf::to_bin(m.mask),
+                                "\n\t\t      real_mods=", utf::to_bin(m.real_mods),
+                                "\n\t\t    virtualMods=", utf::to_bin(m.virtual_mods));
+                            }
+                        }
                     }
                 }
             }
@@ -8224,14 +8239,15 @@ namespace netxs::gui
                     auto keycode    = k.detail & 0xFF; // Native keycode.
                     auto repeated   = is_pressed && netxs::get_bit(vkstat, keycode);
                     auto layout_id  = (byte)(k.group.effective & 0x03);
+                    auto modifiers  = (ui16)k.mods.effective;
                     netxs::set_bit(vkstat, keycode, is_pressed);
                     _set_keyboard_led_state(k.mods.locked); // NumLocks.
                     if (xlayout != layout_id)
                     {
                         keybd_turn_layout(layout_id);
                     }
-                    //todo get utf8 cluster
-                    //todo deadkeys
+                    //todo process shift level:
+                    // keysym = _process_shift_level(layouts[layout_id].key_syms[keycode].behavior_type, modifiers);
                     //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
                     auto symcode = layouts[layout_id].key_syms[keycode].syms[0]; //todo apply key behavior with k.mods.effective
@@ -8242,16 +8258,16 @@ namespace netxs::gui
                     auto extflag = 0;
                     if (is_pressed)
                     {
-                        auto res = compose.process_keysym(symcode);
+                        auto res = compose.process_keysym(symcode, modifiers);
                         if (res.stat == x11::compose::status::matching)
                         {
-                            if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress: %%"), res.utf8);
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress"));
                             //todo composing
                             //return;
                         }
                         else if (res.stat == x11::compose::status::completed)
                         {
-                            if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: %%"), res.utf8);
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
                             //todo got utf8
                             //return;
                         }

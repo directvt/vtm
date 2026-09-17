@@ -1319,8 +1319,8 @@ namespace netxs::x11
                         struct mods_desc // ModsWireDesc - это для if (key_type_desc::preserve!=0)
                         {
                             byte mask;
-                            byte realMods;
-                            ui16 virtualMods;
+                            byte real_mods;
+                            ui16 virtual_mods;
                         };
                     };
                     struct key_sym_map_desc // 2. xkbSymMapWireDesc (XkbSymMapRec).
@@ -3368,12 +3368,23 @@ namespace netxs::x11
         }
         constexpr auto sym_to_name(ui32 keysym)
         {
+            auto key_name = text{};
             auto it = std::lower_bound(_symdef.begin(), _symdef.end(), keysym, [](auto& rec, ui32 val){return rec.keysym < val; });
             if (it != _symdef.end() && it->keysym == keysym)
             {
-                return it->name;
+                key_name = it->name;
             }
-            return "undef"sv;
+            else if ((keysym & 0xFF000000) == 0x1000000)
+            {
+                keysym &= 0x00FFFFFF;
+                key_name = "U";
+                utf::to_hex<true>(keysym, key_name, keysym < 0xFFFF ? 4 : 8);
+            }
+            else
+            {
+                key_name = "undef";
+            }
+            return key_name;
         }
         constexpr auto name_to_sym(view name)
         {
@@ -3421,23 +3432,31 @@ namespace netxs::x11
 
     struct compose
     {
+        struct key_t
+        {
+            ui32 keysym;
+            ui16 required_mods;
+            ui16 forbidden_mods;
+        };
         struct rule_t
         {
-            std::vector<ui32> keysyms;
-            text              utf8;
+            std::vector<key_t> keysyms; // Trigger sequence.
+            text               utf8;    // Final string.
+            ui32               symcode; // Final symcode.
         };
         struct node_t
         {
             using list = std::vector<netxs::sptr<node_t>>;
 
-            ui32 keysym = 0; // Triggerred keysym.
             text utf8;       // Final UTF-8 string if next is empty.
+            ui32 symcode{};  // Final keysym if it is specified.
             list next;       // Next hop list sorted (by keysym).
+            key_t key{};     // Triggerred key.
 
             auto find_next(ui32 keysym)
             {
-                auto it = std::lower_bound(next.begin(), next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
-                if (it != next.end() && (*it)->keysym == keysym)
+                auto it = std::lower_bound(next.begin(), next.end(), keysym, [](auto& node, ui32 val){ return node->key.keysym < val; });
+                if (it != next.end() && (*it)->key.keysym == keysym)
                 {
                     return *it;
                 }
@@ -3450,12 +3469,12 @@ namespace netxs::x11
                 {
                     for (auto& n : next)
                     {
-                        s += utf::fprint("<%%> %%", x11::key::sym_to_name(keysym), n->to_string(level + 1));
+                        s += utf::fprint("<%%> %%", x11::key::sym_to_name(key.keysym), n->to_string(level + 1));
                     }
                 }
                 else
                 {
-                    s += utf::fprint("<%%> : '%%'\n%%", x11::key::sym_to_name(keysym), utf::debase437(utf8), text(level, '\t'));
+                    s += utf::fprint("<%%> : '%%' %% \n%%", x11::key::sym_to_name(key.keysym), utf::debase437(utf8), symcode ? x11::key::sym_to_name(symcode) : ""s, text(level, '\t'));
                 }
                 return s;
             }
@@ -3471,6 +3490,7 @@ namespace netxs::x11
         {
             status stat;
             text   utf8;
+            ui32   symcode{};
         };
 
         netxs::sptr<node_t> current_node = {};
@@ -3636,13 +3656,14 @@ namespace netxs::x11
                 }
                 return std::monostate{};
             }
-            auto keysyms = std::vector<ui32>{};
+            auto keysyms = std::vector<key_t>{};
+            //todo parse modifiers too: [!][~]mod1..[!][~]modn <key_name> ... [!][~]mod1..[!][~]modn <key_name>
             while (line && line.front() == '<') // Parse rule line: <key_name> ... <key_name>.
             {
                 if (auto keyname = utf::take_quote(line, '>'); keyname.size())
                 if (auto keysym = x11::key::name_to_sym(keyname))
                 {
-                    keysyms.push_back(keysym);
+                    keysyms.push_back(key_t{ .keysym = keysym });
                     utf::trim_front(line, "\t ");
                     continue;
                 }
@@ -3651,10 +3672,23 @@ namespace netxs::x11
             if (keysyms.size() && line.size() && line.front() == ':')
             {
                 utf::trim_front(line, "\t :"); // Pop ':' with spaces.
-                if (line && line.front() == '"')
+                auto symcode = 0u;
+                auto utf8 = text{};
+                while (line && line.front() != '#')
                 {
-                    auto rule = rule_t{ .keysyms = std::move(keysyms) };
-                    rule.utf8 = utf::take_quote(line, '"');
+                    if (line.front() == '"')
+                    {
+                        utf8 = utf::take_quote(line, '"');
+                    }
+                    else
+                    {
+                        symcode = x11::key::name_to_sym(utf::get_word(line, " \t"));
+                    }
+                    utf::trim_front(line, "\t ");
+                }
+                if (utf8.size() || symcode)
+                {
+                    auto rule = rule_t{ .keysyms = std::move(keysyms), .utf8 = utf8, .symcode = symcode };
                     return rule;
                 }
             }
@@ -3678,22 +3712,24 @@ namespace netxs::x11
             return path.is_absolute() ? path
                                       : _get_system_compose_path() / path;
         }
-        void _inject_into_trie(std::vector<ui32> const& keysyms, view utf8)
+        void _inject_into_trie(rule_t const& arg)
         {
-            if (keysyms.size())
+            if (arg.keysyms.size())
             {
                 auto node = root;
-                for (auto& keysym : keysyms)
+                for (auto& key : arg.keysyms)
                 {
-                    auto it = std::lower_bound(node->next.begin(), node->next.end(), keysym, [](auto& node, ui32 val){ return node->keysym < val; });
-                    if (it == node->next.end() || (*it)->keysym != keysym)
+                    auto keysym = key.keysym;
+                    auto it = std::lower_bound(node->next.begin(), node->next.end(), keysym, [](auto& node, ui32 val){ return node->key.keysym < val; });
+                    if (it == node->next.end() || (*it)->key.keysym != keysym)
                     {
-                        auto new_node = ptr::shared(node_t{ .keysym = keysym });
+                        auto new_node = ptr::shared(node_t{ .key = key });
                         it = node->next.insert(it, new_node);
                     }
                     node = *it;
                 }
-                node->utf8 = utf8;
+                node->utf8 = arg.utf8;
+                node->symcode = arg.symcode;
                 node->next.clear(); // Cut current node branch.
             }
         }
@@ -3714,7 +3750,7 @@ namespace netxs::x11
                             using T = std::decay_t<decltype(arg)>;
                             if constexpr (std::is_same_v<T, rule_t>) // Add rule.
                             {
-                                _inject_into_trie(arg.keysyms, arg.utf8);
+                                _inject_into_trie(arg);
                             }
                             else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
                             {
@@ -3727,15 +3763,16 @@ namespace netxs::x11
                 }
             }
         }
-        auto process_keysym(ui32 keysym)
+        auto process_keysym(ui32 keysym, ui16 mods)
         {
+            //todo check required_mods & forbidden_mods
             if (!current_node) // 1. Check activation by the first key.
             {
                 if (auto next_node = root->find_next(keysym))
                 {
                     if (next_node->next.empty())
                     {
-                        return input_result{ status::completed, next_node->utf8 }; // Single key chord.
+                        return input_result{ .stat = status::completed, .utf8 = next_node->utf8, .symcode = next_node->symcode }; // Single key chord.
                     }
                     input_backup.push_back(keysym);
                     current_node = next_node;
@@ -3748,7 +3785,7 @@ namespace netxs::x11
                 if (next_node->next.empty()) // Got utf8.
                 {
                     reset();
-                    return input_result{ .stat = status::completed, .utf8 = next_node->utf8 };
+                    return input_result{ .stat = status::completed, .utf8 = next_node->utf8, .symcode = next_node->symcode };
                 }
                 input_backup.push_back(keysym);
                 current_node = next_node;
