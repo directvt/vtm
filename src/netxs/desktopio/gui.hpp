@@ -7278,6 +7278,69 @@ namespace netxs::gui
             }
             return (arch)latin_hkl;
         }
+        auto _process_shift_level(byte keycode, ui16 modifiers, byte global_layout_id)
+        {
+            struct result
+            {
+                ui32 keysym;
+                ui16 compose_mods; // Modifiers left after shifting.
+            };
+
+            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
+            if (base_key.width == 0)
+            {
+                return result{ 0u, modifiers }; // Key has no symbols.
+            }
+            auto layout_count = std::max((byte)1, base_key.layout_count);
+            auto target_group = global_layout_id;
+            if (target_group >= layout_count) // Figure out the target layout (group).
+            {
+                using key_sym_map_desc = x11::req::xkb::get_map::reply::key_sym_map_desc;
+                if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_WrapIntoRange)
+                {
+                    target_group = target_group % layout_count;
+                }
+                else if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_ClampIntoRange)
+                {
+                    target_group = layout_count - 1;
+                }
+                else if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_RedirectIntoRange)
+                {
+                    target_group = 0;
+                }
+            }
+            auto& group_key_rec = layouts[target_group].key_syms[keycode];
+            auto type_idx = group_key_rec.behavior_type;
+            if (type_idx >= key_types.size())
+            {
+                return result{ group_key_rec.syms[0], modifiers }; // Unknown key type. Return Level1 symbol for the group.
+            }
+            auto& kt = key_types[type_idx];
+            auto target_level = 0b00; // Level 0 by default.
+            auto consumed_mods = ui16{};
+            auto preserved_mods = ui16{};
+            if (auto effective_mods = modifiers & kt.behavior.mask) // Filter modifiers by mask.
+            {
+                auto matched_rule_idx = -1;
+                for (auto i = 0; i < (si32)kt.map_entries.size(); ++i) // Looking for the level shift rule.
+                {
+                    auto& me = kt.map_entries[i];
+                    if (me.active && me.mods_mask == effective_mods)
+                    {
+                        target_level = std::min((si32)me.level, group_key_rec.width - 1);
+                        matched_rule_idx = i;
+                        break;
+                    }
+                }
+                consumed_mods = kt.behavior.mask;
+                if (matched_rule_idx != -1 && kt.behavior.preserve && (size_t)matched_rule_idx < kt.preserve_entries.size()) // Has a table of preserved modifiers.
+                {
+                    preserved_mods = kt.preserve_entries[matched_rule_idx].mask;
+                }
+            }
+            auto compose_mods = (ui16)((modifiers & ~consumed_mods) | preserved_mods);
+            return result{ group_key_rec.syms[target_level], compose_mods };
+        }
 
         bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
         {
@@ -8246,19 +8309,17 @@ namespace netxs::gui
                     {
                         keybd_turn_layout(layout_id);
                     }
-                    //todo process shift level:
-                    // keysym = _process_shift_level(layouts[layout_id].key_syms[keycode].behavior_type, modifiers);
                     //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
-                    auto symcode = layouts[layout_id].key_syms[keycode].syms[0]; //todo apply key behavior with k.mods.effective
+                    auto [symcode, compose_mods] = _process_shift_level(keycode, modifiers, layout_id);
                     auto unicode = x11::key::sym_to_unicode(symcode); //todo apply compose
-                    auto cluster = utf::to_utf_from_code(unicode);
-                    auto virtcod = keycode_to_vkey[keycode];//todo 
+                    auto cluster = utf::to_utf_from_code(unicode);    //
+                    auto virtcod = keycode_to_vkey[keycode];//todo select from ALL
                     auto scancod = std::max(0, (si32)keycode - 8);
                     auto extflag = 0;
                     if (is_pressed)
                     {
-                        auto res = compose.process_keysym(symcode, modifiers);
+                        auto res = compose.process_keysym(symcode, compose_mods);
                         if (res.stat == x11::compose::status::matching)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress"));
