@@ -724,29 +724,6 @@ namespace netxs::x11
                 byte locked;
                 byte effective; // 0: EN, 1: RU etc.
             };
-            namespace mods
-            {
-                static constexpr auto Shift    = 1u << 0; // 01 Shift.
-                static constexpr auto CapsLock = 1u << 1; // 02 CapsLock.
-                static constexpr auto Ctrl     = 1u << 2; // 04 Control.
-                static constexpr auto mod1     = 1u << 3; // 08 Alt.
-                static constexpr auto mod2     = 1u << 4; // 10 NumLock.
-                static constexpr auto mod3     = 1u << 5; // 20 Level5Shift.
-                static constexpr auto mod4     = 1u << 6; // 40 Win.
-                static constexpr auto mod5     = 1u << 7; // 80 Level3Shift/AltGr.
-
-                static constexpr auto Alt         = mod1;
-                static constexpr auto NumLock     = mod2;
-                static constexpr auto Level5Shift = mod3;
-                static constexpr auto Win         = mod4;
-                static constexpr auto AltGr       = mod5;
-            }
-            namespace leds
-            {
-                static constexpr auto CapsLock   = 1u << 1;
-                static constexpr auto NumLock    = 1u << 4;
-                static constexpr auto ScrollLock = 1u << 6;
-            }
             namespace event
             {
                 #define eventlist        \
@@ -3601,6 +3578,24 @@ namespace netxs::x11
                 }
             }
             return compose_file;
+        }
+        auto _get_mod_mask(qiew name, auto const& map)
+        {
+            auto mask = ui16{};
+                 if (name == "Ctrl"
+                  || name == "Control") mask = map.ctrl;
+            else if (name == "Shift"  ) mask = map.shift;
+            else if (name == "Lock"   ) mask = map.lock;
+            else if (name == "Mod1"   ) mask = map.mod1;
+            else if (name == "Mod2"   ) mask = map.mod2;
+            else if (name == "Mod3"   ) mask = map.mod3;
+            else if (name == "Mod4"   ) mask = map.mod4;
+            else if (name == "Mod5"   ) mask = map.mod5;
+            else if (name == "Alt"    ) mask = map.alt   ? map.alt   : map.mod1;
+            else if (name == "Meta"   ) mask = map.meta  ? map.meta  : map.mod1;
+            else if (name == "Super"  ) mask = map.super ? map.super : map.mod4;
+            else if (name == "Hyper"  ) mask = map.hyper ? map.hyper : map.mod4;
+            return mask;
         }
         auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
         {

@@ -6636,11 +6636,22 @@ namespace netxs::gui
             si32                       latin_key_count{};
             bool is_latin() { return latin_key_count >= 26; }
         };
-        struct lock_indicators
+        struct modifier_map_t
         {
-            si32 caps_mask   = x11::req::xi2::mods::CapsLock;
-            si32 num_mask    = 0x00;
-            si32 scroll_mask = 0x00;
+            ui16 shift       = 0; //1 << 0;
+            ui16 caps_lock   = 0; //1 << 1;
+            ui16 ctrl        = 0; //1 << 2;
+            ui16 mod1        = 1 << 3;
+            ui16 mod2        = 1 << 4;
+            ui16 mod3        = 1 << 5;
+            ui16 mod4        = 1 << 6;
+            ui16 mod5        = 1 << 7;
+            ui16 alt         = 0;
+            ui16 meta        = 0;
+            ui16 super       = 0;
+            ui16 hyper       = 0;
+            ui16 num_lock    = 0;
+            ui16 scroll_lock = 0;
         };
 
         x11::session_t& session = *x11::session_ptr;
@@ -6659,7 +6670,7 @@ namespace netxs::gui
         std::array<byte, 32>        vkstat{};       // window: X11 keyboard virtual keys state.
         std::vector<x11_key_type_t> key_types;
         std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
-        lock_indicators             led_indicators; // window: Lock indicator bindings with modifier bitfield (dynamic).
+        modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
         std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
         x11::compose                compose;        // window: POSIX Compose state machine.
@@ -7205,14 +7216,27 @@ namespace netxs::gui
                 {
                     auto key_code = (byte)q.pop_front();
                     auto mod_mask = (byte)q.pop_front();
-                         if (keycode_to_vkey[key_code] == vkey::numlock ) led_indicators.num_mask    = mod_mask;
-                    else if (keycode_to_vkey[key_code] == vkey::capslock) led_indicators.caps_mask   = mod_mask;
-                    else if (keycode_to_vkey[key_code] == vkey::scrllock) led_indicators.scroll_mask = mod_mask;
+                    auto vkey_id  = keycode_to_vkey[key_code];
+                         if (vkey_id == vkey::numlock                          ) modifier_map.num_lock    |= mod_mask;
+                    else if (vkey_id == vkey::capslock                         ) modifier_map.caps_lock   |= mod_mask;
+                    else if (vkey_id == vkey::scrllock                         ) modifier_map.scroll_lock |= mod_mask;
+                    else if (vkey_id == vkey::lctrl  || vkey_id == vkey::rctrl ) modifier_map.ctrl        |= mod_mask;
+                    else if (vkey_id == vkey::lalt   || vkey_id == vkey::ralt  ) modifier_map.alt         |= mod_mask;
+                    else if (vkey_id == vkey::lshift || vkey_id == vkey::rshift) modifier_map.shift       |= mod_mask;
+                    else if (vkey_id == vkey::lsuper || vkey_id == vkey::rsuper) modifier_map.super       |= mod_mask;
+                    else if (vkey_id == vkey::lmeta  || vkey_id == vkey::rmeta ) modifier_map.meta        |= mod_mask;
+                    else if (vkey_id == vkey::lhyper || vkey_id == vkey::rhyper) modifier_map.hyper       |= mod_mask;
                 }
                 if constexpr (debugmode) log("3. ModifierMapMask: first_mod_map_key=%% num_mod_map_keys=%% total_mod_map_keys=%%", (si32)reply.first_mod_map_key, (si32)reply.num_mod_map_keys, (si32)reply.total_mod_map_keys,
-                    "\n    caps_mask=", utf::to_bin((byte)led_indicators.caps_mask),
-                    "\n     num_mask=", utf::to_bin((byte)led_indicators.num_mask),
-                    "\n  scroll_mask=", utf::to_bin((byte)led_indicators.scroll_mask));
+                    "\n     num_mask=", utf::to_bin((byte)modifier_map.num_lock   ),
+                    "\n    caps_mask=", utf::to_bin((byte)modifier_map.caps_lock  ),
+                    "\n  scroll_mask=", utf::to_bin((byte)modifier_map.scroll_lock),
+                    "\n    ctrl_mask=", utf::to_bin((byte)modifier_map.ctrl       ),
+                    "\n     alt_mask=", utf::to_bin((byte)modifier_map.alt        ),
+                    "\n   shift_mask=", utf::to_bin((byte)modifier_map.shift      ),
+                    "\n   super_mask=", utf::to_bin((byte)modifier_map.super      ),
+                    "\n    meta_mask=", utf::to_bin((byte)modifier_map.meta       ),
+                    "\n   hyper_mask=", utf::to_bin((byte)modifier_map.hyper      ));
             }
         }
         void _keybd_load_layouts()
@@ -7348,9 +7372,9 @@ namespace netxs::gui
         }
         bool keybd_test_toggled(si32 virtcod)
         {
-                 if (virtcod == vkey::numlock ) return led_state &= led_indicators.num_mask;
-            else if (virtcod == vkey::capslock) return led_state &= led_indicators.caps_mask;
-            else if (virtcod == vkey::scrllock) return led_state &= led_indicators.scroll_mask;
+                 if (virtcod == vkey::numlock ) return led_state &= modifier_map.num_lock;
+            else if (virtcod == vkey::capslock) return led_state &= modifier_map.caps_lock;
+            else if (virtcod == vkey::scrllock) return led_state &= modifier_map.scroll_lock;
             else                                return faux;
         }
         bool keybd_read_pressed(si32 virtcod)
@@ -8309,7 +8333,6 @@ namespace netxs::gui
                     {
                         keybd_turn_layout(layout_id);
                     }
-                    //todo Alt+numpad
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
                     auto [symcode, compose_mods] = _process_shift_level(keycode, modifiers, layout_id);
                     auto unicode = x11::key::sym_to_unicode(symcode); //todo apply compose
