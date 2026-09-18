@@ -3455,14 +3455,23 @@ namespace netxs::x11
             list next;       // Next hop list sorted (by keysym).
             key_t key{};     // Triggerred key.
 
-            auto find_next(ui32 keysym)
+            auto find_next(ui32 keysym, ui16 compose_mods)
             {
+                auto node_ptr = netxs::sptr<node_t>{};
                 auto it = std::lower_bound(next.begin(), next.end(), keysym, [](auto& node, ui32 val){ return node->key.keysym < val; });
-                if (it != next.end() && (*it)->key.keysym == keysym)
+                while (it != next.end() && (*it)->key.keysym == keysym)
                 {
-                    return *it;
+                    auto& rule_key = (*it)->key;
+                    auto req_satisfied = (compose_mods & rule_key.required_mods) == rule_key.required_mods;
+                    auto fbd_satisfied = (compose_mods & rule_key.forbidden_mods) == 0;
+                    if (req_satisfied && fbd_satisfied)
+                    {
+                        node_ptr = *it; // Found.
+                        break;
+                    }
+                    ++it; // Take next.
                 }
-                return netxs::sptr<node_t>{};
+                return node_ptr;
             }
         };
         struct node_comparator
@@ -3490,10 +3499,11 @@ namespace netxs::x11
         };
         enum class status
         {
-            inactive,    // Plain input.
-            matching,    // Waiting the next keysym.
-            completed,   // Got utf8 string.
-            invalidated, // Aborted.
+            inactive,       // Plain input.
+            matching,       // Waiting the next keysym.
+            completed,      // Got utf8 string.
+            completed_wait, // Stop waiting on overlap with result.
+            invalidated,    // Aborted.
         };
         struct input_result
         {
@@ -3830,7 +3840,7 @@ namespace netxs::x11
             {
                 compose_file = std::move(system_path);
             }
-            log("%%Keyboard input composing file: '%%'", prompt::x11, compose_file.string());
+            log("%%Compose file: '%%'", prompt::x11, compose_file.string());
             _load_compose_file(compose_file, include_stack);
             if constexpr (debugmode)
             {
@@ -3858,41 +3868,43 @@ namespace netxs::x11
                 log(s);
             }
         }
-        auto process_keysym(ui32 keysym, ui16 mods)
+        auto process_keysym(ui32 keysym, ui16 compose_mods)
         {
-            //todo check required_mods & forbidden_mods
-            if (!current_node) // 1. Check activation by the first key.
+            if (keysym >= 0xffe1 && keysym <= 0xffee) // Filter modifier keys (e.g., Shift, Ctrl, Alt).
             {
-                if (auto next_node = root->find_next(keysym))
+                if (current_node)
                 {
-                    if (next_node->next.empty())
-                    {
-                        return input_result{ .stat = status::completed, .utf8 = next_node->utf8, .symcode = next_node->symcode }; // Single key chord.
-                    }
                     input_backup.push_back(keysym);
-                    current_node = next_node;
                     return input_result{ status::matching };
                 }
-                return input_result{ status::inactive }; // Plain input.
+                return input_result{ status::inactive };
             }
-            if (auto next_node = current_node->find_next(keysym)) // 2. Try to next step.
+            auto active_parent = current_node ? current_node : root;
+            if (auto next_node = active_parent->find_next(keysym, compose_mods))
             {
-                if (next_node->next.empty()) // Got utf8.
+                input_backup.push_back(keysym);
+                if (next_node->next.empty()) // Case 1: The sequence is complete with result.
                 {
                     reset();
                     return input_result{ .stat = status::completed, .utf8 = next_node->utf8, .symcode = next_node->symcode };
                 }
-                input_backup.push_back(keysym);
-                current_node = next_node;
-                return input_result{ status::matching };
+                else
+                {
+                    current_node = next_node; // Case 2: Wait on overlaps.
+                    return input_result{ status::matching };
+                }
             }
-            if (keysym >= 0xffe1 && keysym <= 0xffee) // 3. Filter modifiers (e.g., Shift, Ctrl, Alt).
+            if (current_node && current_node->leaf) // Stop waiting on overlap (sequence complete with result).
             {
-                input_backup.push_back(keysym);
-                return input_result{ status::matching }; // Ignore modifiers, wait letters.
+                reset();
+                return input_result{ .stat = status::completed_wait, .utf8 = current_node->utf8, .symcode = current_node->symcode };;
             }
-            reset(); // 4. Broken input.
-            return input_result{ status::invalidated };
+            if (current_node)
+            {
+                reset();
+                return input_result{ status::invalidated };
+            }
+            return input_result{ status::inactive }; // Plain input.
         }
         // Explicit reset (e.g., on lost focus).
         void reset()

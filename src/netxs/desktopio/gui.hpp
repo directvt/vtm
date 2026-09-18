@@ -8327,6 +8327,7 @@ namespace netxs::gui
                     auto extflag = 0;
                     if (is_pressed)
                     {
+                        std_compose_retry:
                         auto res = compose.process_keysym(symcode, compose_mods);
                         if (res.stat == x11::compose::status::matching)
                         {
@@ -8337,12 +8338,32 @@ namespace netxs::gui
                         else if (res.stat == x11::compose::status::completed)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
-                            //todo got utf8
+                            if (!res.utf8.empty()) cluster = res.utf8;
+                            if (res.symcode)       symcode = res.symcode;
+                            //todo
+                            //return;
+                        }
+                        else if (res.stat == x11::compose::status::completed_wait)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
+                            if (!res.utf8.empty()) cluster = res.utf8;
+                            if (res.symcode)       symcode = res.symcode;
+                            //todo Consume the result and retry.
+                            goto std_compose_retry;
                             //return;
                         }
                         else if (res.stat == x11::compose::status::invalidated)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "compose invalidated: %%"), utf::debase437(cluster));
+                            if (compose.input_backup.empty())
+                            {
+                                // Plain symbol.
+                            }
+                            else // Missed. Reset the state and retry.
+                            {
+                                compose.reset();
+                                goto std_compose_retry;
+                            }
                             //return;
                         }
                         else if (res.stat == x11::compose::status::inactive)
