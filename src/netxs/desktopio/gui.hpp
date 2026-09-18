@@ -8063,7 +8063,6 @@ namespace netxs::gui
                         {
                             if (!input_read(read_buffer))
                             {
-                                //todo exit debug
                                 goto break_break;
                             }
                         }
@@ -8478,7 +8477,7 @@ namespace netxs::gui
                     }
                     else if (!hover) // Sometimes, system reports nothing when mouse leaving (mouse moved +/- 1px w/o reporting).
                     {
-                        //todo They sometime (after drag) also return broken coords (+/- 1px):
+                        //todo WL(XWL) only: They sometime (after drag) also return broken coords (+/- 1px):
                         //session.accumrq(batch_buffer, x11::req::query_pointer{ .window_id = session.root_window_id }, {},
                         //[&](auto& ev, view payload)
                         //{

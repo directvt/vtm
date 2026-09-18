@@ -3533,8 +3533,7 @@ namespace netxs::x11
             auto compose_file = os::fs::path{};
             auto system_compose_path = _get_system_compose_path();
             auto file_path = system_compose_path / "compose.dir";
-            auto file = std::ifstream{ file_path };
-            if (file.is_open())
+            if (auto file = std::ifstream{ file_path }; file.is_open())
             {
                 auto line = text{};
                 while (std::getline(file, line))
@@ -3605,7 +3604,6 @@ namespace netxs::x11
             //                      - Escaped \\ and \".
             //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF.
             // Parsing and composing logic:
-            //todo
             //  1. Most specific wins: "! Ctrl <keysym1> : A" overrides "<keysym1> : B".
             //  2. Last match wins: "<keysym> : A2" overrides "<keysym> : A1".
             //     <keysym> : A1
@@ -3768,46 +3766,71 @@ namespace netxs::x11
         void _load_compose_file(os::fs::path const& file_path, std::vector<os::fs::path>& include_stack)
         {
             if (std::find(include_stack.begin(), include_stack.end(), file_path) == include_stack.end())
+            if (auto file = std::ifstream{ file_path }; file.is_open())
             {
-                auto file = std::ifstream{ file_path };
-                if (file.is_open())
+                include_stack.push_back(file_path);
+                auto line = text{};
+                while (std::getline(file, line))
                 {
-                    include_stack.push_back(file_path);
-                    auto line = text{};
-                    while (std::getline(file, line))
+                    auto res = _parse_line(line);
+                    std::visit([&](auto&& arg)
                     {
-                        auto res = _parse_line(line);
-                        std::visit([&](auto&& arg)
+                        using T = std::decay_t<decltype(arg)>;
+                        if constexpr (std::is_same_v<T, rule_t>) // Add rule.
                         {
-                            using T = std::decay_t<decltype(arg)>;
-                            if constexpr (std::is_same_v<T, rule_t>) // Add rule.
-                            {
-                                _inject_into_trie(arg);
-                            }
-                            else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
-                            {
-                                auto next_file = _resolve_include_path(arg);
-                                _load_compose_file(next_file, include_stack);
-                            }
-                        }, res);
-                    }
-                    include_stack.pop_back();
+                            _inject_into_trie(arg);
+                        }
+                        else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
+                        {
+                            auto next_file = _resolve_include_path(arg);
+                            _load_compose_file(next_file, include_stack);
+                        }
+                    }, res);
                 }
+                include_stack.pop_back();
             }
         }
-        void load()
+        void _get_locale()
         {
             if (auto raw_locale = std::setlocale(LC_ALL, "")) // "ru_RU.UTF-8" or "sr_RS@latin"
             {
                 locale = raw_locale;
                 if constexpr (debugmode) log("Current locale: '%%'", locale);
-                //todo filter locale by /usr/share/X11/locale/locale.alias (simplified locale name -> full locale name)
+                // Get canonical string for locale from 'locale.alias' (simplified locale string -> canonical locale string).
+                //    Line format: <simplified_name>[spc][:]<spc><canonical_name>
+                auto alias_file_path = _get_system_compose_path() / "locale.alias";
+                auto file = std::ifstream{ alias_file_path };
+                if (file.is_open())
+                {
+                    auto line = text{};
+                    while (std::getline(file, line))
+                    {
+                        auto l = qiew{ line };
+                        utf::trim_front(l, " \t");
+                        if (l && l.front() != '#')
+                        {
+                            auto alias_name = utf::get_word(l, " \t:");
+                            utf::trim_front(l, " \t:");
+                            auto full_name = utf::get_word(l, " \t#");
+                            if (alias_name == locale)
+                            {
+                                locale = full_name;
+                                if constexpr (debugmode) log("Locale resolved via alias: '%%' -> '%%'", alias_name, locale);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             else
             {
                 locale = "en_US.UTF-8";
                 if constexpr (debugmode) log("Fallback to locale: '%%'", locale);
             }
+        }
+        void load()
+        {
+            _get_locale();
             auto compose_file = os::fs::path{};
             auto include_stack = std::vector<os::fs::path>{};
             // 1. Check for the presence of the XCOMPOSEFILE file.
