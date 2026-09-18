@@ -1272,6 +1272,23 @@ namespace netxs::x11
                     byte pad1;
                     ui16 virtual_mods;
                     // payload...
+                    struct modifier_map
+                    {
+                        ui16 shift       = 0; //1 << 0;
+                        ui16 caps_lock   = 0; //1 << 1;
+                        ui16 ctrl        = 0; //1 << 2;
+                        ui16 mod1        = 1 << 3;
+                        ui16 mod2        = 1 << 4;
+                        ui16 mod3        = 1 << 5;
+                        ui16 mod4        = 1 << 6;
+                        ui16 mod5        = 1 << 7;
+                        ui16 alt         = 0;
+                        ui16 meta        = 0;
+                        ui16 super       = 0;
+                        ui16 hyper       = 0;
+                        ui16 num_lock    = 0;
+                        ui16 scroll_lock = 0;
+                    };
                     struct key_type_desc // 1. Key's Type Description Block. Returned by KeyTypesMask. xkbKeyTypeWireDesc.
                     {
                         byte mask;           // Битовая маска модификаторов, на которые реагирует тип (напр. для Shift будет 0x00000001)
@@ -3414,6 +3431,13 @@ namespace netxs::x11
             ui32 keysym;
             ui16 required_mods;
             ui16 forbidden_mods;
+
+            auto mods_to_string() const
+            {
+                auto rm = required_mods  ?       utf::to_bin((byte)required_mods)  + ' ' : ""s;
+                auto fm = forbidden_mods ? '~' + utf::to_bin((byte)forbidden_mods) + ' ' : ""s;
+                return std::tuple{ rm, fm };
+            }
         };
         struct rule_t
         {
@@ -3425,6 +3449,7 @@ namespace netxs::x11
         {
             using list = std::vector<netxs::sptr<node_t>>;
 
+            bool leaf{};
             text utf8;       // Final UTF-8 string if next is empty.
             ui32 symcode{};  // Final keysym if it is specified.
             list next;       // Next hop list sorted (by keysym).
@@ -3439,21 +3464,28 @@ namespace netxs::x11
                 }
                 return netxs::sptr<node_t>{};
             }
-            text to_string(si32 level) const
+        };
+        struct node_comparator
+        {
+            auto operator()(auto& a, auto& b) const
             {
-                auto s = text{};
-                if (next.size())
+                auto get_keysym = [](auto& x) -> ui32
                 {
-                    for (auto& n : next)
-                    {
-                        s += utf::fprint("<%%> %%", x11::key::sym_to_name(key.keysym), n->to_string(level + 1));
-                    }
-                }
-                else
+                    if constexpr (requires{ x->key.keysym; }) return x->key.keysym;
+                    else                                      return x;
+                };
+                auto keysym_a = get_keysym(a);
+                auto keysym_b = get_keysym(b);
+                if (keysym_a != keysym_b) return keysym_a < keysym_b;
+                if constexpr (requires { a->key; b->key; }) // Most specific rule wins.
                 {
-                    s += utf::fprint("<%%> : '%%' %% \n%%", x11::key::sym_to_name(key.keysym), utf::debase437(utf8), symcode ? x11::key::sym_to_name(symcode) : ""s, text(level, '\t'));
+                    auto weight_a = std::popcount(a->key.required_mods) + std::popcount(a->key.forbidden_mods);
+                    auto weight_b = std::popcount(b->key.required_mods) + std::popcount(b->key.forbidden_mods);
+                    if (weight_a != weight_b                        ) return weight_a > weight_b;
+                    if (a->key.required_mods != b->key.required_mods) return a->key.required_mods  > b->key.required_mods;
+                    else                                              return a->key.forbidden_mods > b->key.forbidden_mods;
                 }
-                return s;
+                return faux;
             }
         };
         enum class status
@@ -3469,13 +3501,291 @@ namespace netxs::x11
             text   utf8;
             ui32   symcode{};
         };
+        using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
+        modifier_map_t&     modifier_map;
         netxs::sptr<node_t> current_node = {};
         netxs::sptr<node_t> root = ptr::shared(node_t{});
         text                locale;
         std::vector<ui32>   input_backup;
 
-        compose()
+        os::fs::path _get_system_compose_path()
+        {
+            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
+            if (auto xlocaledir_path = os::fs::path{ xlocaledir }; os::fs::exists(xlocaledir_path))
+            {
+                return xlocaledir_path;
+            }
+            return os::fs::path{ "/usr/share/X11/locale" };
+        }
+        os::fs::path _get_locale_specific_compose_file()
+        {
+            auto compose_file = os::fs::path{};
+            auto system_compose_path = _get_system_compose_path();
+            auto file_path = system_compose_path / "compose.dir";
+            auto file = std::ifstream{ file_path };
+            if (file.is_open())
+            {
+                auto line = text{};
+                while (std::getline(file, line))
+                {
+                    auto l = qiew{ line };
+                    // Format:
+                    //   <path>[:]<spc><locale>
+                    //   # Comment
+                    utf::trim_front(l, whitespaces);
+                    if (l && l.front() != '#')
+                    {
+                        utf::trim_front(l, " \t");
+                        auto path = utf::get_word(l, " :");
+                        utf::trim_front(l, " \t:");
+                        auto locl = utf::get_word(l, " \t");
+                        if (locl == locale)
+                        {
+                            compose_file = path;
+                            if (!compose_file.is_absolute())
+                            {
+                                compose_file = system_compose_path / compose_file;
+                            }
+                            if constexpr (debugmode) log("Compose file is found in compose.dir='%%'", compose_file.string());
+                            break;
+                        }
+                    }
+                }
+            }
+            return compose_file;
+        }
+        auto _get_mod_mask(qiew name)
+        {
+            auto mask = ui16{};
+                 if (name == "Ctrl"   ) mask = modifier_map.ctrl;
+            else if (name == "Control") mask = modifier_map.ctrl;
+            else if (name == "Shift"  ) mask = modifier_map.shift;
+            else if (name == "Lock"   ) mask = modifier_map.caps_lock;
+            else if (name == "Caps"   ) mask = modifier_map.caps_lock;
+            else if (name == "Mod1"   ) mask = modifier_map.mod1;
+            else if (name == "Mod2"   ) mask = modifier_map.mod2;
+            else if (name == "Mod3"   ) mask = modifier_map.mod3;
+            else if (name == "Mod4"   ) mask = modifier_map.mod4;
+            else if (name == "Mod5"   ) mask = modifier_map.mod5;
+            else if (name == "Alt"    ) mask = modifier_map.alt   ? modifier_map.alt   : modifier_map.mod1;
+            else if (name == "Meta"   ) mask = modifier_map.meta  ? modifier_map.meta  : modifier_map.mod1;
+            else if (name == "Super"  ) mask = modifier_map.super ? modifier_map.super : modifier_map.mod4;
+            else if (name == "Hyper"  ) mask = modifier_map.hyper ? modifier_map.hyper : modifier_map.mod4;
+            return mask;
+        }
+        auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
+        {
+            // Format:
+            //   EVENT [EVENT...] : RESULT [# COMMENT]
+            //     EVENT:
+            //         [([!] ([~] MODIFIER)...) | None] <keysym>
+            //             !:    Modifier must match exactly.
+            //             ~:    Modifier must not be present.
+            //             None: No modifier may be present.
+            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF[FFFF] (0x1000000+code).
+            //     MODIFIER:
+            //             None | Ctrl   | Lock | Shift | Alt | Meta | Super | Hyper | Mod1 ... Mod5
+            //                    Control  Caps
+            //     RESULT:
+            //         "STRING" | keysym | "STRING" keysym
+            //           STRING: UTF-8 string of any size containing:
+            //                      - Octal codes are specified as "\123".
+            //                      - Hexadecimal codes as "\xFFFF".
+            //                      - Escaped \\ and \".
+            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF.
+            // Parsing and composing logic:
+            //todo
+            //  1. Most specific wins: "! Ctrl <keysym1> : A" overrides "<keysym1> : B".
+            //  2. Last match wins: "<keysym> : A2" overrides "<keysym> : A1".
+            //     <keysym> : A1
+            //     <keysym> : A2
+            //  3. Wait on overlaps:
+            //     <a> <b> : "1"
+            //     <a> <b> <c> : "2"
+            //       'a'       -> wait
+            //       'a''b'    -> wait
+            //       'a''b''x' -> "1x"
+            //       'a''b''c' -> "2"
+            utf::trim_front(line, "\t ");
+            if (line.empty() || line.front() == '#')
+            {
+                return std::monostate{};
+            }
+            if (line.starts_with("include"))
+            {
+                line.remove_prefix(sizeof("include") - 1/*trailing null*/); // Remove 'include' keyword.
+                utf::trim_front(line, "\t ");
+                if (line)
+                {
+                    if (line.front() == '"')
+                    if (auto raw_path = utf::take_quote(line, '"'); raw_path.size()) // include "<path>"
+                    {
+                        return text{ raw_path.data(), raw_path.size() };
+                    }
+                    if (auto raw_path = utf::get_word(line, " #"); raw_path.size()) // include <path>
+                    {
+                        return text{ raw_path.data(), raw_path.size() };
+                    }
+                }
+                return std::monostate{};
+            }
+            auto keysyms = std::vector<key_t>{};
+            // Line: [!][~]Mod1..[!][~]Modn <key_name> ... [!][~]Mod1..[!][~]Modn <key_name> : [key_name] ["utf8"] [key_name]
+            while (line && (line.front() == '<' || line.front() == '!' || line.front() == '~' || (line.front() >= 'A' && line.front() <= 'Z')))
+            {
+                auto required_mods = ui16{};
+                auto forbidden_mods = ui16{};
+                auto exact_match = line.front() == '!';
+                if (exact_match) // Exact match flag for the rule.
+                {
+                    line.remove_prefix(1); // Pop '!'.
+                    utf::trim_front(line, "\t ");
+                }
+                while (line && line.front() != '<') // Get all modifiers.
+                {
+                    auto is_forbidden = line.front() == '~';
+                    if (is_forbidden)
+                    {
+                        line.remove_prefix(1); // Pop '~'.
+                    }
+                    auto mod_name = utf::get_word(line, " \t<");
+                    utf::trim_front(line, "\t ");
+                    if (mod_name == "None") // All modifiers are forbidden.
+                    {
+                        forbidden_mods = 0xFFFF;
+                    }
+                    else if (auto bit = _get_mod_mask(mod_name))
+                    {
+                        if (is_forbidden) forbidden_mods |= bit;
+                        else              required_mods  |= bit;
+                    }
+                }
+                if (exact_match)
+                {
+                    forbidden_mods = 0xFFFF & ~required_mods;
+                }
+                if (line && line.front() == '<')
+                {
+                    if (auto keyname = utf::take_quote(line, '>'); keyname.size())
+                    if (auto keysym = x11::key::name_to_sym(keyname))
+                    {
+                        keysyms.push_back(key_t{ .keysym = keysym, .required_mods = required_mods, .forbidden_mods = forbidden_mods });
+                        utf::trim_front(line, "\t ");
+                        continue;
+                    }
+                }
+                return std::monostate{}; // Broken syntax.
+            }
+            if (keysyms.size() && line.size() && line.front() == ':') // Get result string/keysym.
+            {
+                utf::trim_front(line, "\t :"); // Pop ':' with spaces.
+                auto symcode = 0u;
+                auto utf8 = text{};
+                while (line && line.front() != '#')
+                {
+                    if (line.front() == '"')
+                    {
+                        utf8 = utf::take_quote(line, '"');
+                    }
+                    else
+                    {
+                        symcode = x11::key::name_to_sym(utf::get_word(line, " \t"));
+                    }
+                    utf::trim_front(line, "\t ");
+                }
+                if (utf8.size() || symcode)
+                {
+                    auto rule = rule_t{ .keysyms = std::move(keysyms), .utf8 = utf8, .symcode = symcode };
+                    return rule;
+                }
+            }
+            return std::monostate{};
+        }
+        auto _resolve_include_path(text raw_path)
+        {
+            if (raw_path.find("%L") != text::npos) // Expand %L marco with the locale specific compose file.
+            {
+                utf::replace_all(raw_path, "%L", _get_locale_specific_compose_file().string());
+            }
+            if (raw_path.find("%H") != text::npos) // Expand %H marco with the home path.
+            {
+                utf::replace_all(raw_path, "%H", os::env::get("HOME"));
+            }
+            if (raw_path.find("%S") != text::npos) // Expand %S marco with the system compose path.
+            {
+                utf::replace_all(raw_path, "%S", _get_system_compose_path().string());
+            }
+            auto path = os::fs::path{ raw_path };
+            return path.is_absolute() ? path
+                                      : _get_system_compose_path() / path;
+        }
+        void _inject_into_trie(rule_t const& arg)
+        {
+            auto node = root;
+            for (auto idx = 0u; idx < arg.keysyms.size(); ++idx)
+            {
+                auto& target_key = arg.keysyms[idx];
+                auto is_last_key = (idx + 1 == arg.keysyms.size());
+                auto [head, tail] = std::equal_range(node->next.begin(), node->next.end(), target_key.keysym, node_comparator{});
+                auto next_node = netxs::sptr<node_t>{};
+                for (auto it = head; it != tail; ++it)
+                {
+                    auto& n = *it;
+                    if (n->key.required_mods  == target_key.required_mods
+                     && n->key.forbidden_mods == target_key.forbidden_mods)
+                    {
+                        next_node = n;
+                        break;
+                    }
+                }
+                if (!next_node) // Inject node.
+                {
+                    next_node = ptr::shared(node_t{ .key = target_key });
+                    auto insert_pos = std::lower_bound(node->next.begin(), node->next.end(), next_node, node_comparator{});
+                    node->next.insert(insert_pos, next_node);
+                }
+                node = next_node;
+                if (is_last_key) // Last match wins.
+                {
+                    node->leaf = true;
+                    node->utf8 = arg.utf8;
+                    node->symcode = arg.symcode;
+                    // node->next.clear(). // Commented to wait on overlaps.
+                }
+            }
+        }
+        void _load_compose_file(os::fs::path const& file_path, std::vector<os::fs::path>& include_stack)
+        {
+            if (std::find(include_stack.begin(), include_stack.end(), file_path) == include_stack.end())
+            {
+                auto file = std::ifstream{ file_path };
+                if (file.is_open())
+                {
+                    include_stack.push_back(file_path);
+                    auto line = text{};
+                    while (std::getline(file, line))
+                    {
+                        auto res = _parse_line(line);
+                        std::visit([&](auto&& arg)
+                        {
+                            using T = std::decay_t<decltype(arg)>;
+                            if constexpr (std::is_same_v<T, rule_t>) // Add rule.
+                            {
+                                _inject_into_trie(arg);
+                            }
+                            else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
+                            {
+                                auto next_file = _resolve_include_path(arg);
+                                _load_compose_file(next_file, include_stack);
+                            }
+                        }, res);
+                    }
+                    include_stack.pop_back();
+                }
+            }
+        }
+        void load()
         {
             if (auto raw_locale = std::setlocale(LC_ALL, "")) // "ru_RU.UTF-8" or "sr_RS@latin"
             {
@@ -3524,238 +3834,28 @@ namespace netxs::x11
             _load_compose_file(compose_file, include_stack);
             if constexpr (debugmode)
             {
-                log("   root->next.size=", root->next.size());
-                for (auto& next : root->next)
+                auto s = text{};
+                s += utf::fprint("   root->next.size=%%\n", root->next.size());
+                auto dump_node = [&](auto& self, netxs::sptr<node_t> const& node, text prefix) -> void
                 {
-                    auto s = next->to_string(1);
-                    log("%%", s);
-                }
-            }
-        }
-
-        os::fs::path _get_system_compose_path()
-        {
-            if (auto xlocaledir = os::env::get("XLOCALEDIR"); xlocaledir.size())
-            if (auto xlocaledir_path = os::fs::path{ xlocaledir }; os::fs::exists(xlocaledir_path))
-            {
-                return xlocaledir_path;
-            }
-            return os::fs::path{ "/usr/share/X11/locale" };
-        }
-        os::fs::path _get_locale_specific_compose_file()
-        {
-            auto compose_file = os::fs::path{};
-            auto system_compose_path = _get_system_compose_path();
-            auto file_path = system_compose_path / "compose.dir";
-            auto file = std::ifstream{ file_path };
-            if (file.is_open())
-            {
-                auto line = text{};
-                while (std::getline(file, line))
-                {
-                    auto l = qiew{ line };
-                    // Format:
-                    //   <path>[:]<spc><locale>
-                    //   # Comment
-                    utf::trim_front(l, whitespaces);
-                    if (l && l.front() != '#')
+                    auto [rm, fm] = node->key.mods_to_string();
+                    auto current_step = utf::fprint("%%%%<%%> ", fm, rm, x11::key::sym_to_name(node->key.keysym));
+                    auto current_prefix = prefix + current_step;
+                    if (node->leaf || node->next.empty())
                     {
-                        utf::trim_front(l, " \t");
-                        auto path = utf::get_word(l, " :");
-                        utf::trim_front(l, " \t:");
-                        auto locl = utf::get_word(l, " \t");
-                        if (locl == locale)
-                        {
-                            compose_file = path;
-                            if (!compose_file.is_absolute())
-                            {
-                                compose_file = system_compose_path / compose_file;
-                            }
-                            if constexpr (debugmode) log("Compose file is found in compose.dir='%%'", compose_file.string());
-                            break;
-                        }
+                        s += utf::fprint("%%: '%%' %%\n", current_prefix, utf::debase437(node->utf8),
+                                        node->symcode ? x11::key::sym_to_name(node->symcode) : ""s);
                     }
-                }
-            }
-            return compose_file;
-        }
-        auto _get_mod_mask(qiew name, auto const& map)
-        {
-            auto mask = ui16{};
-                 if (name == "Ctrl"
-                  || name == "Control") mask = map.ctrl;
-            else if (name == "Shift"  ) mask = map.shift;
-            else if (name == "Lock"   ) mask = map.lock;
-            else if (name == "Mod1"   ) mask = map.mod1;
-            else if (name == "Mod2"   ) mask = map.mod2;
-            else if (name == "Mod3"   ) mask = map.mod3;
-            else if (name == "Mod4"   ) mask = map.mod4;
-            else if (name == "Mod5"   ) mask = map.mod5;
-            else if (name == "Alt"    ) mask = map.alt   ? map.alt   : map.mod1;
-            else if (name == "Meta"   ) mask = map.meta  ? map.meta  : map.mod1;
-            else if (name == "Super"  ) mask = map.super ? map.super : map.mod4;
-            else if (name == "Hyper"  ) mask = map.hyper ? map.hyper : map.mod4;
-            return mask;
-        }
-        auto _parse_line(qiew line) -> std::variant<std::monostate, rule_t, text> // A line can be a rule, an include, or nothing (a comment/error).
-        {
-            // Format:
-            //   EVENT [EVENT...] : RESULT [# COMMENT]
-            //     EVENT:
-            //         [([!] ([~] MODIFIER)...) | None] <keysym>
-            //             !:    Modifier must match exactly.
-            //             ~:    Modifier must not be present.
-            //             None: No modifier may be present.
-            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF[FFFF] (0x1000000+code).
-            //     MODIFIER:
-            //todo
-            //             None | Ctrl | Lock | Shift | Alt | Meta | Super | Hyper | Mod1 ... Mod5
-            //         NullSign          Caps
-            //     RESULT:
-            //         "STRING" | keysym | "STRING" keysym
-            //           STRING: UTF-8 string of any size containing:
-            //                      - Octal codes are specified as "\123".
-            //                      - Hexadecimal codes as "\xFFFF".
-            //                      - Escaped \\ and \".
-            //           keysym: Literal name (keysym_name) or hexadecimal value UFFFF.
-            // Parsing and composing logic:
-            //  1. Most specific wins: "! Ctrl <keysym1> : A" overrides "<keysym1> : B".
-            //  2. Last match wins: "<keysym> : A2" overrides "<keysym> : A1".
-            //  3. Wait on overlaps:
-            //     <a> <b> : "1"
-            //     <a> <b> <c> : "2"
-            //       'a'       -> wait
-            //       'a''b'    -> wait
-            //       'a''b''x' -> "1x"
-            //       'a''b''c' -> "2"
-            utf::trim_front(line, "\t ");
-            if (line.empty() || line.front() == '#')
-            {
-                return std::monostate{};
-            }
-            if (line.starts_with("include"))
-            {
-                line.remove_prefix(sizeof("include") - 1/*trailing null*/); // Remove 'include' keyword.
-                utf::trim_front(line, "\t ");
-                if (line)
-                {
-                    if (line.front() == '"')
-                    if (auto raw_path = utf::take_quote(line, '"'); raw_path.size()) // include "<path>"
+                    for (auto& next_child : node->next)
                     {
-                        return text{ raw_path.data(), raw_path.size() };
+                        self(self, next_child, current_prefix);
                     }
-                    if (auto raw_path = utf::get_word(line, " #"); raw_path.size()) // include <path>
-                    {
-                        return text{ raw_path.data(), raw_path.size() };
-                    }
-                }
-                return std::monostate{};
-            }
-            auto keysyms = std::vector<key_t>{};
-            //todo parse modifiers too: [!][~]mod1..[!][~]modn <key_name> ... [!][~]mod1..[!][~]modn <key_name>
-            while (line && line.front() == '<') // Parse rule line: <key_name> ... <key_name>.
-            {
-                if (auto keyname = utf::take_quote(line, '>'); keyname.size())
-                if (auto keysym = x11::key::name_to_sym(keyname))
+                };
+                for (auto& first_tier_node : root->next)
                 {
-                    keysyms.push_back(key_t{ .keysym = keysym });
-                    utf::trim_front(line, "\t ");
-                    continue;
+                    dump_node(dump_node, first_tier_node, ""s);
                 }
-                return std::monostate{}; // Unknown key name.
-            }
-            if (keysyms.size() && line.size() && line.front() == ':')
-            {
-                utf::trim_front(line, "\t :"); // Pop ':' with spaces.
-                auto symcode = 0u;
-                auto utf8 = text{};
-                while (line && line.front() != '#')
-                {
-                    if (line.front() == '"')
-                    {
-                        utf8 = utf::take_quote(line, '"');
-                    }
-                    else
-                    {
-                        symcode = x11::key::name_to_sym(utf::get_word(line, " \t"));
-                    }
-                    utf::trim_front(line, "\t ");
-                }
-                if (utf8.size() || symcode)
-                {
-                    auto rule = rule_t{ .keysyms = std::move(keysyms), .utf8 = utf8, .symcode = symcode };
-                    return rule;
-                }
-            }
-            return std::monostate{};
-        }
-        auto _resolve_include_path(text raw_path)
-        {
-            if (raw_path.find("%L") != text::npos) // Expand %L marco with the locale specific compose file.
-            {
-                utf::replace_all(raw_path, "%L", _get_locale_specific_compose_file().string());
-            }
-            if (raw_path.find("%H") != text::npos) // Expand %H marco with the home path.
-            {
-                utf::replace_all(raw_path, "%H", os::env::get("HOME"));
-            }
-            if (raw_path.find("%S") != text::npos) // Expand %S marco with the system compose path.
-            {
-                utf::replace_all(raw_path, "%S", _get_system_compose_path().string());
-            }
-            auto path = os::fs::path{ raw_path };
-            return path.is_absolute() ? path
-                                      : _get_system_compose_path() / path;
-        }
-        void _inject_into_trie(rule_t const& arg)
-        {
-            if (arg.keysyms.size())
-            {
-                auto node = root;
-                for (auto& key : arg.keysyms)
-                {
-                    auto keysym = key.keysym;
-                    auto it = std::lower_bound(node->next.begin(), node->next.end(), keysym, [](auto& node, ui32 val){ return node->key.keysym < val; });
-                    if (it == node->next.end() || (*it)->key.keysym != keysym)
-                    {
-                        auto new_node = ptr::shared(node_t{ .key = key });
-                        it = node->next.insert(it, new_node);
-                    }
-                    node = *it;
-                }
-                node->utf8 = arg.utf8;
-                node->symcode = arg.symcode;
-                node->next.clear(); // Cut current node branch.
-            }
-        }
-        void _load_compose_file(os::fs::path const& file_path, std::vector<os::fs::path>& include_stack)
-        {
-            if (std::find(include_stack.begin(), include_stack.end(), file_path) == include_stack.end())
-            {
-                auto file = std::ifstream{ file_path };
-                if (file.is_open())
-                {
-                    include_stack.push_back(file_path);
-                    auto line = text{};
-                    while (std::getline(file, line))
-                    {
-                        auto res = _parse_line(line);
-                        std::visit([&](auto&& arg)
-                        {
-                            using T = std::decay_t<decltype(arg)>;
-                            if constexpr (std::is_same_v<T, rule_t>) // Add rule.
-                            {
-                                _inject_into_trie(arg);
-                            }
-                            else if constexpr (std::is_same_v<T, text>) // Recursively expand the include directive.
-                            {
-                                auto next_file = _resolve_include_path(arg);
-                                _load_compose_file(next_file, include_stack);
-                            }
-                        }, res);
-                    }
-                    include_stack.pop_back();
-                }
+                log(s);
             }
         }
         auto process_keysym(ui32 keysym, ui16 mods)

@@ -3614,7 +3614,7 @@ namespace netxs::gui
         virtual void window_post_command(arch target, si32 command, arch lParam = {}) = 0;
         virtual cont window_recv_command(arch lParam) = 0;
         virtual void window_message_pump() = 0;
-        virtual void window_initilize() = 0;
+        virtual void window_initialize() = 0;
         virtual void window_shutdown() = 0;
         virtual void window_cleanup() = 0;
         virtual void window_make_foreground() = 0;
@@ -5027,7 +5027,7 @@ namespace netxs::gui
                 size_window();
                 set_state(config.win_state);
                 update_gui();
-                window_initilize();
+                window_initialize();
 
                 //todo it doesn't work on win32 (deferred mediakey)
                 //LISTEN(tier::release, input::events::keybd::any, gear)
@@ -6315,7 +6315,7 @@ namespace netxs::gui
             ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
             blinks.rate = a ? blinks.init : span::zero();
         }
-        void window_initilize()
+        void window_initialize()
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
@@ -6636,23 +6636,8 @@ namespace netxs::gui
             si32                       latin_key_count{};
             bool is_latin() { return latin_key_count >= 26; }
         };
-        struct modifier_map_t
-        {
-            ui16 shift       = 0; //1 << 0;
-            ui16 caps_lock   = 0; //1 << 1;
-            ui16 ctrl        = 0; //1 << 2;
-            ui16 mod1        = 1 << 3;
-            ui16 mod2        = 1 << 4;
-            ui16 mod3        = 1 << 5;
-            ui16 mod4        = 1 << 6;
-            ui16 mod5        = 1 << 7;
-            ui16 alt         = 0;
-            ui16 meta        = 0;
-            ui16 super       = 0;
-            ui16 hyper       = 0;
-            ui16 num_lock    = 0;
-            ui16 scroll_lock = 0;
-        };
+
+        using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
         x11::session_t& session = *x11::session_ptr;
         mouse_state_t mouse_state;
@@ -6673,7 +6658,7 @@ namespace netxs::gui
         modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
         std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
-        x11::compose                compose;        // window: POSIX Compose state machine.
+        x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -8160,11 +8145,11 @@ namespace netxs::gui
             window_cleanup();
             if constexpr (debugmode) log("window_message_pump ended");
         }
-        void window_initilize()
+        void window_initialize()
         {
-            //todo load keyboard composing rules (Compose) in background
             _keybd_load_layouts();
             _keybd_turn_layout(0);
+            compose.load();
             session.listen_root_events();
             session.query_device(x11::req::xi2::dev_type::all_devices);
             session.activate_xinput2(master.fg_hWnd);
@@ -8562,7 +8547,7 @@ namespace netxs::gui
         void window_make_exposed() {}
         void window_make_topmost(bool) {}
         void window_message_pump() {}
-        void window_initilize() {}
+        void window_initialize() {}
         void window_shutdown() {}
         void window_cleanup() {}
         void window_set_title(view /*utf8*/) {}
