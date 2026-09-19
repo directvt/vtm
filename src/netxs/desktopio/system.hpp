@@ -9,13 +9,8 @@
 
 #if defined(_WIN32)
 
-    #if not defined(NOMINMAX)
-        #define NOMINMAX
-    #endif
-
     #pragma warning(disable:4996) // Suppress std::getenv warning.
 
-    #include <Windows.h>
     #include <UserEnv.h>             // ::GetUserProfileDirectoryW
     #include <Psapi.h>               // ::GetModuleFileNameEx
     #include <winternl.h>            // ::NtOpenFile
@@ -29,7 +24,6 @@
 
     #include <errno.h>       // ::errno
     #include <spawn.h>       // ::exec
-    #include <unistd.h>      // ::gethostname(), ::getpid(), ::read()
     #include <sys/param.h>   //
     #include <sys/types.h>   // ::getaddrinfo(), ::sysctl()
     #include <sys/socket.h>  // ::shutdown() ::socket(2)
@@ -73,6 +67,12 @@
         #endif
             #include <sys/mman.h> // X11 MIT-SHM ::memfd_create()
 
+        namespace netxs::x11
+        {
+            struct session_t;
+            static auto session_ptr = netxs::sptr<x11::session_t>{}; // x11: Active X11 session.
+        }
+
     #endif
 
     extern char **environ;
@@ -85,7 +85,6 @@
                     os::logstd("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
 namespace netxs::os
 {
-    namespace fs = std::filesystem;
     namespace key = input::key;
     using page = ui::page;
     using para = ui::para;
@@ -1441,7 +1440,7 @@ namespace netxs::os
             auto platform = "Linux"s;
             if constexpr (!debugmode)
             {
-                #ifdef __GLIBC__
+                #if defined(__GLIBC__)
                 ::fedisableexcept(FE_ALL_EXCEPT);
                 #endif
             }
@@ -1535,6 +1534,32 @@ namespace netxs::os
             #endif
         }
 
+        #if defined(__ANDROID__)
+            // Based on: https://github.com/termux/termux-packages/issues/30815#issuecomment-5445977114
+            auto shm_open(qiew name, si32 oflag, mode_t mode)
+            {
+                utf::trim_front(name, '/');
+                if (!name) // The name "/" is not supported.
+                {
+                    errno = EINVAL;
+                    return -1;
+                }
+                auto fname = utf::concat("@TERMUX_PREFIX@/tmp/", name);
+                auto fd = ::open(fname.c_str(), oflag, mode);
+                if (fd != os::invalid_fd) // Set the FD_CLOEXEC bit.
+                {
+                    auto flags = ::fcntl(fd, F_GETFD, 0);
+                    flags = ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+                    if (flags == -1) // Something went wrong.  We cannot return the descriptor.
+                    {
+                        auto save_errno = errno;
+                        ::close(std::exchange(fd, os::invalid_fd));
+                        errno = save_errno;
+                    }
+                }
+                return fd;
+            }
+        #endif
     #endif
 
     auto get_system_error_message(auto ec)
@@ -1603,7 +1628,7 @@ namespace netxs::os
         }
         void shutdown() // Reset writing end of the pipe to interrupt reading call.
         {
-            #if not defined(_WIN32) // Use ::shutdown() for full duplex sockets. Socket the same fd could be assigned as stdin, stdout and stderr, e.g. it is how inetd does.
+            #if !defined(_WIN32) // Use ::shutdown() for full duplex sockets. Socket the same fd could be assigned as stdin, stdout and stderr, e.g. it is how inetd does.
 
                 auto statbuf = (struct stat){};
                 ::fstat(w, &statbuf);
@@ -2243,7 +2268,7 @@ namespace netxs::os
         auto cwd()
         {
             auto err = std::error_code{};
-            auto cwd = std::filesystem::current_path(err).string();
+            auto cwd = os::fs::current_path(err).string();
             return cwd;
         }
         // os::env: Set current working directory.
@@ -2681,18 +2706,6 @@ namespace netxs::os
             }
         }
 
-        auto getid()
-        {
-            auto id = (ui32)
-                #if defined(_WIN32)
-                    ::GetCurrentProcessId();
-                #else
-                    ::getpid();
-                #endif
-            ui::console::id = std::pair{ id, datetime::now() };
-            return ui::console::id;
-        }
-        static auto id = process::getid();
         static auto arg0 = text{};
 
         class args
@@ -2864,7 +2877,7 @@ namespace netxs::os
                 }
 
             #endif
-            #if not defined(_WIN32)
+            #if !defined(_WIN32)
 
                 if (result.empty())
                 {
@@ -3005,6 +3018,9 @@ namespace netxs::os
                         os::close(os::stdin_fd ); // No stdio needed in daemon mode.
                         os::close(os::stdout_fd); //
                         os::close(os::stderr_fd); //
+                        #if !defined(__APPLE__)
+                            x11::session_ptr.reset();
+                        #endif
                         return std::pair{ success, true }; // Child branch.
                     }
                     else if (p_id > 0) os::process::exit<true>(0); // Success.
@@ -3419,6 +3435,21 @@ namespace netxs::os
             {
                 pipe::isbusy = faux; // io::send blocks until the send is complete.
                 return io::send(handle.w, buff);
+            }
+            qiew recv_all(char* buff, size_t size)
+            {
+                auto dest = buff;
+                auto rest = size;
+                inread.exchange(true);
+                while (pipe::active && rest) // The read call can be interrupted by io::abort().
+                {
+                    auto crop = io::recv(handle, dest, rest); // The read call can be interrupted by the write side when their read call is interrupted.
+                    rest -= crop.size();
+                    dest += crop.size();
+                }
+                inread.exchange(faux);
+                auto result = qiew{ buff, size - rest };
+                return result;
             }
             virtual qiew recv(char* buff, size_t size) override
             {
@@ -3889,7 +3920,7 @@ namespace netxs::os
                 }
                 return socket;
             }
-            static auto connect([[maybe_unused]] text name)
+            static auto connect([[maybe_unused]] view name)
             {
                 auto f = os::invalid_fd;
                 auto socket = sptr<ipc::stdcon>{};
@@ -3959,7 +3990,10 @@ namespace netxs::os
     }
 
     #if !defined(__APPLE__) && !defined(_WIN32)
+}
         #include "x11.hpp"
+namespace netxs::os
+{
     #endif
 
     namespace dtvt
@@ -4107,7 +4141,7 @@ namespace netxs::os
             if (dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                #if not defined(_WIN32)
+                #if !defined(_WIN32)
                 fdscleanup(); // There are duplicated stdin/stdout handles among the leaked parent process handles, and this prevents them from being closed. Affected ssh, nc, ncat, socat.
                 #endif
                 dtvt::vtmode |= ui::console::direct;
@@ -5122,7 +5156,7 @@ namespace netxs::os
                         auto reload_command = "udevadm control --reload-rules";
                         log("Trigger to reload udev rules:\n  ", reload_command);
                         if (0 == ::system(reload_command)) log("    Udev rules successfuly reloaded");
-                        else                               log("    Failed to reload udev rules (%%)", errno);
+                        else                               log("    Failed to reload udev rules (%%)", os::error());
                     }
                     else
                     {
@@ -5526,7 +5560,7 @@ namespace netxs::os
                         else
                         {
                             _k0 = -1;
-                            _k1 = errno;
+                            _k1 = os::error();
                         }
                         auto led_state = si32{ 0 };
                         if (-1 != ::ioctl(os::stdin_fd, KDGKBLED, &led_state))
@@ -5541,7 +5575,7 @@ namespace netxs::os
                         else
                         {
                             _k2 = -1;
-                            _k3 = errno;
+                            _k3 = os::error();
                         }
                     #endif
                     return state;
@@ -6334,9 +6368,9 @@ namespace netxs::os
                                     mouse(m);
                                     std::swap(prev_buttons, m.buttons);
                                 }
-                                if (!(dtvt::vtmode & ui::console::vt_2D) && dtvt::wheelrate) // Don't accelerate the mouse wheel if we are already inside the vtm.
+                                if (!(dtvt::vtmode & ui::console::vt_2D) && os::dtvt::wheelrate) // Don't accelerate the mouse wheel if we are already inside the vtm.
                                 {
-                                    m.wheelfp *= dtvt::wheelrate;
+                                    m.wheelfp *= os::dtvt::wheelrate;
                                 }
                                 m.wheelsi = (si32)m.wheelfp;
                                 m.changed++;
@@ -6504,7 +6538,7 @@ namespace netxs::os
                             if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL)
                             {
                                 wheelfp = -e.libinput_event_pointer_get_scroll_value_v120() / 120.0;
-                                if (dtvt::wheelrate) wheelfp *= dtvt::wheelrate;
+                                if (os::dtvt::wheelrate) wheelfp *= os::dtvt::wheelrate;
                             }
                             else if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
                             {

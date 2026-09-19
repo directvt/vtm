@@ -117,7 +117,7 @@ namespace netxs::ui
                     data = " =SUM(" + ansi::fgc(bluedk).add(data).fgc(blacklt).add(")");
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
-                log(prompt::calc, "DATA ", data, ansi::nil());
+                //log(prompt::calc, "DATA ", data, ansi::nil());
                 boss.base::signal(tier::release, e2::data::utf8, data);
             }
 

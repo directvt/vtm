@@ -1306,7 +1306,7 @@ Notes
             </script>
         </StdioLog>
         <ClearScrollback=/Ns/ClearScrollback script=OnLeftClick|TerminalClearScrollback/>
-        <Restart        =/Ns/Restart         script=OnLeftClick|TerminalRestart/>
+        <Restart        =/Ns/Restart         script=OnLeftClick|TerminalReset|TerminalRestart/>
     </Buttons>
 </Menu>
 
@@ -2053,7 +2053,7 @@ Notes
     <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll the viewport to the bottom of the scrollback buffer. -->
     <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulate keypresses using the specified string. -->
     <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Output a string directly to the terminal scrollback. -->
-    <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear the scrollback and reset SGR attributes. -->
+    <TerminalReset                     ="vtm.terminal.Print('\\x1bc');"/>              <!-- Reset terminal modes. -->
     <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear the scrollback buffer above the current line. -->
     <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Copy the viewport content to the clipboard. -->
     <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Copy the selection to the clipboard. -->

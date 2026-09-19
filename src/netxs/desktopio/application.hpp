@@ -15,14 +15,13 @@
 
 namespace netxs::app
 {
-    namespace fs = std::filesystem;
     using namespace std::placeholders;
     using namespace netxs::ui;
 }
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.07.30";
+    static const auto version = "v2026.09.20";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -848,7 +847,7 @@ namespace netxs::app::shared
             {
                 log_load(config_path_str);
                 auto ec = std::error_code{};
-                auto config_file = fs::directory_entry{ config_path, ec };
+                auto config_file = os::fs::directory_entry{ config_path, ec };
                 if (!ec && (config_file.is_regular_file(ec) || config_file.is_symlink(ec)))
                 {
                     auto file = std::ifstream{ config_file.path(), std::ios::binary | std::ios::in };

@@ -1,9 +1,9 @@
 // Copyright (c) Dmitry Sapozhnikov
 // Licensed under the MIT license.
 
-#include "ansivt.hpp"
-
 #pragma once
+
+#include "ansivt.hpp"
 
 namespace netxs::prompt
 {
@@ -1085,7 +1085,6 @@ namespace netxs::directvt
         #define UNDEFINE_macro
         #include "macrogen.hpp"
 
-        static const auto process_id = datetime::now();
         struct bitmap_dtvt_t
             : public stream
         {
@@ -1122,7 +1121,7 @@ namespace netxs::directvt
             void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
-                stream::reinit(winid, rect{ coord, cache.size() }, binary::process_id);
+                stream::reinit(winid, rect{ coord, cache.size() }, os::process::id.second);
                 auto pen = state;
                 auto src = cache.begin();
                 auto end = cache.end();
@@ -1236,7 +1235,7 @@ namespace netxs::directvt
             void get(view& data, std::array<ui16, 65536>& ext_to_int_map, std::vector<ui16>& unknown_indexes, P update = {}, S resize = {})
             {
                 auto [myid, area, remote_process_id] = stream::take<id_t, rect, time>(data);
-                auto is_remote_forwarding = remote_process_id != binary::process_id;
+                auto is_remote_forwarding = remote_process_id != os::process::id.second;
                 ext_to_int_map[0] = is_remote_forwarding;
                 //todo head.myid
                 if (image.size() != area.size)

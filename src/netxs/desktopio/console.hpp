@@ -9,7 +9,6 @@ namespace netxs::ui
 {
     namespace console
     {
-        static auto id = std::pair<ui32, time>{};
         static constexpr auto _counter = __COUNTER__ + 1;
         static constexpr auto mouse   = 1 << (__COUNTER__ - _counter);
         static constexpr auto nt      = 1 << (__COUNTER__ - _counter); // Use win32 console api for input.
@@ -172,7 +171,7 @@ namespace netxs::ui
             void handle(s11n::xs::logs        lock)
             {
                 auto& item = lock.thing;
-                if (ui::console::id.first == item.id)
+                if (os::process::id.first == item.id)
                 {
                     notify(e2::conio::logs, item.data, tier::general);
                 }

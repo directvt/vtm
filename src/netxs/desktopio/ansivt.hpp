@@ -352,6 +352,11 @@ namespace netxs::ansi
                 block += "{ "; itos(data.x); block += ", ";
                                itos(data.y); block += " }";
             }
+            else if constexpr (std::is_same_v<D, fp2d>)
+            {
+                block += "{ "; fuse(data.x); block += ", ";
+                               fuse(data.y); block += " }";
+            }
             else if constexpr (std::is_same_v<D, rect>)
             {
                 block += "{"; fuse(data.coor); block += ",";

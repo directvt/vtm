@@ -84,6 +84,41 @@ namespace netxs::gui
         bool live; // layer: Should the layer be presented.
         tset klok; // layer: Active timer list.
 
+        #if !defined(_WIN32) && !defined(__APPLE__) // X11 only.
+            arch& wm_hdc  = hdc;  // OR=0 WM anchor layer.
+            arch& wm_hWnd = hWnd; // OR=0 WM anchor layer.
+            arch  fg_hdc  = {}; // OR=1 foreground layer.
+            arch  fg_hWnd = {}; // OR=1 foreground layer.
+            arch  bg_hdc  = {}; // OR=1 background layer.
+            arch  bg_hWnd = {}; // OR=1 background layer.
+            ui32  shm_offset = {};
+            twod  prev_size;
+            bool  prev_live = {};
+            bool  windowsized = {};
+            bool  bank = {}; // Bank is switching offset segment on every resize iteration.
+            std::array<ui16, 2> seq_nums = { 0xFFFF, 0xFFFF };
+
+            auto get_offset(auto& session, bool toggle_bank = faux)
+            {
+                //if (toggle_bank)
+                bank ^= toggle_bank;
+                //todo deadlock by unknown reason
+                //session.sync_reply(seq_nums[bank]); // It is already synced in layers_present()
+                return (ui32)((session.shm_buffer_len / 2) * bank + shm_offset);
+            }
+            void set_seq_num(auto& session, ui16 seq_num)
+            {
+                seq_nums[bank] = seq_num;
+                session.received_replies[seq_num].store(true, std::memory_order_release);
+                if constexpr (debugmode) log("Frame seq=%%", seq_num);
+            }
+            void swap_backing()
+            {
+                std::swap(fg_hdc,  bg_hdc);
+                std::swap(fg_hWnd, bg_hWnd);
+            }
+        #endif
+
         layer()
             :  hdc{},
               hWnd{},
@@ -532,23 +567,13 @@ namespace netxs::gui
                 sort_faces();
                 auto get = [&](si32 style_id) // Load first face from the sorted list.
                 {
-                    auto has_broken_fonts = faux;
                     auto& sorted_list = sorted_face_list[style_id];
                     for (auto& bare_face_rec : sorted_list)
                     {
-                        if (bare_face_rec.bare_face_ptr->valid
-                         && bare_face_rec.load_from_file(fcache, family_ref, style_id))
+                        if (bare_face_rec.bare_face_ptr->valid && bare_face_rec.load_from_file(fcache, family_ref, style_id))
                         {
                             break; // Load only the first available face (lazy).
                         }
-                        else
-                        {
-                            has_broken_fonts = true;
-                        }
-                    }
-                    if (has_broken_fonts) // Remove broken records from the sorted list.
-                    {
-                        std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
                     }
                 };
                 get(font_style::regular    );
@@ -782,50 +807,33 @@ namespace netxs::gui
             }
             auto& select_font_face(si32 style_id)
             {
-                auto has_broken_fonts = faux;
                 auto& sorted_list = sorted_face_list[style_id];
                 auto inst_face = std::reference_wrapper{ sorted_list.front() };
                 for (auto& bare_face_rec : sorted_list)
                 {
-                    if (!bare_face_rec.fthb_pair_cache[0].fthb_pair && !bare_face_rec.load_from_file(fcache, family_ref, style_id))
-                    {
-                        has_broken_fonts = true;
-                    }
-                    else
+                    if (bare_face_rec.bare_face_ptr->valid)
+                    if (bare_face_rec.fthb_pair_cache[0].fthb_pair || bare_face_rec.load_from_file(fcache, family_ref, style_id))
                     {
                         inst_face = bare_face_rec;
                         break;
                     }
                 }
-                if (has_broken_fonts) // Remove broken records from the sorted list.
-                {
-                    std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
-                }
                 return inst_face.get();
             }
             auto& select_font_face(std::span<const utfx> codepoints, si32 style_id)
             {
-                auto has_broken_fonts = faux;
                 auto& sorted_list = sorted_face_list[style_id];
                 auto inst_face = std::reference_wrapper{ sorted_list.front() };
                 for (auto& bare_face_rec : sorted_list)
                 {
-                    if (fonts::hittest(bare_face_rec.bare_face_ptr->unicode_ranges, codepoints))
+                    if (bare_face_rec.bare_face_ptr->valid && fonts::hittest(bare_face_rec.bare_face_ptr->unicode_ranges, codepoints))
                     {
-                        if (!bare_face_rec.fthb_pair_cache[0].fthb_pair && !bare_face_rec.load_from_file(fcache, family_ref, style_id))
-                        {
-                            has_broken_fonts = true;
-                        }
-                        else
+                        if (bare_face_rec.fthb_pair_cache[0].fthb_pair || bare_face_rec.load_from_file(fcache, family_ref, style_id))
                         {
                             inst_face = bare_face_rec;
                             break;
                         }
                     }
-                }
-                if (has_broken_fonts) // Remove broken records from the sorted list.
-                {
-                    std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
                 }
                 return inst_face.get();
             }
@@ -971,6 +979,33 @@ namespace netxs::gui
                 char_height = (std::remove_reference_t<decltype(char_height)>)tmp_value;
             }
         }
+        static auto is_valid(FT_Face face)
+        {
+            struct
+            {
+                si32 is_color;
+                bool is_valid;
+            } r{};
+            auto width = face->bbox.xMax - face->bbox.xMin;
+            auto height = face->bbox.yMax - face->bbox.yMin;
+            auto invalid = face->num_glyphs <= 0 || face->num_glyphs > 65535
+                        || face->units_per_EM < 16 || face->units_per_EM > 16384
+                        || width <= 0 || height <= 0
+                        || width > face->units_per_EM * 10 || height > face->units_per_EM * 10
+                        || face->height <= 0
+                        || face->ascender <= face->descender
+                        || face->max_advance_width <= 0;
+            if (!invalid)
+            {
+                auto has_outlines = FT_IS_SCALABLE(face);
+                auto has_colr = fonts::has_sfnt_table(face, FT_MAKE_TAG('C', 'O', 'L', 'R'));
+                auto has_cpal = fonts::has_sfnt_table(face, FT_MAKE_TAG('C', 'P', 'A', 'L'));
+                auto has_svg  = fonts::has_sfnt_table(face, FT_MAKE_TAG('S', 'V', 'G', ' '));
+                r.is_color = has_svg ? fonts::color_type::svg : (has_colr && has_cpal) ? fonts::color_type::colr : fonts::color_type::mono;
+                r.is_valid = r.is_color || has_outlines;
+            }
+            return r;
+        }
 
         void set_cellsz(si32 cell_height)
         {
@@ -1029,7 +1064,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    log("%%Font '%fontname%' is not found in the system", prompt::gui, family_utf8);
+                    log("%%Font '%fontname%' is not found in the system or invalid", prompt::gui, family_utf8);
                 }
             }
         }
@@ -1225,13 +1260,14 @@ namespace netxs::gui
             #if defined(_WIN32)
                 { "sans-serif", "Arial"           },
                 { "serif",      "Times New Roman" },
+                { "monospace",  "Courier New"     },
             #else
                 { "sans-serif", "DejaVu Sans"     },
                 { "serif",      "DejaVu Serif"    },
+                { "monospace",  "DejaVu Sans Mono"},
             #endif
                 { "cursive",    "Comic Sans MS"   },
                 { "fantasy",    "Impact"          },
-                { "monospace",  "Courier New"     },
             });
             auto register_svg_font = [](auto&& family, auto& def_face)
             {
@@ -1359,6 +1395,7 @@ namespace netxs::gui
                     auto index = 0;
                     while (FT_Err_Ok == ::FT_New_Face(ft_library.get(), item.data.c_str(), index++, &face)) // Read headers only (fast enough).
                     {
+                        if (auto face_state = fonts::is_valid(face); face_state.is_valid)
                         if (auto os2 = (TT_OS2*)::FT_Get_Sfnt_Table(face, FT_SFNT_OS2)) // We need OS/2 metadata.
                         {
                             auto family = qiew{ face->family_name };
@@ -1385,11 +1422,8 @@ namespace netxs::gui
                             rec.strikethroughPosition  = os2->yStrikeoutPosition;
                             rec.strikethroughThickness = os2->yStrikeoutSize;
                             rec.lineGap                = os2->sTypoLineGap;
-                            auto has_colr = has_sfnt_table(face, FT_MAKE_TAG('C', 'O', 'L', 'R'));
-                            auto has_cpal = has_sfnt_table(face, FT_MAKE_TAG('C', 'P', 'A', 'L'));
-                            auto has_svg  = has_sfnt_table(face, FT_MAKE_TAG('S', 'V', 'G', ' '));
-                            rec.is_color = has_svg ? fonts::color_type::svg : (has_colr && has_cpal) ? fonts::color_type::colr : fonts::color_type::mono;
-                            rec.valid = rec.num_glyphs && rec.units_per_EM && (rec.is_color || FT_IS_SCALABLE(face));
+                            rec.is_color               = face_state.is_color;
+                            rec.valid                  = true;
                             rec.is_monospaced          = FT_IS_FIXED_WIDTH(face);
                             rec.weight_value           = os2->usWeightClass;
                             rec.stretch_value          = os2->usWidthClass;
@@ -3012,10 +3046,11 @@ namespace netxs::gui
             X(make_ontop) /* Order to make window topmost.         */ \
             X(set_normal) /* Order to make window notopmost.       */ \
             X(no_command) /* Noop. Just to update.                 */ \
-            X(cmd_w_data) /* Command with payload.                 */
+            X(cmd_w_data) /* Command with payload.                 */ \
+            X(send_reply) /* Command reply.                        */
             static constexpr auto _base = 99900;
-            static constexpr auto _counter = __COUNTER__ + 1 - _base;
-            #define X(cmd) static constexpr auto cmd = __COUNTER__ - _counter;
+            static constexpr auto _counter = __COUNTER__ + 1;
+            #define X(cmd) static constexpr auto cmd = _base + __COUNTER__ - _counter;
             ipc_t
             #undef X
             static constexpr auto _str = std::to_array({
@@ -3463,7 +3498,7 @@ namespace netxs::gui
         shad  shadow; // winbase: Shadow generator.
         grip  szgrip; // winbase: Resizing grips UI-control.
         twod  waitsz; // winbase: Window is waiting resize acknowledge.
-        twod  mcoord; // winbase: Mouse cursor coord.
+        fp2d  mcoord; // winbase: Mouse cursor coord.
         bool  inside; // winbase: Mouse is inside the client area.
         bool  seized; // winbase: Mouse is locked inside the client area.
         bool  mhover; // winbase: Mouse hover.
@@ -3482,7 +3517,6 @@ namespace netxs::gui
         rect  grip_r; // winbase: Resizing grips right segment area.
         rect  grip_t; // winbase: Resizing grips top segment area.
         rect  grip_b; // winbase: Resizing grips bottom segment area.
-        b256  vkstat; // winbase: Keyboard virtual keys state.
         si32  keymod; // winbase: Keyboard modifiers state.
         si32  heldby; // winbase: Mouse capture owners bitfield.
         fp32  whlacc; // winbase: Mouse wheel accumulator.
@@ -3495,6 +3529,7 @@ namespace netxs::gui
         ui32  xlayout; // winbase: Current keyboard layout (HKL).
         arch  hkl_latin; // winbase: User's latin-based keyboard layout.
         si32  layout_hint; // winbase: Layout hint for key lookup.
+        bool  has_layout{}; // winbase: Flag indicating whether keyboard layouts are loaded.
 
         winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
@@ -3520,26 +3555,26 @@ namespace netxs::gui
               fsmode{ winstate::undefined },
               fullcs{ cellsz },
               normcs{ cellsz },
-              vkstat{},
               keymod{ 0x0 },
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
               xlayout{},
-              hkl_latin{},
+              hkl_latin{ (ui32)-1 },
               layout_hint{ -1 }
         { }
 
-        virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
+        virtual bool layer_create(layer& s, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         //virtual void layer_delete(layer& s) = 0;
-        virtual void layer_move_all() = 0;
-        virtual void layer_present(layer& s) = 0;
+        virtual void layers_move() = 0;
+        virtual void layers_present() = 0;
         virtual bits layer_get_bits(layer& s, bool zeroize = faux) = 0;
         virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
-        virtual void keybd_sync_state(si32 virtcod = 0) = 0;
+        virtual si32 keybd_read_state() = 0;
+        virtual si32 keybd_test_state() = 0;
         virtual void keybd_turn_layout(ui32 hkl) = 0;
         virtual void keybd_sync_layout()
         {
@@ -3551,43 +3586,76 @@ namespace netxs::gui
             gear.payload = temp;
             if constexpr (debugmode) log("Sync kb layout: xlayout=%%", utf::to_hex(xlayout));
         }
-        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
+        virtual void keybd_load_vkstat(void* ptr, ui32 len) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
+        virtual void keybd_print_vkstat(text s) = 0;
         virtual bool keybd_read_input() = 0;
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
-        virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
+        virtual bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0) = 0;
         virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
         virtual si32 keybd_conv_media2keyid(si32 mediakey) = 0;
         virtual bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
         virtual void keybd_reset_deadkey(arch hkl = {}) = 0;
 
-        virtual void mouse_capture(si32 captured_by) = 0;
-        virtual void mouse_release(si32 released_by) = 0;
+        virtual void mouse_capture_impl() = 0;
+        virtual void mouse_release_impl() = 0;
         virtual void mouse_catch_outside() = 0;
-        virtual twod mouse_get_pos() = 0;
+        virtual fp2d mouse_get_pos() = 0;
 
         virtual void window_set_title(view utf8) = 0;
         virtual void window_sync_taskbar(si32 new_state) = 0;
         virtual rect window_get_fs_area(rect window_area) = 0;
-        virtual void window_send_command(arch target, si32 command, arch lParam = {}) = 0;
+        virtual void window_send_command_impl(arch target, si32 command, arch lParam = {}) = 0;
         virtual void window_post_command(arch target, si32 command, arch lParam = {}) = 0;
         virtual cont window_recv_command(arch lParam) = 0;
         virtual void window_message_pump() = 0;
-        virtual void window_initilize() = 0;
+        virtual void window_initialize() = 0;
         virtual void window_shutdown() = 0;
         virtual void window_cleanup() = 0;
         virtual void window_make_foreground() = 0;
-        virtual void window_make_focused() = 0;
+        virtual void window_make_focused_impl() = 0;
         virtual void window_make_exposed() = 0;
         virtual void window_make_topmost(bool) = 0;
 
         virtual void sync_os_settings() = 0;
 
+        void window_send_command(arch target, si32 command, arch lParam = {})
+        {
+            if (target == master.hWnd)
+            {
+                run_command(command, lParam);
+            }
+            else
+            {
+                window_send_command_impl(target, command, lParam);
+            }
+        }
+        void window_make_focused()
+        {
+            restore_if_minimized();
+            window_make_focused_impl();
+        }
+        void mouse_capture(si32 captured_by)
+        {
+            if (!std::exchange(heldby, heldby | captured_by))
+            {
+                mouse_capture_impl();
+                if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
+            }
+        }
+        void mouse_release(si32 captured_by = -1)
+        {
+            if (std::exchange(heldby, heldby & ~captured_by) && !heldby)
+            {
+                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse" : captured_by == by::keybd ? "keybd" : "system");
+                mouse_release_impl();
+            }
+        }
         void mouse_normalize_wheeldt(fp32& wheelfp)
         {
             wheelfp /= wheel_delta_base / wdelta; // Disable system-wide acceleration.
@@ -3604,28 +3672,6 @@ namespace netxs::gui
         auto lbutton_pressed()
         {
             return keybd_read_pressed(vkey::lbutton);
-        }
-        void print_vkstat(text s)
-        {
-            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
-            auto i = 0;
-            for (auto k : vkstat)
-            {
-                if (i % 16 == 0)
-                {
-                    s += "\n ";
-                    utf::to_hex<true>(i, s, 2);
-                    s += ' ';
-                }
-                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
-                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
-                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
-                else if (k)         s += ansi::fgc(tint::magentalt);
-                else                s += ansi::nil();
-                s += utf::to_hex(k) + ' ';
-                i++;
-            }
-            log(s);
         }
         void output(view data)
         {
@@ -3649,7 +3695,7 @@ namespace netxs::gui
             if (mfocus.focused() && blinky.live) // Hide blinking layer to avoid visual desync.
             {
                 blinky.hide();
-                layer_move_all();
+                layers_move();
                 blinky.show();
             }
         }
@@ -4009,6 +4055,22 @@ namespace netxs::gui
                     netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
+                if (side_x.size.x > inner_rect.size.x) // Horizontal hanging end.
+                {
+                    auto trim_rect = side_y;
+                    trim_rect.coor.x += (inner_rect.size.x + trim_rect.size.x) * s.x;
+                    auto hanging_rect = side_x.trim(trim_rect);
+                    auto dent_h = dent{ 0, 0, s.y < 0, s.y > 0 };
+                    netxs::misc::cage(canvas, hanging_rect, dent_h, cell::shaders::full(black)); // 1-px dark contour around.
+                }
+                if (side_y.size.y > inner_rect.size.y + side_x.size.y) // Vertical hanging end.
+                {
+                    auto trim_rect = rect{{ outer_rect.coor.x, side_x.coor.y }, { outer_rect.size.x, side_x.size.y }};
+                    trim_rect.coor.y += (inner_rect.size.y + trim_rect.size.y) * s.y;
+                    auto hanging_rect = side_y.trim(trim_rect);
+                    auto dent_v = dent{ s.x < 0, s.x > 0, 0, 0 };
+                    netxs::misc::cage(canvas, hanging_rect, dent_v, cell::shaders::full(black)); // 1-px dark contour around.
+                }
             }
             if (!shadow.hide) fill_grips(outer_rect, [&](auto& canvas, auto r)
             {
@@ -4233,7 +4295,7 @@ namespace netxs::gui
             if (!reload || waitsz) return;
             auto what = reload;
             reload = {};
-                 if (what == task::moved) layer_move_all();
+                 if (what == task::moved) layers_move();
             else if (what)
             {
                 if (what == task::all)
@@ -4275,32 +4337,14 @@ namespace netxs::gui
                     fit_to_displays(tooltip_layer.area, dent{ contour });
                     draw_tooltip();
                 }
-                for (auto& l : layers)
-                {
-                    layer_present(l);
-                }
+                layers_present();
             }
             isbusy.exchange(faux);
         }
         auto get_mods_state()
         {
-            if (mfocus.focused()) return keymod;
-            else
-            {
-                auto state = 0;
-                if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
-                if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
-                if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-                if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-                if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
-                if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt;
-                if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
-                if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
-                if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
-                if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
-                if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
-                return state;
-            }
+            return mfocus.focused()? keymod
+                                   : keybd_read_state();
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
@@ -4333,19 +4377,18 @@ namespace netxs::gui
             size_delta = new_gridsz * cellsz - old_client.size;
             if (size_delta)
             {
-                //todo sync ui
                 if (auto move_delta = szgrip.move(size_delta, zoom))
                 {
                     move_window(move_delta);
                     sync_pixel_layout(); // Align grips and shadow.
                 }
                 resize_window(size_delta);
+                szgrip.calc(inner_rect, coord, border, dent{}, cellsz);
             }
         }
-        void mouse_wheel(si32 delta, bool hz)
+        void mouse_wheel(fp32 delta, bool hz)
         {
             if (delta == 0) return;
-            if (hz) delta = -delta;
             auto wheelfp = delta / wdelta; // Same code in system.hpp.
             if (whlacc * wheelfp < 0) whlacc = {}; // Reset accum if direction has changed.
             whlacc += wheelfp;
@@ -4389,7 +4432,7 @@ namespace netxs::gui
         void mouse_moved()
         {
             auto coord = mouse_get_pos();
-            auto& mbttns = stream.m.buttons;
+            auto mbttns = stream.m.buttons;
             mhover = true;
             auto inner_rect = blinky.area;
             auto ingrip = hit_grips();
@@ -4409,16 +4452,19 @@ namespace netxs::gui
                 {
                     moving = true;
                 }
-                else if (mbttns == bttn::left)
+                else if (mbttns == bttn::left) // Resize window.
                 {
-                    if (!szgrip.seized) // drag start
+                    if (!szgrip.seized) // Drag start.
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
+                    mcoord = coord;
                     base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
+                        update_gui();
                     });
+                    return;
                 }
                 else drop_grips();
             }
@@ -4473,7 +4519,7 @@ namespace netxs::gui
             auto inner_rect = blinky.area;
             auto coord = mouse_get_pos();
             mcoord = coord;
-            stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+            stream.m.coordxy = (mcoord - fp2d{ inner_rect.coor }) / cellsz;
             auto& mbttns = stream.m.buttons;
             if (std::exchange(mfocus.offer, faux)) // Ignore any first Ctrl+AnyClick inside the just focused window.
             {
@@ -4568,34 +4614,10 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 virtcod = {},
-                              si32 keystat = {},
-                              si32 scancod = {},
-                              bool extflag = {},
-                              view cluster = {},
-                              bool synth = faux,
-                              byte payload = input::keybd::type::keypress)
+        void keybd_send_state()
         {
-            auto state = 0;
-            if (synth)
-            {
-                state = keymod;
-            }
-            else
-            {
-                if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
-                if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
-                if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
-                if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
-                if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
-                if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-                if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-                if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
-                if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
-                if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
-                if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-            }
-            auto changed = std::exchange(keymod, state) != keymod || synth;
+            auto state = keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod;
 
             if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                        mouse_release(by::keybd);
@@ -4612,32 +4634,20 @@ namespace netxs::gui
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
             }
-            gear.payload = payload;
-            gear.extflag = extflag;
-            gear.virtcod = virtcod;
-            gear.scancod = scancod;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
-            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
-            {
-                auto latin_shifted = text{};
-                auto latin_unshift = text{};
-                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
-                return std::pair{ latin_shifted, latin_unshift };
-            });
-            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
-            gear.keystat = keystat;
-            gear.keycode = keycode;
+            gear.payload = input::keybd::type::keypress;
+            gear.extflag = {};
+            gear.virtcod = {};
+            gear.scancod = {};
+            gear.keystat = {};
+            gear.keycode = input::key::undef;
             gear.xlayout = xlayout;
-            gear.cluster = cluster;
-            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
-            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
-                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
-            //print_vkstat("keybd_send_state");
-            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            gear.shifted.clear();
+            gear.unshift.clear();
+            gear.cluster.clear();
+            //keybd_print_vkstat("keybd_send_state");
+            if (changed)
             {
-                synth ? chords.build(gear)
-                      : chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                //chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                 stream_keybd(gear);
             }
         }
@@ -4765,11 +4775,7 @@ namespace netxs::gui
                 }
                 else if (command == ipc::pass_state) // Keybd state.
                 {
-                    if (data.len == sizeof(vkstat))
-                    {
-                        auto state_data = std::span<byte>{ (byte*)data.ptr, data.len };
-                        std::copy(state_data.begin(), state_data.end(), vkstat.begin());
-                    }
+                    keybd_load_vkstat(data.ptr, data.len);
                 }
                 else if (command == ipc::pass_input) // Keybd input.
                 {
@@ -4798,11 +4804,13 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
+                    //todo try to make it sync (drop enqueue) (Key press events can precede focus events because they are sent synchronously!(X11))
                     base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
-                        if (!xlayout) // The first focus event - sync keybd layout.
+                        if (!has_layout) // The first focus event - sync keybd layout.
                         {
+                            has_layout = true;
                             keybd_sync_layout();
                         }
                         if (mfocus.wheel)
@@ -4863,14 +4871,20 @@ namespace netxs::gui
                 if (new_focus_state)
                 {
                     keybd_read_vkstat(); // It must be called in current thread.
-                    for (auto target : target_list.value()) window_send_command(target, ipc::main_focus, local_target);
+                    for (auto target : target_list.value())
+                    {
+                        window_send_command(target, ipc::main_focus, local_target);
+                    }
                 }
                 else
                 {
                     keybd_reset_deadkey(); // Force reset deadkey state if it is. Windows doesn't reset deadkey state when refocusing but all other platforms do.
                     if (target_list) // Send to all that the focus is going to lost.
                     {
-                        for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
+                        for (auto target : target_list.value())
+                        {
+                            window_send_command(target, ipc::drop_focus);
+                        }
                     }
                 }
             }
@@ -4974,7 +4988,7 @@ namespace netxs::gui
         void connect()
         {
             sync_os_settings();
-            if (!(layer_create(master, this, config.wincoord, config.gridsize, border, cellsz)
+            if (!(layer_create(master, config.wincoord, config.gridsize, border, cellsz)
                && layer_create(blinky)
                && layer_create(header)
                && layer_create(footer)
@@ -4994,7 +5008,7 @@ namespace netxs::gui
                 size_window();
                 set_state(config.win_state);
                 update_gui();
-                window_initilize();
+                window_initialize();
 
                 //todo it doesn't work on win32 (deferred mediakey)
                 //LISTEN(tier::release, input::events::keybd::any, gear)
@@ -5087,6 +5101,7 @@ namespace netxs::gui
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             base::dequeue(); // Clear task queue.
             winio.join();
+            bell::sensors.clear(); // Reset all subscriptions.
         }
     };
 }
@@ -5419,6 +5434,7 @@ namespace netxs::gui
         bool fake_ralt{};     // window: Fake alt/ctrl key events on AltGr press/release (non-US kb layouts).
         ui32 fake_time{};     // window: Fake alt/ctrl event time stamp.
         si32 fake_scan{};     // window: Fake LeftCtrl scancode.
+        b256 vkstat{};        // window: Win32 keyboard virtual keys state.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -5495,7 +5511,7 @@ namespace netxs::gui
                 s.klok.erase(iter);
             }
         }
-        void layer_move_all()
+        void layers_move()
         {
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
             for (auto& l : layers)
@@ -5518,7 +5534,7 @@ namespace netxs::gui
             auto sc = input::key::map::data(input::key::Space).scan;
             ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, (HKL)hkl);
         }
-        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
+        void _keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
         {
             shifted.clear();
             unshift.clear();
@@ -5614,6 +5630,13 @@ namespace netxs::gui
             }
             s.sync.clear();
         }
+        void layers_present()
+        {
+            for (auto& l : layers)
+            {
+                layer_present(l);
+            }
+        }
         void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
         bool keybd_test_pressed(si32 virtcod, si32 keycode = 0)
         {
@@ -5627,6 +5650,10 @@ namespace netxs::gui
             }
             return !!(vkstat[virtcod] & 0x80);
         }
+        bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0)
+        {
+            return keybd_test_pressed(virtcod, keycode);
+        }
         bool keybd_read_pressed(si32 virtcod)
         {
             if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
@@ -5638,6 +5665,62 @@ namespace netxs::gui
         }
         bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        void _keybd_send_state(si32 virtcod = {},
+                               si32 keystat = {},
+                               si32 scancod = {},
+                               bool extflag = {},
+                               view cluster = {},
+                               bool synth = faux,
+                               byte payload = input::keybd::type::keypress)
+        {
+            auto state = synth ? keymod
+                               : keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod || synth;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
+            auto& gear = *stream.gears;
+            if ((changed || gear.ctlstat != keymod))
+            {
+                gear.ctlstat = keymod;
+                if (stream.m.enabled == hids::stat::ok)
+                {
+                    stream.m.ctlstat = keymod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                }
+            }
+            gear.payload = payload;
+            gear.extflag = extflag;
+            gear.virtcod = virtcod;
+            gear.scancod = scancod;
+            _keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
+            {
+                auto latin_shifted = text{};
+                auto latin_unshift = text{};
+                _keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
+                return std::pair{ latin_shifted, latin_unshift };
+            });
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
+            gear.keystat = keystat;
+            gear.keycode = keycode;
+            gear.xlayout = xlayout;
+            gear.cluster = cluster;
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
+                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
+            //keybd_print_vkstat("keybd_send_state");
+            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            {
+                synth ? chords.build(gear)
+                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                stream_keybd(gear);
+            }
+        }
         void keybd_sync_shift(bool async)
         {
             //Left/RightShift detection notes: The event of releasing any Shift key while both Shift keys are pressed
@@ -5657,12 +5740,12 @@ namespace netxs::gui
                     //if (old_rs && !new_rs) // RightShift released.
                     {
                         keymod &= ~mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                     }
                     //if (old_ls && !new_ls) // LeftShift released.
                     {
                         keymod &= ~mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                     }
                 }
                 else
@@ -5670,23 +5753,23 @@ namespace netxs::gui
                     if (old_ls && !new_ls) // LeftShift released.
                     {
                         keymod &= ~mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                     }
                     if (old_rs && !new_rs) // RightShift released.
                     {
                         keymod &= ~mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                     }
                 }
                 if (!old_ls && new_ls) // LeftShift pressed.
                 {
                     keymod |= mods::LShift;
-                    keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
+                    _keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
                 }
                 if (!old_rs && new_rs) // RightShift pressed.
                 {
                     keymod |= mods::RShift;
-                    keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
+                    _keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
                 }
                 if (new_ls && new_rs) // Two Shifts pressed.
                 {
@@ -5782,7 +5865,7 @@ namespace netxs::gui
                     if (keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
                     {
                         auto& break_key = input::key::map::data(input::key::Break);
-                        keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                        _keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
                         if constexpr (debugmode) log("Fake Pause 'release' key event generated");
                     }
                     fake_time = {};
@@ -5798,7 +5881,7 @@ namespace netxs::gui
                         {
                             fake_ralt = true;
                             keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
-                            keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
+                            _keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
                         }
                         if (fake_ralt) // Simulate AltGr.
                         {
@@ -5818,12 +5901,12 @@ namespace netxs::gui
                         auto& sysreq_key = input::key::map::data(input::key::SysReq);
                         if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
                         {
-                            keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                            _keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
                             if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
                         }
                         else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
                         {
-                            keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                            _keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
                             if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
                         }
                     }
@@ -5849,7 +5932,7 @@ namespace netxs::gui
             if (is_deadkey_released)
             {
                 //if constexpr (debugmode) log("deadkey released");
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
                 last_deadkey_vkey = {};
             }
             else if (keytype != 2)
@@ -5858,9 +5941,9 @@ namespace netxs::gui
                 {
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
-                        keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
+                        _keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(cluster, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        //print_vkstat("Alt+Numpad");
+                        //keybd_print_vkstat("Alt+Numpad");
                         return true;
                     }
                 }
@@ -5868,16 +5951,77 @@ namespace netxs::gui
                 {
                     cluster.clear();
                 }
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
             }
             else
             {
                 last_deadkey_vkey = virtcod;
                 //if constexpr (debugmode) log("deadkey pressed");
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
-            //print_vkstat("keybd_read_input");
+            //keybd_print_vkstat("keybd_read_input");
             return true;
+        }
+        si32 keybd_test_state()
+        {
+            auto state = 0;
+            if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+            if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
+            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            return state;
+        }
+        si32 keybd_read_state()
+        {
+            auto state = 0;
+            if (keybd_read_toggled(vkey::numlock )) state |= mods::NumLock;
+            if (keybd_read_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_read_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_read_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_read_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_read_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_read_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_read_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_read_pressed(vkey::ralt    )) state |= mods::RAlt; // We never equate AltGr with RAlt.
+            if (keybd_read_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_read_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            return state;
+        }
+        void keybd_load_vkstat(void* ptr, ui32 len)
+        {
+            if (len == sizeof(vkstat))
+            {
+                std::memcpy(vkstat.data(), ptr, sizeof(vkstat));
+            }
+        }
+        void keybd_print_vkstat(text s)
+        {
+            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
+            auto i = 0;
+            for (auto k : vkstat)
+            {
+                if (i % 16 == 0)
+                {
+                    s += "\n ";
+                    utf::to_hex<true>(i, s, 2);
+                    s += ' ';
+                }
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+            }
+            log(s);
         }
         void window_message_pump()
         {
@@ -5902,14 +6046,14 @@ namespace netxs::gui
         void keybd_sync_state(si32 virtcod = {})
         {
             ::GetKeyboardState(vkstat.data());
-            keybd_send_state(virtcod);
-            //print_vkstat("keybd_sync_state");
+            _keybd_send_state(virtcod);
+            //keybd_print_vkstat("keybd_sync_state");
         }
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(vkstat.data());
             mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_vkstat("keybd_read_vkstat");
+            //keybd_print_vkstat("keybd_read_vkstat");
             tslink.set_focus();
         }
         void keybd_wipe_vkstat()
@@ -5928,7 +6072,7 @@ namespace netxs::gui
             vkstat[vkey::oem_roya] = r;
             vkstat[vkey::oem_loya] = l;
             ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
-            //print_vkstat("deactivate");
+            //keybd_print_vkstat("deactivate");
         }
         auto is_layout_latin_based(HKL hkl)
         {
@@ -5959,7 +6103,7 @@ namespace netxs::gui
             }
             return faux;
         }
-        auto keybd_find_layout() // Find any installed latin-based keyboard layout.
+        auto _keybd_find_latin_layout() // Find any installed latin-based keyboard layout.
         {
             auto latin_hkl = HKL{};
             auto layout_count = ::GetKeyboardLayoutList(0, nullptr);
@@ -6004,7 +6148,7 @@ namespace netxs::gui
             else
             {
                 if constexpr (debugmode) log("The %% layout is not latin-based. Looking for a fallback layout.", utf::adjust(utf::to_hex(layout_id), 8, "0", true));
-                hkl_latin = keybd_find_layout(); // Find hkl fallback.
+                hkl_latin = _keybd_find_latin_layout(); // Find hkl fallback.
             }
             if (std::exchange(xlayout, layout_id) != layout_id)
             {
@@ -6125,7 +6269,7 @@ namespace netxs::gui
                     auto gen_event = [&](auto keystat)
                     {
                         gear.keystat = keystat;
-                        chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                        chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                         stream_keybd(gear);
                     };
                     gen_event(input::key::pressed);
@@ -6138,29 +6282,15 @@ namespace netxs::gui
                 return faux; // The event is not processed.
             }
         }
-        void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void window_make_focused_impl()  { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
         void window_make_topmost(bool s) { ontop_state = s; ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
         void window_make_foreground()    { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
         void window_shutdown()           { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()            { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
-        twod mouse_get_pos()             { return twod{ winmsg.pt.x, winmsg.pt.y }; }
-        void mouse_capture(si32 captured_by)
-        {
-            if (!std::exchange(heldby, heldby | captured_by))
-            {
-                ::SetCapture((HWND)master.hWnd);
-                if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
-            }
-        }
-        void mouse_release(si32 captured_by = -1)
-        {
-            if (std::exchange(heldby, heldby & ~captured_by) && !heldby)
-            {
-                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse" : captured_by == by::keybd ? "keybd" : "system");
-                ::ReleaseCapture();
-            }
-        }
+        fp2d mouse_get_pos()             { return fp2d{ winmsg.pt.x, winmsg.pt.y }; }
+        void mouse_capture_impl()        { ::SetCapture((HWND)master.hWnd); }
+        void mouse_release_impl()        { ::ReleaseCapture(); }
         void mouse_catch_outside()
         {
             auto ctrl_click = ctrl_pressed()                        // Detect Ctrl+LeftClick
@@ -6226,7 +6356,7 @@ namespace netxs::gui
             ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
             blinks.rate = a ? blinks.init : span::zero();
         }
-        void window_initilize()
+        void window_initialize()
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
@@ -6254,7 +6384,7 @@ namespace netxs::gui
 
         //todo static
         cont window_recv_command(arch lParam) { auto& data = *(COPYDATASTRUCT*)lParam; return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData }; }
-        void window_send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
+        void window_send_command_impl(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
         void window_post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
         rect window_get_fs_area(rect window_area)
         {
@@ -6313,7 +6443,7 @@ namespace netxs::gui
                 SetWindowCompositionAttribute(hwnd, &data);
             }
         }
-        bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        bool layer_create(layer& s, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -6342,8 +6472,8 @@ namespace netxs::gui
                     case WM_MBUTTONUP:        w->mouse_press(bttn::middle,  faux);               break;
                     case WM_XBUTTONDOWN:      w->mouse_press(xbttn(wParam), true);               break;
                     case WM_XBUTTONUP:        w->mouse_press(xbttn(wParam), faux);               break;
-                    case WM_MOUSEWHEEL:       w->mouse_wheel(hi(wParam), 0);                     break;
-                    case WM_MOUSEHWHEEL:      w->mouse_wheel(hi(wParam), 1);                     break;
+                    case WM_MOUSEWHEEL:       w->mouse_wheel((fp32)hi(wParam), 0);               break;
+                    case WM_MOUSEHWHEEL:      w->mouse_wheel(-(fp32)hi(wParam), 1);              break;
                     case WM_CAPTURECHANGED:   w->mouse_catch_outside();                          break; // Catch outside clicks.
                     case WM_ACTIVATEAPP:      if (wParam == TRUE) w->window_make_focused();      break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
                     case WM_SETFOCUS:         if (wParam != (arch)hWnd) w->focus_event(true);    break; // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
@@ -6417,7 +6547,7 @@ namespace netxs::gui
                 log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
                 return faux;
             }
-            auto& wc = host_ptr ? wc_window : wc_defwin;
+            auto& wc = cell_size ? wc_window : wc_defwin;
             auto owner = (HWND)master.hWnd;
             if (cell_size)
             {
@@ -6450,9 +6580,9 @@ namespace netxs::gui
                 log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
                 return faux;
             }
-            else if (host_ptr)
+            else if (cell_size)
             {
-                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
+                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)(winbase*)this);
                 //todo enable_acrylic(hWnd, argb{ 0x40'ff0000 });
             }
             s.hWnd = (arch)hWnd;
@@ -6473,214 +6603,2111 @@ namespace netxs::gui
 {
     struct window : winbase
     {
+        struct mouse_state_t
+        {
+            fp2d prev_coor{};
+            fp32 prev_step{};
+            bool prev_edge{};
+
+            auto _filter_x11_mouse_bug(twod max_coor, fp2d next_coor, si32 max_diagonal, bool active)
+            {
+                auto dc = next_coor - prev_coor;
+                auto next_step = dc.x * dc.x + dc.y * dc.y;
+                auto next_edge = (next_coor.x <= 0.0
+                               || next_coor.y <= 0.0 || next_coor.x >= max_coor.x
+                                                     || next_coor.y >= max_coor.y);
+                if (!active)
+                {
+                    //log(ansi::clr(cyanlt, utf::fprint("%%Free movement: prev_coor=%% prev_step=%% next_coor=%% next_step=%% ratio=%%", prompt::x11,
+                    //    prev_coor, prev_step, next_coor, next_step, next_step * next_step / prev_step)));
+                    prev_step = next_step;
+                    prev_coor = next_coor;
+                    prev_edge = next_edge;
+                    return faux;
+                }
+                auto k = !prev_edge && next_edge ? 0.1f : 10.0f;
+                auto fake_step = next_step * next_step > k * max_diagonal * prev_step;
+                //if (!fake_step && next_edge)
+                //{
+                //    log(ansi::clr(tint::yellowlt, utf::fprint("%%  Missed fake: prev_coor=%% prev_step=%% next_coor=%% next_step=%%  %% < %%", prompt::x11,
+                //    prev_coor, prev_step, next_coor, next_step, next_step * next_step, k * max_diagonal * prev_step)));
+                //}
+                if (fake_step)
+                {
+                    //log(ansi::err("%%Fake movement: prev_coor=%% prev_step=%% next_coor=%% next_step=%%  %% > %%"), prompt::x11, prev_coor, prev_step, next_coor, next_step, next_step * next_step, k * max_diagonal * prev_step);
+                }
+                else
+                {
+                    //log("%%Fair movement: prev_coor=%% prev_step=%% next_coor=%% next_step=%%  %% < %%", prompt::x11, prev_coor, prev_step, next_coor, next_step, next_step * next_step, k * max_diagonal * prev_step);
+                    prev_coor = next_coor;
+                    prev_step = next_step;
+                    prev_edge = next_edge;
+                }
+                return fake_step;
+            }
+        };
+        struct peer_state
+        {
+            ui32   serial{};
+            size_t received_bytes{};
+            byts   received_data;
+        };
+        struct x11_key_type_t
+        {
+            using key_type_desc = x11::req::xkb::get_map::reply::key_type_desc;
+            using xkb_kt_map_entry = x11::req::xkb::get_map::reply::key_type_desc::xkb_kt_map_entry;
+            using mods_desc = x11::req::xkb::get_map::reply::key_type_desc::mods_desc;
+
+            key_type_desc                 behavior;
+            std::vector<xkb_kt_map_entry> map_entries; // [behavior.num_map_entries]
+            std::vector<mods_desc>        preserve_entries; // [behavior.num_map_entries]
+        };
+        struct kb_layout_t
+        {
+            struct key_sym_t
+            {
+                byte                layout_wrap_mode;
+                byte                layout_count;
+                byte                behavior_type;
+                byte                width;
+                std::array<ui32, 8> syms;
+            };
+            std::array<key_sym_t, 256> key_syms{};
+            si32                       key_count{};
+            si32                       latin_key_count{};
+            bool is_latin() { return latin_key_count >= 26; }
+        };
+
+        using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
+
+        x11::session_t& session = *x11::session_ptr;
+        mouse_state_t mouse_state;
+        text batch_buffer;
+        fp2d current_mouse_pos;
+        ui16 master_pointer_id{};
+        ui16 captured_pointer_id{};
+        bool is_foreground_window{};
+        twod hidden_coor;
+        flag block_mouse_movement{};
+        std::unordered_map<ui32, peer_state> recv_buffers;
+        std::atomic<ui64> current_msc = 0;
+
+        ui32                        led_state{};    // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
+        std::array<byte, 32>        vkstat{};       // window: X11 keyboard virtual keys state.
+        std::vector<x11_key_type_t> key_types;
+        std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
+        modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
+        std::array<byte, 256>       keycode_to_vkey{}; // window: Latin keycodes to vkey lut.
+        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to national keycodes lut.
+        std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
+        x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
+
         window(auto&& ...Args)
             : winbase{ Args... }
-        { }
-        bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
-        bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
-        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        {
+            //todo it is just a test
+            auto align = [](ui32 offset){ return (ui32)(offset + 15) & ~15; };
+            auto large_step = (session.shm_buffer_len / 2) / 3;
+            auto small_step = (session.shm_buffer_len / 2) / 9;
+            layers[0].get().shm_offset = 0;
+            layers[1].get().shm_offset = align(large_step);
+            layers[2].get().shm_offset = align(layers[1].get().shm_offset + large_step);
+            layers[3].get().shm_offset = align(layers[2].get().shm_offset + small_step);
+            layers[4].get().shm_offset = align(layers[3].get().shm_offset + small_step);
+            if constexpr (debugmode) log("shm_size=%% l0=%% l1=%% l2=%% l3=%% l4=%%", session.shm_buffer_len,
+                layers[0].get().shm_offset,
+                layers[1].get().shm_offset,
+                layers[2].get().shm_offset,
+                layers[3].get().shm_offset,
+                layers[4].get().shm_offset);
+        }
+
+        auto _check_if_mouse_moved(fp2d coor, bool forced) //todo: Workaround: Master's root coords are broken when windows are intensively moved in the most of linux distributions (even query_pointer affected).
+        {
+            if (current_mouse_pos != coor && (forced || !block_mouse_movement.load(std::memory_order_acquire)))
+            {
+                mouse_state._filter_x11_mouse_bug(session.x11_display_size - dot_11, coor, session.x11_diagonal, stream.m.buttons && session.wl_present); // wl_present: no need to check in pure X11 session.
+                if (current_mouse_pos != mouse_state.prev_coor)
+                {
+                    current_mouse_pos = mouse_state.prev_coor;
+                    mouse_moved();
+                    return true;
+                }
+            }
+            return faux;
+        }
+        void _wm_layer_present(text& batch_buffer, layer& s, std::optional<ui16>& seq_num_any)
+        {
+            auto target_area = s.area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size });
+            if (s.live && target_area)
+            {
+                if (std::exchange(s.prev_live, true) == faux)
+                if (s.wm_hWnd == master.wm_hWnd) // Make the master.wm_hWnd visible for mouse.
+                {
+                    session.set_mouse_input(batch_buffer, s.wm_hWnd, true);
+                }
+                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd },
+                                            x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
+                                                                                 .y      = (ui16)target_area.coor.y,
+                                                                                 .width  = (ui16)target_area.size.x,
+                                                                                 .height = (ui16)target_area.size.y });
+                auto r = target_area;
+                r.coor -= s.area.coor;
+                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
+                {
+                    .major_opcode = session.shm_major_opcode,
+                    .drawable     = (ui32)s.wm_hWnd,
+                    .gc_id        = (ui32)s.wm_hdc,
+                    .total_width  = (ui16)s.area.size.x,
+                    .total_height = (ui16)s.area.size.y,
+                    .src_x        = (ui16)r.coor.x,
+                    .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+                    .src_width    = (ui16)r.size.x, // Dirty rect size.
+                    .src_height   = (ui16)r.size.y, //
+                    .dst_x        = (si16)0,//r.coor.x, // Window dest coor.
+                    .dst_y        = (si16)0,//r.coor.y, //
+                    .shm_seg_id   = session.shm_segment_xid,
+                    .offset       = (ui32)dirty_offset, // New data start.
+                });
+            }
+            else if (s.prev_live) // Hide wm layer.
+            {
+                s.prev_live = faux;
+                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd },
+                                            x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
+                                                                                 .y      = (ui16)target_area.coor.y,
+                                                                                 .width  = 1,
+                                                                                 .height = 1 });
+                session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.wm_hWnd,
+                                                                    .gc_id       = (ui32)s.wm_hdc });
+                if (s.wm_hWnd == master.wm_hWnd) // Make the master.wm_hWnd mouse transparent.
+                {
+                    session.set_mouse_input(batch_buffer, s.wm_hWnd, faux);
+                }
+            }
+        }
+        void _wait_next_vblank(ui16 seq_num)
+        {
+            if (session.wl_present) // On WL: Skip exactly one frame for smooth resizing on 60Hz monitors.
+            {
+                session.sync_reply(seq_num, 17ms);
+                std::this_thread::sleep_for(17ms); // This is the only way to sync with vblank on WL.
+            }
+            else // Wait vblank in pure X11 session.
+            {
+                // Get current msc.
+                auto n = ui16{};
+                {
+                    auto lock = std::lock_guard{ session.mutex };
+                    n = session.sequence_counter + netxs::ui16max / 2; // Use parallel sequence to avoid interference.
+                    session.accumrq(batch_buffer, x11::req::xpresent::notify_msc{ .major_opcode  = session.xpresent_major_opcode,
+                                                                                  .window_id     = (ui32)master.fg_hWnd,
+                                                                                  .serial        = n,
+                                                                                  .target_msc    = 0 });
+                    session.received_replies[n].store(true, std::memory_order_release);
+                    if (batch_buffer.size())
+                    {
+                        session.x11connection->send(batch_buffer);
+                        batch_buffer.clear();
+                    }
+                }
+                //auto k0 = datetime::now();
+                //log(ansi::clr(tint::greenlt, "start synchronization (serial=%%): current_time=%%"), n, k0);
+                session.sync_reply(n, 17ms); // Wait for the current msc.
+                //auto k1 = datetime::now();
+                //log(ansi::clr(tint::greenlt, "got current msc (serial=%%): current_time=%% spent=%%ms current_msc=%%"), n, k1, datetime::round<si32>(k1 - k0), current_msc);
+                // Skip exactly one next frame (skip the current frame).
+                {
+                    auto lock = std::lock_guard{ session.mutex };
+                    n = session.sequence_counter + netxs::ui16max / 2;
+                    auto target_msc = current_msc + 1; // Next vblank.
+                    session.accumrq(batch_buffer, x11::req::xpresent::notify_msc{ .major_opcode  = session.xpresent_major_opcode,
+                                                                                  .window_id     = (ui32)master.fg_hWnd,
+                                                                                  .serial        = n,
+                                                                                  .target_msc    = target_msc });
+                    session.received_replies[n].store(true, std::memory_order_release);
+                    if (batch_buffer.size())
+                    {
+                        session.x11connection->send(batch_buffer);
+                        batch_buffer.clear();
+                    }
+                }
+                session.sync_reply(n, 17ms, 1ms); // Wait next vblank.
+                //auto k2 = datetime::now();
+                //log(ansi::clr(tint::greenlt, "got vblank (serial=%%): current_time=%% spent=%%ms current_msc=%%"), n, k1, datetime::round<si32>(k2 - k0), current_msc);
+            }
+        }
+        void _toggle_foreground(bool focused)
+        {
+            auto changed = std::exchange(is_foreground_window, focused) != is_foreground_window;
+            if (changed)
+            {
+                auto lock = std::lock_guard{ session.mutex };
+                auto seq_num = std::optional<ui16>{};
+                if (is_foreground_window)
+                {
+                    for (auto& l : layers)
+                    {
+                        auto& s = l.get();
+                        auto target_area = rect{ hidden_coor, s.live ? s.area.size : dot_11 };
+                        session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
+                                                    x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
+                                                                                         .y      = (ui16)target_area.coor.y,
+                                                                                         .width  = (ui16)target_area.size.x,
+                                                                                         .height = (ui16)target_area.size.y });
+                        target_area.size = dot_11;
+                        session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd },
+                                                    x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
+                                                                                         .y      = (ui16)target_area.coor.y,
+                                                                                         .width  = (ui16)target_area.size.x,
+                                                                                         .height = (ui16)target_area.size.y });
+                        //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.bg_hWnd });
+                        //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
+                        if (s.live)
+                        {
+                            auto r = rect{ dot_00, s.area.size };
+                            auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                            seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
+                            {
+                                .major_opcode = session.shm_major_opcode,
+                                .drawable     = (ui32)s.fg_hWnd,
+                                .gc_id        = (ui32)s.fg_hdc,
+                                .total_width  = (ui16)s.area.size.x,
+                                .total_height = (ui16)s.area.size.y,
+                                .src_x        = (ui16)r.coor.x,
+                                .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+                                .src_width    = (ui16)r.size.x, // Dirty rect size.
+                                .src_height   = (ui16)r.size.y, //
+                                .dst_x        = (si16)r.coor.x, // Window dest coor.
+                                .dst_y        = (si16)r.coor.y, //
+                                .shm_seg_id   = session.shm_segment_xid,
+                                .offset       = (ui32)dirty_offset, // New data start.
+                            });
+                        }
+                    }
+                    //if (seq_num.has_value())
+                    //{
+                    //    _wait_next_vblank(seq_num.value());
+                    //}
+                    for (auto& l : layers) // Show visible layers.
+                    {
+                        auto& s = l.get();
+                        s.prev_live = true; // Hint for wm layers.
+                        if (s.live)
+                        {
+                            session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
+                                                        x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
+                                                                                             .y = (ui16)s.area.coor.y });
+                        }
+                        session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd, },
+                                                    x11::req::configure_window::payload{ .width  = 1,
+                                                                                         .height = 1 });
+                        // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+                        session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.wm_hWnd,
+                                                                            .gc_id       = (ui32)s.wm_hdc });
+                        session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
+                                                                            .gc_id       = (ui32)s.bg_hdc });
+                    }
+                    // Make base layer foreground.
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.fg_hWnd },
+                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.bg_hWnd },
+                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
+                    // Configure mouse input.
+                    session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
+                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                    session.set_mouse_input(batch_buffer, master.wm_hWnd, faux);
+                }
+                else
+                {
+                    for (auto& l : layers)
+                    {
+                        auto& s = l.get();
+                        _wm_layer_present(batch_buffer, s, seq_num);
+                        // Hide ~~and unmap~~ or=1 layers.
+                        session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd }, // Hide layer before unmapping in order to avoid any destroying animation.
+                                                    x11::req::configure_window::payload{ .x      = (ui16)hidden_coor.x,
+                                                                                         .y      = (ui16)hidden_coor.y,
+                                                                                         .width  = 1,
+                                                                                         .height = 1 });
+                        // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+                        session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.fg_hWnd,
+                                                                            .gc_id       = (ui32)s.fg_hdc });
+                        //todo revise. this doesn't work
+                        //if (&s != &master) // Make sub-layers on top of master (in background).
+                        //{
+                        //    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd, },
+                        //                                x11::req::configure_window::payload{ .sibling    = master.wm_hWnd,
+                        //                                                                     .stack_mode = x11::req::configure_window::Above });
+                        //}
+                        //session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.fg_hWnd });
+                        //session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.bg_hWnd });
+                    }
+                    session.set_mouse_input(batch_buffer, master.wm_hWnd, master.live);
+                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                    session.set_mouse_input(batch_buffer, master.fg_hWnd, faux);
+                }
+                if (batch_buffer.size())
+                {
+                    session.x11connection->send(batch_buffer);
+                    if constexpr (debugmode) log("%% layer_move_all: Batched layout update sent to X-server (size=%% bytes)", prompt::x11, batch_buffer.size());
+                    batch_buffer.clear();
+                }
+            }
+        }
+        auto _check_has_vtmx_property(arch target_id)
+        {
+            auto result = faux;
+            // Check if destination can reply (has "VTMX" atom).
+            auto lock = std::lock_guard{ session.sync_mutex };
+            if constexpr (debugmode) log("_check_has_vtmx_property: seq=%%", session.sync_sequence_counter + (ui16)1);
+            auto seq_num = session.syncrq(session.sync_buffer, x11::req::get_property{ .window_id   = (ui32)target_id,
+                                                                                       .property    = session.atom_vtmx,
+                                                                                       .prop_type   = session.atom_cardinal,
+                                                                                       .long_length = 1 });
+            session.sync_x11connection->send(session.sync_buffer);
+            auto ev = x11::event::any{};
+            while (session.sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
+            {
+                auto type = ev.type & 0x7f;
+                if (type == x11::event::Error)
+                {
+                    if constexpr (debugmode) log("get_property atom_vtmx error: %%", session.get_error(ev));
+                }
+                else if ((type == x11::event::Reply || type == x11::event::GenericEvent) && ev.length)
+                {
+                    session.sync_buffer.assign(ev.length * 4, '\0');
+                    if (session.sync_x11connection->recv_all(session.sync_buffer.data(), session.sync_buffer.size()).size() == session.sync_buffer.size())
+                    {
+                        auto reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                        if (reply.format == sizeof(ui32) * 8 && reply.prop_type == session.atom_vtmx) // format == 0 means that property not found.
+                        if (netxs::start_lifetime_as<si32>(session.sync_buffer.data())) // ==1
+                        {
+                            result = true; // Has vtmx property.
+                        }
+                    }
+                }
+                if (ev.sequence == seq_num) break;
+            }
+            session.sync_buffer.clear();
+            return result;
+        }
+        void _post_command(arch target_id, si32 command, arch lParam = {})
+        {
+            if (target_id)
+            {
+                if constexpr (debugmode) log("_post_command: seq=%% target_id=%% command=%%", session.sync_sequence_counter + (ui16)1, utf::to_hex(target_id), command);
+                session.syncrq(x11::req::send_event{ .destination_id = (ui32)target_id,
+                                                     .originator_id  = 0,
+                                                     .message_type   = session.atom_vtmx,
+                                                     .command        = (ui32)command,
+                                                     .lParam         = (ui32)lParam }); // wParam, lParam.
+            }
+        }
+        auto _send_command(arch target_id, si32 command, arch lParam = {})
+        {
+            auto result = 0u;
+            if (target_id && _check_has_vtmx_property(target_id)) // Check if destination can reply (has "VTMX" atom).
+            {
+                // Send command.
+                auto lock = std::lock_guard{ session.sync_mutex };
+                auto serial = session.sync_sequence_counter + (ui16)1;
+                if constexpr (debugmode) log("_send_command: seq=%%", session.sync_sequence_counter + (ui16)1);
+                session.syncrq(session.sync_buffer, x11::req::send_event{ .destination_id = (ui32)target_id,
+                                                                          .originator_id  = session.sync_msg_window_id,
+                                                                          .message_type   = session.atom_vtmx,
+                                                                          .serial         = (ui16)serial,
+                                                                          .command        = (ui32)command,
+                                                                          .lParam         = (ui32)lParam }); // wParam, lParam.
+                session.sync_x11connection->send(session.sync_buffer);
+                auto ev = x11::event::any{};
+                while (session.sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
+                {
+                    auto type = ev.type & 0x7F;
+                    if (type == x11::event::Error)
+                    {
+                        log("%%Send command error: %%", prompt::x11, session.get_error(ev));
+                    }
+                    else if (type == x11::event::ClientMessage)
+                    {
+                        auto reply = netxs::start_lifetime_as<x11::req::send_event::reply>(ev);
+                        if (reply.serial == (ui16)serial)
+                        {
+                            result = reply.lParam; // Has vtmx property.
+                            break;
+                        }
+                    }
+                    else if ((type == x11::event::Reply || type == x11::event::GenericEvent) && ev.length)
+                    {
+                        session.sync_buffer.assign(ev.length * 4, '\0');
+                        if (session.sync_x11connection->recv_all(session.sync_buffer.data(), session.sync_buffer.size()).size() != session.sync_buffer.size())
+                        {
+                            log(ansi::err("%%Send command error: Unexpected reply length", prompt::x11));
+                            break;
+                        }
+                    }
+                }
+                session.sync_buffer.clear();
+            }
+            return result;
+        }
+        void _keybd_request_state() // Request pressed keys and leds.
+        {
+            auto lock = std::lock_guard{ session.sync_mutex };
+            if constexpr (debugmode) log("query_keymap and get_keyboard_control: seq1=%% seq2=%%", session.sync_sequence_counter + (ui16)1, session.sync_sequence_counter + (ui16)2);
+            auto seq_num1 = session.syncrq(session.sync_buffer, x11::req::query_keymap{}); // Request pressed keys.
+            auto seq_num2 = session.syncrq(session.sync_buffer, x11::req::xkb::get_state{ .major_opcode = session.xkb_major_opcode }); // Request led state.
+            session.sync_x11connection->send(session.sync_buffer);
+            session.sync_buffer.resize(x11::recv_packet_size);
+            while (session.sync_x11connection->recv_all(session.sync_buffer.data(), x11::recv_packet_size).size() == x11::recv_packet_size)
+            {
+                auto ev = netxs::start_lifetime_as<x11::event::any>(session.sync_buffer.data());
+                auto type = ev.type & 0x7F;
+                if (type == x11::event::Error)
+                {
+                    log(ansi::err("%%Get keyboard state error: %%"), prompt::x11, session.get_error(ev));
+                }
+                else if (type == x11::event::Reply || type == x11::event::GenericEvent)
+                {
+                    if constexpr (debugmode) log("got reply: seq=%% ev.length=%% ev.length*4=%% type=%%", ev.sequence, ev.length, ev.length * 4, type);
+                    if (ev.length)
+                    {
+                        auto rest = ev.length * 4;
+                        auto start = session.sync_buffer.size();
+                        session.sync_buffer.resize(start + rest);
+                        auto q = session.sync_x11connection->recv_all(session.sync_buffer.data() + start, rest);
+                        if (q.size() != rest)
+                        {
+                            if constexpr (debugmode) log(ansi::err("%%Get keyboard state error: Unexpected reply length: recv.size=%%\n"), prompt::x11, q.size(),
+                                utf::buffer_to_hex(view{ session.sync_buffer.data(), start + q.size() }, true));
+                            break;
+                        }
+                    }
+                    if (type == x11::event::Reply)
+                    {
+                        if (ev.sequence == seq_num1)
+                        {
+                            auto reply = netxs::start_lifetime_as<x11::req::query_keymap::reply>(session.sync_buffer.data());
+                            if constexpr (debugmode) log("recieved vkstat");
+                            std::memcpy(vkstat.data(), &reply.keys, vkstat.size());
+                        }
+                        else if (ev.sequence == seq_num2)
+                        {
+                            auto reply = netxs::start_lifetime_as<x11::req::xkb::get_state::reply>(session.sync_buffer.data());
+                            auto current_layout = reply.group;
+                            if constexpr (debugmode) log("recieved led_bits=%% current_layout=%%", utf::to_bin(reply.locked_mods), (si32)current_layout);
+                            _set_keyboard_led_state(reply.locked_mods);
+                        }
+                    }
+                    session.sync_buffer.resize(x11::recv_packet_size);
+                }
+                if (ev.sequence == seq_num2) break;
+            }
+            session.sync_buffer.clear();
+        }
+        void _set_keyboard_led_state(auto state)
+        {
+            led_state = state;
+        }
+        void _parse_layouts(qiew q)
+        {
+            auto reply = netxs::start_lifetime_as<x11::req::xkb::get_map::reply>(q.data());
+            if constexpr (debugmode) log(" layout: payload_size=%% present_mask=%% min_key=%% max_key=%%", q.size(), utf::to_bin(reply.present), (si32)reply.min_key_code, (si32)reply.max_key_code);
+            q.remove_prefix(sizeof(reply));
+            keycode_to_vkey = {};
+            vkey_to_keycode = {};
+            layouts         = {}; // Clear layout buffers.
+            if constexpr (debugmode) log("Parse keyboard layouts");
+            if (reply.present & x11::req::xkb::KeyTypesMask)
+            {
+                if constexpr (debugmode) log("1. KeyTypesMask: first_type=%% num_types=%% total_types=%%", (si32)reply.first_type, (si32)reply.num_types, (si32)reply.total_types);
+                window::key_types.resize(reply.total_types);
+                auto index = (si32)reply.first_type;
+                for (auto& kt : window::key_types)
+                {
+                    kt.behavior = netxs::start_lifetime_as<decltype(kt.behavior)>(q.data());
+                    if constexpr (debugmode) log("  key behavior %%: ", index++,
+                        "\n             mask=", utf::to_bin(kt.behavior.mask),
+                        "\n        real_mods=", utf::to_bin(kt.behavior.real_mods),
+                        "\n     virtual_mods=", utf::to_bin(kt.behavior.virtual_mods),
+                        "\n       num_levels=", (si32)kt.behavior.num_levels,
+                        "\n  num_map_entries=", (si32)kt.behavior.num_map_entries,
+                        "\n         preserve=", (si32)kt.behavior.preserve
+                    );
+                    q.remove_prefix(sizeof(kt.behavior));
+                    kt.map_entries.resize(kt.behavior.num_map_entries);
+                    auto entry_index = 0;
+                    for (auto& me : kt.map_entries)
+                    {
+                        me = netxs::start_lifetime_as<std::decay_t<decltype(me)>>(q.data());
+                        if constexpr (debugmode) log("\t map_entry %%: ", entry_index++,
+                            "\n\t         active=", (si32)me.active,
+                            "\n\t      mods_mask=", utf::to_bin(me.mods_mask),
+                            "\n\t          level=", (si32)me.level,
+                            "\n\t      real_mods=", utf::to_bin(me.real_mods),
+                            "\n\t   virtual_mods=", utf::to_bin(me.virtual_mods)
+                        );
+                        q.remove_prefix(sizeof(me));
+                    }
+                    if (kt.behavior.preserve)
+                    {
+                        kt.preserve_entries.resize(kt.behavior.num_map_entries);
+                        auto size = kt.behavior.num_map_entries * sizeof(x11::req::xkb::get_map::reply::key_type_desc::mods_desc);
+                        std::memcpy(kt.preserve_entries.data(), q.data(), size);
+                        q.remove_prefix(size);
+                        if constexpr (debugmode)
+                        {
+                            auto index = 0;
+                            for (auto& m : kt.preserve_entries)
+                            {
+                                log("\t\t preserve_entry %%: ", index++,
+                                "\n\t\t           mask=", utf::to_bin(m.mask),
+                                "\n\t\t      real_mods=", utf::to_bin(m.real_mods),
+                                "\n\t\t    virtualMods=", utf::to_bin(m.virtual_mods));
+                            }
+                        }
+                    }
+                }
+            }
+            if (reply.present & x11::req::xkb::KeySymsMask)
+            {
+                if constexpr (debugmode) log("2. KeySymsMask: first_key_sym=%% total_syms=%% num_key_syms=%%", (si32)reply.first_key_sym, (si32)reply.total_syms, (si32)reply.num_key_syms);
+                auto max_key_code = reply.first_key_sym + reply.num_key_syms;
+                for (auto key_code = (si32)reply.first_key_sym; key_code < max_key_code; key_code++)
+                {
+                    auto key_desc = netxs::start_lifetime_as<x11::req::xkb::get_map::reply::key_sym_map_desc>(q.data());
+                    auto num_groups = (byte)(key_desc.group_info & x11::req::xkb::get_map::reply::key_sym_map_desc::GroupCountMask);
+                    auto wrap_mode  = (byte)(key_desc.group_info & x11::req::xkb::get_map::reply::key_sym_map_desc::GroupsWrapMask);
+                    auto wrap_str   = wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_WrapIntoRange     ? "Wrap"
+                                    : wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_ClampIntoRange    ? "Clamp"
+                                    : wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_RedirectIntoRange ? "Redirect"
+                                                                                                                           : "unknown";
+                    if constexpr (debugmode)
+                    {
+                        log("key_syms: keyCode=%% kt_index=%%/%%/%%/%% group_info=%% g_count=%% g_wrap=%% width=%% n_syms=%%",
+                            (si32)key_code, (si32)key_desc.kt_index[0], (si32)key_desc.kt_index[1], (si32)key_desc.kt_index[2], (si32)key_desc.kt_index[3],
+                            utf::to_bin(key_desc.group_info), (si32)num_groups, wrap_str,
+                            (si32)key_desc.width, (si32)key_desc.num_syms);
+                    }
+                    q.remove_prefix(sizeof(key_desc));
+                    // Peek led modifiers for block 3.
+                    if (auto peek_keysym = netxs::start_lifetime_as<ui32>(q.data()))
+                    if (auto virtcode = x11::key::base_keysym_to_vkey(peek_keysym))
+                    {
+                        keycode_to_vkey[key_code] = virtcode;
+                        vkey_to_keycode[virtcode] = key_code;
+                    }
+                    for (auto layout_index = 0u; layout_index < layouts.size(); layout_index++) // Fill existing layout buffers.
+                    {
+                        auto& l = layouts[layout_index];
+                        auto& key_rec = l.key_syms[key_code];
+                        key_rec.behavior_type    = key_desc.kt_index[layout_index];
+                        key_rec.layout_wrap_mode = wrap_mode;
+                        key_rec.layout_count     = num_groups;
+                        key_rec.width            = key_desc.width;
+                        if (layout_index < num_groups && key_desc.width)
+                        {
+                            auto shift0_keysym = netxs::start_lifetime_as<ui32>(q.data());
+                            l.key_count++;
+                            if (shift0_keysym >= 'a' && shift0_keysym <= 'z') l.latin_key_count++;
+                            for (auto i = 0; i < key_desc.width; i++)
+                            {
+                                auto keysym = netxs::start_lifetime_as<ui32>(q.data());
+                                key_rec.syms[i] = keysym;
+                                if constexpr (debugmode)
+                                {
+                                    log<faux>("  %% %%", utf::debase437(utf::to_utf_from_code(x11::key::sym_to_unicode(keysym))), utf::to_hex(keysym));
+                                    if (i == key_desc.width - 1) log("");
+                                }
+                                q.remove_prefix(sizeof(ui32));
+                            }
+                        }
+                    }
+                }
+                if constexpr (debugmode)
+                {
+                    log("Layouts:");
+                    auto i = 0;
+                    for (auto& l : layouts)
+                    {
+                        log("  layout %%: key_count=%% latin_key_count=%%", i++, l.key_count, l.latin_key_count);
+                    }
+                }
+            }
+            if (reply.present & x11::req::xkb::ModifierMapMask)
+            {
+                assert(q.size() >= reply.total_mod_map_keys);
+                auto count = reply.total_mod_map_keys;
+                while (count--)
+                {
+                    auto key_code = (byte)q.pop_front();
+                    auto mod_mask = (byte)q.pop_front();
+                    auto vkey_id  = keycode_to_vkey[key_code];
+                         if (vkey_id == vkey::numlock                          ) modifier_map.num_lock    |= mod_mask;
+                    else if (vkey_id == vkey::capslock                         ) modifier_map.caps_lock   |= mod_mask;
+                    else if (vkey_id == vkey::scrllock                         ) modifier_map.scroll_lock |= mod_mask;
+                    else if (vkey_id == vkey::lctrl  || vkey_id == vkey::rctrl ) modifier_map.ctrl        |= mod_mask;
+                    else if (vkey_id == vkey::lalt   || vkey_id == vkey::ralt  ) modifier_map.alt         |= mod_mask;
+                    else if (vkey_id == vkey::lshift || vkey_id == vkey::rshift) modifier_map.shift       |= mod_mask;
+                    else if (vkey_id == vkey::lsuper || vkey_id == vkey::rsuper) modifier_map.super       |= mod_mask;
+                    else if (vkey_id == vkey::lmeta  || vkey_id == vkey::rmeta ) modifier_map.meta        |= mod_mask;
+                    else if (vkey_id == vkey::lhyper || vkey_id == vkey::rhyper) modifier_map.hyper       |= mod_mask;
+                }
+                if constexpr (debugmode) log("3. ModifierMapMask: first_mod_map_key=%% num_mod_map_keys=%% total_mod_map_keys=%%", (si32)reply.first_mod_map_key, (si32)reply.num_mod_map_keys, (si32)reply.total_mod_map_keys,
+                    "\n     num_mask=", utf::to_bin((byte)modifier_map.num_lock   ),
+                    "\n    caps_mask=", utf::to_bin((byte)modifier_map.caps_lock  ),
+                    "\n  scroll_mask=", utf::to_bin((byte)modifier_map.scroll_lock),
+                    "\n    ctrl_mask=", utf::to_bin((byte)modifier_map.ctrl       ),
+                    "\n     alt_mask=", utf::to_bin((byte)modifier_map.alt        ),
+                    "\n   shift_mask=", utf::to_bin((byte)modifier_map.shift      ),
+                    "\n   super_mask=", utf::to_bin((byte)modifier_map.super      ),
+                    "\n    meta_mask=", utf::to_bin((byte)modifier_map.meta       ),
+                    "\n   hyper_mask=", utf::to_bin((byte)modifier_map.hyper      ));
+            }
+        }
+        void _keybd_load_layouts()
+        {
+            auto lock = std::lock_guard{ session.sync_mutex };
+            if constexpr (debugmode) log("_keybd_load_layouts: seq=%%", session.sync_sequence_counter + (ui16)1);
+            auto seq_num = session.syncrq(session.sync_buffer, x11::req::xkb::get_map{ .major_opcode  = session.xkb_major_opcode,
+                                                                                       .first_key_sym = session.s.min_keycode,
+                                                                                       .num_key_syms  = (byte)(session.s.max_keycode - session.s.min_keycode + 1) });
+            session.sync_x11connection->send(session.sync_buffer);
+            session.sync_buffer.resize(x11::recv_packet_size);
+            while (session.sync_x11connection->recv_all(session.sync_buffer.data(), x11::recv_packet_size).size() == x11::recv_packet_size)
+            {
+                auto ev = netxs::start_lifetime_as<x11::event::any>(session.sync_buffer.data());
+                auto type = ev.type & 0x7F;
+                if (type == x11::event::Error)
+                {
+                    log(ansi::err("%%Get keyboard layout error: %%"), prompt::x11, session.get_error(ev));
+                }
+                else if (type == x11::event::Reply || type == x11::event::GenericEvent)
+                {
+                    if constexpr (debugmode) log("got reply: seq=%% ev.length=%% ev.length*4=%% type=%%", ev.sequence, ev.length, ev.length * 4, type);
+                    if (ev.length)
+                    {
+                        auto rest = ev.length * 4;
+                        auto start = session.sync_buffer.size();
+                        session.sync_buffer.resize(start + rest);
+                        auto q = session.sync_x11connection->recv_all(session.sync_buffer.data() + start, rest);
+                        if (q.size() != rest)
+                        {
+                            if constexpr (debugmode) log(ansi::err("%%Get keyboard state error: Unexpected reply length: recv.size=%%\n"), prompt::x11, q.size(),
+                                utf::buffer_to_hex(view{ session.sync_buffer.data(), start + q.size() }, true));
+                            break;
+                        }
+                    }
+                    if (type == x11::event::Reply && ev.sequence == seq_num)
+                    {
+                        _parse_layouts(session.sync_buffer);
+                    }
+                    session.sync_buffer.resize(x11::recv_packet_size);
+                }
+                if (ev.sequence == seq_num) break;
+            }
+            session.sync_buffer.clear();
+        }
+        auto _keybd_find_latin_layout() // Find any installed latin-based keyboard layout.
+        {
+            auto latin_hkl = 0u;
+            auto i = 0u;
+            while (i < layouts.size()) // Iterate over user's layouts.
+            {
+                if (layouts[i].is_latin())
+                {
+                    latin_hkl = i;
+                    break;
+                }
+                i++;
+            }
+            if constexpr (debugmode)
+            if (i == layouts.size())
+            {
+                log("Latin-based keyboard layout not found");
+            }
+            return (arch)latin_hkl;
+        }
+        auto _wrap_layout(auto& base_key, byte target_group)
+        {
+            auto layout_count = std::max((byte)1, base_key.layout_count);
+            if (target_group >= layout_count) // Figure out the target layout (group).
+            {
+                using key_sym_map_desc = x11::req::xkb::get_map::reply::key_sym_map_desc;
+                if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_WrapIntoRange)
+                {
+                    target_group = target_group % layout_count;
+                }
+                else if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_ClampIntoRange)
+                {
+                    target_group = layout_count - 1;
+                }
+                else if (base_key.layout_wrap_mode == key_sym_map_desc::Wrap_RedirectIntoRange)
+                {
+                    target_group = 0;
+                }
+            }
+            return target_group;
+        }
+        auto _get_keysym(si32 keycode, arch layout_id)
+        {
+            auto& base_key = layouts[0].key_syms[(byte)keycode]; // The key properties are the same across all groups.
+            auto target_layout = _wrap_layout(base_key, (byte)layout_id & 3);
+            auto target_keysym = layouts[target_layout].key_syms[(byte)keycode].syms[0];
+            return target_keysym;
+        }
+        auto _process_shift_level(byte keycode, ui16 modifiers, byte global_layout_id)
+        {
+            struct result
+            {
+                ui32 keysym;
+                ui16 compose_mods; // Modifiers left after shifting.
+            };
+
+            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
+            if (base_key.width == 0)
+            {
+                return result{ 0u, modifiers }; // Key has no symbols.
+            }
+            auto target_group = _wrap_layout(base_key, global_layout_id);
+            auto& group_key_rec = layouts[target_group].key_syms[keycode];
+            auto type_idx = group_key_rec.behavior_type;
+            if (type_idx >= key_types.size())
+            {
+                return result{ group_key_rec.syms[0], modifiers }; // Unknown key type. Return Level1 symbol for the group.
+            }
+            auto& kt = key_types[type_idx];
+            auto target_level = 0b00; // Level 0 by default.
+            auto consumed_mods = ui16{};
+            auto preserved_mods = ui16{};
+            if (auto effective_mods = modifiers & kt.behavior.mask) // Filter modifiers by mask.
+            {
+                auto matched_rule_idx = -1;
+                for (auto i = 0; i < (si32)kt.map_entries.size(); ++i) // Looking for the level shift rule.
+                {
+                    auto& me = kt.map_entries[i];
+                    if (me.active && me.mods_mask == effective_mods)
+                    {
+                        target_level = std::min((si32)me.level, group_key_rec.width - 1);
+                        matched_rule_idx = i;
+                        break;
+                    }
+                }
+                consumed_mods = kt.behavior.mask;
+                if (matched_rule_idx != -1 && kt.behavior.preserve && (size_t)matched_rule_idx < kt.preserve_entries.size()) // Has a table of preserved modifiers.
+                {
+                    preserved_mods = kt.preserve_entries[matched_rule_idx].mask;
+                }
+            }
+            auto compose_mods = (ui16)((modifiers & ~consumed_mods) | preserved_mods);
+            return result{ group_key_rec.syms[target_level], compose_mods };
+        }
+        void _keybd_peek_layout(byte keycode, byte modifiers, byte layout_id, text& shifted, text& unshift)
+        {
+            shifted.clear();
+            unshift.clear();
+            if (keycode)
+            {
+                auto unshift_mods = modifiers & ~modifier_map.shift;
+                auto res_unshift = _process_shift_level(keycode, unshift_mods, layout_id);
+                if (res_unshift.keysym)
+                {
+                    auto unicode = x11::key::sym_to_unicode(res_unshift.keysym);
+                    if (unicode) unshift = utf::to_utf_from_code(unicode);
+                }
+                auto shift_mods = modifiers | modifier_map.shift;
+                auto res_shift = _process_shift_level(keycode, shift_mods, layout_id);
+                if (res_shift.keysym)
+                {
+                    auto unicode = x11::key::sym_to_unicode(res_shift.keysym);
+                    if (unicode) shifted = utf::to_utf_from_code(unicode);
+                }
+            }
+        }
+        //todo unify with win32
+        void _keybd_send_state(byte keycode = {},
+                               si32 key_all = {},
+                               byte modifiers = {},
+                               byte layout_id = {},
+                               si32 virtcod = {},
+                               si32 keystat = {},
+                               si32 scancod = {},
+                               bool extflag = {},
+                               view cluster = {})
+        {
+            auto state = keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
+            auto& gear = *stream.gears;
+            if ((changed || gear.ctlstat != keymod))
+            {
+                gear.ctlstat = keymod;
+                if (stream.m.enabled == hids::stat::ok)
+                {
+                    stream.m.ctlstat = keymod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                }
+            }
+            gear.payload = input::keybd::type::keypress;
+            gear.extflag = extflag;
+            gear.virtcod = virtcod;
+            gear.scancod = scancod;
+            _keybd_peek_layout(keycode, modifiers, layout_id, gear.shifted, gear.unshift);
+            if ((gear.keystat == input::key::released || key_all != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
+            gear.keystat = keystat;
+            gear.keycode = key_all;
+            gear.xlayout = xlayout;
+            gear.cluster = cluster;
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
+                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
+            //keybd_print_vkstat("keybd_send_state");
+            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            {
+                chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                stream_keybd(gear);
+            }
+        }
+
+        bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
+        {
+            return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
+        }
+        bool keybd_test_pressed_ex(si32 ext_virtcod, si32 /*keycode*/ = 0)
+        {
+            return netxs::get_bit(vkstat, extvkey_to_keycode[ext_virtcod & 0x1FF]); // 0x1FF: 8bit + extflag.
+        }
+        bool keybd_test_toggled(si32 virtcod)
+        {
+                 if (virtcod == vkey::numlock ) return led_state &= modifier_map.num_lock;
+            else if (virtcod == vkey::capslock) return led_state &= modifier_map.caps_lock;
+            else if (virtcod == vkey::scrllock) return led_state &= modifier_map.scroll_lock;
+            else                                return faux;
+        }
+        bool keybd_read_pressed(si32 virtcod)
+        {
+            _keybd_request_state();
+            return keybd_test_pressed(virtcod);
+        }
+        si32 keybd_test_state()
+        {
+            auto state = 0;
+            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
+            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
+            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
+            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
+            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
+            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt;
+            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
+            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
+            if (keybd_test_pressed(vkey::lhyper  )) state |= mods::LHyper;
+            if (keybd_test_pressed(vkey::rhyper  )) state |= mods::RHyper;
+            if (keybd_test_pressed(vkey::lmeta   )) state |= mods::LMeta;
+            if (keybd_test_pressed(vkey::rmeta   )) state |= mods::RMeta;
+            if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
+            if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
+            if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
+            return state;
+        }
+        si32 keybd_read_state()
+        {
+            _keybd_request_state();
+            auto state = keybd_test_state();
+            return state;
+        }
         bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
         bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
-        void keybd_wipe_vkstat() {}
-        void keybd_read_vkstat() {}
-        void keybd_send_block(view /*block*/) {}
-        void keybd_turn_layout(ui32 /*hkl*/) {}
-        void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
-        void keybd_sync_state(si32 /*virtcod*/) {}
-        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod win_coord = {}, twod grid_size = {}, dent /*border_dent*/ = {}, twod cell_size = {})
+        void keybd_load_vkstat(void* ptr, ui32 len)
         {
-            auto success = faux;
-            auto& x11session = *os::x11::session;
-            auto& x11screen = x11session.roots.front().s;
-            if (cell_size)
+            if (len == sizeof(vkstat))
+            {
+                std::memcpy(vkstat.data(), ptr, sizeof(vkstat));
+            }
+        }
+        void keybd_print_vkstat(text s)
+        {
+            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
+            for (auto i : std::views::iota(0, 256))
+            {
+                if (i % 16 == 0)
+                {
+                    s += ansi::nil().add("\n ");
+                    utf::to_hex<true>(i, s, 2);
+                    s += ' ';
+                }
+                auto k = netxs::get_bit(vkstat, i);
+                if (k) s += ansi::fgc(tint::greenlt);
+                else   s += ansi::nil();
+                s += utf::to_hex(i, 2) + ' ';
+                i++;
+            }
+            log(s);
+        }
+        void keybd_wipe_vkstat()
+        {
+            vkstat = {};
+        }
+        void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
+        {
+            _keybd_request_state();
+            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            //keybd_print_vkstat("keybd_read_vkstat");
+            //tslink.set_focus();
+        }
+        void keybd_send_block(view /*block*/) {}
+        void _keybd_turn_layout(ui32 layout_id)
+        {
+            if (layout_id >= layouts.size()) layout_id = 0;
+            auto native_changed = std::exchange(xlayout, layout_id) != xlayout;
+            auto latin_changed = faux;
+            if (layouts[layout_id].is_latin())
+            {
+                latin_changed = std::exchange(hkl_latin, layout_id) != hkl_latin;
+            }
+            else
+            {
+                latin_changed = std::exchange(hkl_latin, _keybd_find_latin_layout()) != hkl_latin;
+            }
+            // Refill extvkey_to_keycode[virtcode] lookup table.
+            if (latin_changed)
+            {
+                extvkey_to_keycode = {};
+                for (auto keycode = 0; keycode < 256; keycode++)
+                {
+                    if (auto latin_keysym = _get_keysym(keycode, hkl_latin))
+                    if (auto latin_keyall = input::key::xkb_to_all(latin_keysym))
+                    {
+                        auto& keyrec = input::key::map::data(latin_keyall);
+                        auto virtcod = keyrec.vkey & 0x1FF; // 0x1FF: 8bit + extflag.
+                        extvkey_to_keycode[virtcod] = keycode;
+                    }
+                }
+            }
+            // Refill vkey_to_keycode[virtcode] lookup table.
+            if (native_changed)
+            {
+                vkey_to_keycode = {};
+                for (auto keycode = 0; keycode < 256; keycode++)
+                {
+                    if (auto native_keysym = _get_keysym(keycode, layout_id))
+                    if (auto virtcod = x11::key::base_keysym_to_vkey(native_keysym))
+                    {
+                        vkey_to_keycode[virtcod] = keycode;
+                    }
+                }
+            }
+        }
+        void keybd_turn_layout(ui32 layout_id)
+        {
+            _keybd_turn_layout(layout_id);
+            log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(layout_id), 8, "0", true));
+            winbase::keybd_sync_layout();
+        }
+        void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
+        bool layer_create(layer& s, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        {
+            auto is_master = &s == &master;
+            if (is_master)
             {
                 auto use_default_size = grid_size == dot_mx;
                 auto use_default_coor = win_coord == dot_mx;
                 if (use_default_coor)
                 {
-                    win_coord = { (si32)(x11screen.width_in_pixels / 2 - 400), (si32)(x11screen.height_in_pixels / 2 - 300) };
+                    win_coord = session.default_window_area.coor;
                 }
                 if (use_default_size)
                 {
-                    grid_size = cell_size * twod{ 80, 25 };
+                    grid_size = session.default_window_area.size / cell_size + dot_11;
                 }
-                else
+                grid_size *= cell_size;
+            }
+
+            s.fg_hWnd = session.new_resource_id();
+            s.fg_hdc  = session.new_resource_id();
+            s.bg_hWnd = session.new_resource_id();
+            s.bg_hdc  = session.new_resource_id();
+            s.wm_hWnd = session.new_resource_id();
+            s.wm_hdc  = session.new_resource_id();
+            if (is_master)
+            {
+                grid_size /= cell_size;
+                s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+            }
+            session.create_window(master.fg_hWnd, s.fg_hWnd, s.fg_hdc, is_master, true);
+            session.create_window(master.bg_hWnd, s.bg_hWnd, s.bg_hdc, is_master, true);
+            session.create_window(master.wm_hWnd, s.wm_hWnd, s.wm_hdc, is_master, faux);
+            return true;
+        }
+        void layers_move()
+        {
+            auto lock = std::lock_guard{ session.mutex };
+            for (auto& l : layers)
+            {
+                auto& s = l.get();
+                auto target_coor = s.live ? s.area.coor : hidden_coor;
+                if (s.prev.coor(target_coor))
                 {
-                    grid_size *= cell_size;
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
+                                                  x11::req::configure_window::payload{ .x = (ui32)(si16)target_coor.x,
+                                                                                       .y = (ui32)(si16)target_coor.y });
                 }
             }
-            auto new_window_id  = x11session.new_resource_id();
-            auto new_gc_id      = x11session.new_resource_id();
-            s.hWnd = (arch)new_window_id;
-            s.hdc  = (arch)new_gc_id;
-            auto create_flow = x11session.create_window_flow(new_window_id, win_coord, grid_size);
-            auto gc_req = os::x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id };
-            create_flow += view{ (char*)&gc_req, sizeof(gc_req) };
-            //todo switch to shm_fd. use single overallocated and double sized mit-shm segment for layers
-            //        if (cell_size) init shared_buffer...
-            //auto buffer_size = sizeof(argb); // Allocate MIT-SHM (CreateDIBSection) 1x1 px bitmap.
-            //if (auto shmid = ::shmget(IPC_PRIVATE, buffer_size, IPC_CREAT | 0777); shmid != -1) // Request shared segment (0777 access bits are required for the local x-server successful connection).
-            //{
-            //    if (auto shm_addr = ::shmat(shmid, nullptr, 0); shm_addr != (void*)-1) // Map shared memory segment in out address space (attach).
-            //    {
-            //        x11session.active_shm_segments[new_window_id] = os::x11::session_t::shm_alloc_t{ shmid, new_shm_seg_id, shm_addr };
-
-            //        auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + 1 };
-            //        s.area = rect{ dot_00, dot_11 };
-            //        s.data = netxs::raster{ bitmap, s.area };
-
-            //        auto attach = os::x11::req::shm_attach{};
-            //        attach.req_opcode = x11session.shm_major_opcode;
-            //        attach.shm_seg_id = new_shm_seg_id;
-            //        attach.shmid      = shmid;
-            //        create_flow += view{ (char*)&attach, sizeof(attach) };
-            //        if (cell_size)
-            //        {
-            //            grid_size /= cell_size;
-            //            s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
-            //        }
-            //        x11session.x11connection->send(create_flow);
-            //        success = true;
-            //    }
-            //    ::shmctl(shmid, IPC_RMID, nullptr); // Mark the shared segment as auto detachable.
-            //}
-            return success;
+            if (batch_buffer.size())
+            {
+                session.x11connection->send(batch_buffer);
+                if constexpr (debugmode) log("%% layer_move_all: Batched layout update sent to X-server (size=%% bytes)", prompt::x11, batch_buffer.size());
+                batch_buffer.clear();
+            }
         }
-        void layer_move_all() {}
-        void layer_present(layer& /*s*/) {}
+        void layer_present(text& batch_buffer, layer& s, auto& seq_num_any)
+        {
+            if (!s.data.data() || s.area.size.x <= 0 || s.area.size.y <= 0) return;
+            auto target_coor = s.live ? s.area.coor : hidden_coor;
+            auto windowmoved = s.prev.coor != target_coor;
+            s.windowsized = s.live && std::exchange(s.prev_size, s.area.size) != s.area.size;
+            if (s.windowsized)
+            {
+                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
+                                              x11::req::configure_window::payload{ .width  = (ui16)s.area.size.x,
+                                                                                   .height = (ui16)s.area.size.y });
+                s.sync.clear();
+                s.sync.push_back(s.area);
+                s.swap_backing();
+            }
+            else if (windowmoved)
+            {
+                s.prev.coor = target_coor;
+                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
+                                              x11::req::configure_window::payload{ .x = (si16)target_coor.x,
+                                                                                   .y = (si16)target_coor.y });
+            }
+            auto seq_num = std::optional<ui16>{};
+            for (auto r : s.sync)
+            {
+                r.coor -= s.area.coor;
+                if (r.coor.x < 0 || r.coor.y < 0
+                 || r.coor.x + r.size.x > s.area.size.x
+                 || r.coor.y + r.size.y > s.area.size.y)
+                {
+                    continue;
+                }
+                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
+                {
+                    .major_opcode = session.shm_major_opcode,
+                    .drawable     = (ui32)s.fg_hWnd,
+                    .gc_id        = (ui32)s.fg_hdc,
+                    .total_width  = (ui16)s.area.size.x,
+                    .total_height = (ui16)s.area.size.y,
+                    .src_x        = (ui16)r.coor.x,
+                    .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+                    .src_width    = (ui16)r.size.x, // Dirty rect size.
+                    .src_height   = (ui16)r.size.y, //
+                    .dst_x        = (si16)r.coor.x, // Window dest coor.
+                    .dst_y        = (si16)r.coor.y, //
+                    .shm_seg_id   = session.shm_segment_xid,
+                    .offset       = (ui32)dirty_offset, // New data start.
+                });
+            }
+            if (seq_num.has_value())
+            {
+                s.set_seq_num(session, seq_num.value());
+                if (s.windowsized) seq_num_any = seq_num;
+            }
+            s.sync.clear();
+        }
+        void layers_present()
+        {
+            if (is_foreground_window) _or_layers_present();
+            else                      _wm_layers_present();
+        }
+        void _wm_layers_present()
+        {
+            auto seq_num_any = std::optional<ui16>{};
+            {
+                auto lock = std::lock_guard{ session.mutex };
+                for (auto& l : layers)
+                {
+                    _wm_layer_present(batch_buffer, l, seq_num_any);
+                }
+                if (batch_buffer.size())
+                {
+                    session.x11connection->send(batch_buffer);
+                    batch_buffer.clear();
+                }
+            }
+            if (seq_num_any.has_value())
+            {
+                session.sync_reply(seq_num_any.value(), 17ms);
+            }
+        }
+        void _or_layers_present()
+        {
+            auto seq_num_any = std::optional<ui16>{};
+            {
+                auto lock = std::lock_guard{ session.mutex };
+                for (auto& l : layers)
+                {
+                    layer_present(batch_buffer, l, seq_num_any);
+                }
+                if (batch_buffer.size())
+                {
+                    session.x11connection->send(batch_buffer);
+                    batch_buffer.clear();
+                }
+            }
+            if (seq_num_any.has_value())
+            {
+                block_mouse_movement.store(true, std::memory_order_release);
+                _wait_next_vblank(seq_num_any.value());
+                // Make visual swap.
+                {
+                    auto lock = std::lock_guard{ session.mutex };
+                    if (master.windowsized)
+                    {
+                        session.set_mouse_input(batch_buffer, master.fg_hWnd, true);
+                        session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                    }
+                    for (auto& l : layers)
+                    {
+                        auto& s = l.get();
+                        if (s.windowsized)
+                        {
+                            s.windowsized = faux;
+                            session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
+                                                        x11::req::configure_window::payload{ .x      = (ui16)hidden_coor.x,
+                                                                                             .y      = (ui16)hidden_coor.y,
+                                                                                             .width  = 1,
+                                                                                             .height = 1 });
+                            session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
+                                                        x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
+                                                                                             .y = (ui16)s.area.coor.y });
+                            // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+                            session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
+                                                                                .gc_id       = (ui32)s.bg_hdc });
+                        }
+                    }
+                    // Sync accumulated mouse movement.
+                    session.accumrq(batch_buffer, x11::req::query_pointer{ .window_id = session.root_window_id }, {},
+                    [&](auto& ev, view payload)
+                    {
+                        if (ev.type != x11::event::Error)
+                        {
+                            auto m = netxs::start_lifetime_as<x11::req::query_pointer::reply>(payload.data());
+                            auto coor = fp2d{ m.root_x, m.root_y };
+                            //if (coor == dot_00 || coor == hidden_coor) log(ansi::clr(tint::redlt, "mouse sync at ", coor));
+                            //else                                       log("mouse sync at ", coor);
+                            _check_if_mouse_moved(coor, true);
+                        }
+                        block_mouse_movement.store(faux, std::memory_order_release);
+                    });
+                    if (batch_buffer.size())
+                    {
+                        session.x11connection->send(batch_buffer);
+                        batch_buffer.clear();
+                    }
+                }
+            }
+        }
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
         void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
         bits layer_get_bits(layer& s, bool zeroize = faux)
         {
-            //auto bitmap = std::span{ (argb*)shm_addr, (argb*)shm_addr + (grid_size.x * grid_size.y) };
-            //s.data = netxs::raster{ bitmap, rect{ win_coord, grid_size }};
-            if (s.hdc && s.area)
+            if (s.area)
             {
                 if (s.resized())
                 {
-                    //todo implement allocation logic inside shared memory (+double buffering)
-                    //auto ptr = (void*)nullptr;
-                    //auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
-                    //                                      .biWidth       = s.area.size.x,
-                    //                                      .biHeight      = -s.area.size.y,
-                    //                                      .biPlanes      = 1,
-                    //                                      .biBitCount    = 32,
-                    //                                      .biCompression = BI_RGB }};
-                    //if (auto hbm = ::CreateDIBSection((HDC)s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
-                    //{
-                    //    ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
-                    //    zeroize = faux;
-                    //    s.prev.size = s.area.size;
-                    //    s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
-                    //
-                    //Sync resize:
-                    //send noop
-                    //wait reply
-                    //}
-                    //else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
+                    auto layer_shm_ptr = (argb*)(session.shm_buffer_ptr + s.get_offset(session, true));
+                    s.prev.size = s.area.size;
+                    auto bitmap_span = std::span<argb>{ layer_shm_ptr, (size_t)s.area.size.x * s.area.size.y };
+                    s.data = bits{ bitmap_span, s.area };
+                    zeroize = true;
                 }
                 if (zeroize) s.wipe();
             }
             s.data.move(s.area.coor);
             return s.data;
         }
+        //todo this doesn't work in wslg
+        //void layer_opacity(ui32 window_id, fp64 alpha)
+        //{
+        //    alpha = std::clamp(alpha, 0.0, 1.0);
+        //    auto opacity_value = (ui32)(alpha * 4294967295.0);
+        //    session.sendrq(x11::req::change_property{ .window_id = window_id,
+        //                                              .property  = session.atom_net_wm_window_opacity,
+        //                                              .type      = session.atom_cardinal },
+        //                                            opacity_value);
+        //    if constexpr (debugmode) log("%% Window 0x%% opacity set to %%", prompt::x11, utf::to_hex(window_id), alpha);
+        //}
         void window_sync_taskbar(si32 /*new_state*/) {}
-        rect window_get_fs_area(rect window_area) { return window_area; }
-        void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
-        void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
-        cont window_recv_command(arch /*lParam*/) { return cont{}; }
-        void window_make_foreground() {}
-        void window_make_focused() {}
+        rect window_get_fs_area(rect /*window_area*/)
+        {
+            //todo multi-monitor setup
+            return rect{ dot_00, session.x11_display_size };
+        }
+        void window_send_command_impl(arch target_id, si32 command, arch lParam = {})
+        {
+            _send_command(target_id, command, lParam);
+        }
+        void window_post_command(arch target_id, si32 command, arch lParam = {})
+        {
+            if constexpr (debugmode) log("window_post_command: target_id=0x%% command=%%", utf::to_hex(target_id), command);
+            _post_command(target_id, command, lParam);
+        }
+        cont window_recv_command(arch lParam)
+        {
+            auto& received_data = recv_buffers[lParam].received_data;
+            auto command = netxs::start_lifetime_as<si32>(received_data.data());
+            auto crop = cont{ .cmd = command, .ptr = received_data.data() + sizeof(si32), .len = (ui32)(received_data.size() - sizeof(si32)) };
+            return crop;
+        }
+        void window_make_foreground()
+        {
+            //todo
+            return;
+            if constexpr (debugmode) log("Try to make window foreground");
+            auto lock = std::lock_guard{ session.mutex };
+            //todo revise: this changes only logic Z-order (mouse input only), but keep visible order intact
+            //for (auto& l : layers)
+            //{
+            //    auto& p = l.get();
+            //    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)p.fg_hWnd },
+            //                                  x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
+            //}
+            ////session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)(ui32)master.fg_hWnd },
+            ////                              x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
+
+            //session.sync_server(batch_buffer, true);
+            //for (auto& l : layers)
+            //{
+            //    auto& s = l.get();
+            //    if (!s.live) continue;
+            //    session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.fg_hWnd });
+            //    session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
+            //    auto r = rect{ dot_00, s.area.size };
+            //    auto dirty_offset = s.get_offset(session);
+            //    auto seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
+            //    {
+            //        .major_opcode = session.shm_major_opcode,
+            //        .drawable     = (ui32)s.fg_hWnd,
+            //        .gc_id        = (ui32)s.fg_hdc,
+            //        .total_width  = (ui16)s.area.size.x,
+            //        .total_height = (ui16)s.area.size.y,
+            //        .src_x        = (ui16)r.coor.x,
+            //        .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+            //        .src_width    = (ui16)r.size.x, // Dirty rect size.
+            //        .src_height   = (ui16)r.size.y, //
+            //        .dst_x        = (si16)r.coor.x, // Window dest coor.
+            //        .dst_y        = (si16)r.coor.y, //
+            //        .shm_seg_id   = session.shm_segment_xid,
+            //        .offset       = (ui32)dirty_offset, // New data start.
+            //    });
+            //    s.set_seq_num(session, seq_num);
+            //}
+            //session.sync_server(batch_buffer, faux);
+
+            //todo revise: this makes window resizing be center-based for some reason
+            //session.accumrq(batch_buffer, x11::req::set_input_focus{ .window_id = (ui32)master.fg_hWnd });
+
+            session.x11connection->send(batch_buffer);
+            batch_buffer.clear();
+            is_foreground_window = true;
+        }
+        void window_make_focused_impl()
+        {
+            //todo
+            return;
+            if constexpr (debugmode)
+            {
+                log("Try to set input focus");
+                x11::session_ptr->sendrq<x11::req::set_input_focus>({ .window_id = (ui32)master.wm_hWnd }, {},
+                    [&](auto& ev, view /*payload*/)
+                    {
+                        if (ev.type == x11::event::Error)
+                        {
+                            log("Failed to set focus");
+                        }
+                    });
+            }
+            else
+            {
+                x11::session_ptr->sendrq<x11::req::set_input_focus>({ .window_id = (ui32)master.wm_hWnd });
+                //x11::session_ptr->sendrq<x11::req::xi2::set_focus>({ .major_opcode = x11::session_ptr->xi2_major_opcode,
+                //                                                     .window_id    = (ui32)master.wm_hWnd,
+                //                                                     .device_id    = 3 });//master_keybd_id });
+            }
+        }
         void window_make_exposed() {}
         void window_make_topmost(bool) {}
-        void window_message_pump()
+        void _update_hidden_layers_size_and_position()
         {
-            auto& x11connection = *os::x11::session->x11connection;
-            auto atom_wm_delete_window = ui32{};
-            auto ev = os::x11::event::any{};
-            while (x11connection.recv((char*)&ev, 32).size() == 32)
+            auto lock = std::lock_guard{ session.mutex };
+            if (is_foreground_window) // Update foreground state.
             {
-                auto type = ev.type & 0x7F;
-                //// Take event window id.
-                //auto event_window = 0u;
-                //if (type == 4 || type == 5 || type == 6) // Mouse events
-                //{
-                //    event_window = reinterpret_cast<os::x11::event::mouse_click&>(ev).event_window;
-                //}
-                //else if (type == 22) // ConfigureNotify
-                //{
-                //    event_window = reinterpret_cast<os::x11::event::configure&>(ev).window;
-                //}
-                //else if (type == 33) // ClientMessage
-                //{
-                //    event_window = reinterpret_cast<os::x11::event::client_message&>(ev).window;
-                //}
-                switch (type)
+                for (auto& l : layers)
                 {
-                    case 6: // MotionNotify -> WM_MOUSEMOVE
+                    auto& s = l.get();
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
+                                                x11::req::configure_window::payload{ .x = (ui16)hidden_coor.x,
+                                                                                     .y = (ui16)hidden_coor.y });
+                    if (!s.live)
                     {
-                        //auto& m = reinterpret_cast<os::x11::event::motion&>(ev);
-                        mouse_moved(); // In X11, the mouse position is updated implicitly within the event structure.
-                        break;
-                    }
-                    case 7: // EnterNotify
-                        break;
-                    case 8: // LeaveNotify -> WM_MOUSELEAVE
-                        mouse_leave();
-                        break;
-                    case 4: // ButtonPress
-                    case 5: // ButtonRelease
-                    {
-                        auto& b = reinterpret_cast<os::x11::event::mouse_click&>(ev);
-                        auto pressed = type == 4;
-                             if (b.button == 1) mouse_press(bttn::left, pressed);
-                        else if (b.button == 2) mouse_press(bttn::middle, pressed);
-                        else if (b.button == 3) mouse_press(bttn::right, pressed);
-                        //todo use XInput2
-                        //else if (b.button == 4 && pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
-                        //else if (b.button == 5 && pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
-                        //else if (b.button == 6 && pressed) mouse_wheel(-120, 1); // WheelLeft
-                        //else if (b.button == 7 && pressed) mouse_wheel(120, 1);  // WheelRight
-                        break;
-                    }
-                    case 9:  // FocusIn  -> WM_SETFOCUS
-                    case 10: // FocusOut -> WM_KILLFOCUS
-                        focus_event(type == 9);
-                        break;
-                    case 22: // ConfigureNotify -> WM_WINDOWPOSCHANGED
-                    {
-                        auto& cfg = reinterpret_cast<os::x11::event::configure&>(ev);
-                        check_window(twod{ cfg.x, cfg.y }); // Window move/resize.
-                        break;
-                    }
-                    case 33: // ClientMessage -> ?WM_CLOSE
-                    {
-                        auto& msg = reinterpret_cast<os::x11::event::client_message&>(ev);
-                        if (msg.data32[0] == atom_wm_delete_window)
-                        {
-                            sys_command(syscmd::close);
-                        }
-                        break;
+                        session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
+                                                    x11::req::configure_window::payload{ .x = (ui16)hidden_coor.x,
+                                                                                         .y = (ui16)hidden_coor.y });
                     }
                 }
+            }
+            else // Update background state.
+            {
+                for (auto& l : layers)
+                {
+                    auto& s = l.get();
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
+                                                x11::req::configure_window::payload{ .x = (ui16)hidden_coor.x,
+                                                                                     .y = (ui16)hidden_coor.y });
+                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
+                                                x11::req::configure_window::payload{ .x = (ui16)hidden_coor.x,
+                                                                                     .y = (ui16)hidden_coor.y });
+                }
+            }
+            if (batch_buffer.size())
+            {
+                session.x11connection->send(batch_buffer);
+                batch_buffer.clear();
+            }
+        }
+        void _reply_command(ui32 originator_id, ui32 serial, ui32 result)
+        {
+            if (!originator_id) return;
+            if constexpr (debugmode) log("_reply_command: seq=%%", session.sync_sequence_counter + (ui16)1);
+            session.syncrq(x11::req::send_event{ .destination_id = originator_id,
+                                                 .originator_id  = 0,
+                                                 .message_type   = session.atom_vtmx,
+                                                 .serial         = serial,
+                                                 .command        = (ui32)ipc::send_reply,
+                                                 .lParam         = result });
+        }
+        void _close_command(ui32 originator_id)
+        {
+            if (!originator_id) return;
+            if constexpr (debugmode) log("_close_command: seq=%%", session.sync_sequence_counter + (ui16)1);
+            session.sendrq(x11::req::send_event{ .destination_id = originator_id,
+                                                 .originator_id  = 0,
+                                                 .message_type   = session.atom_wm_protocols,
+                                                 .serial         = session.atom_wm_delete_window });
+        }
+        void window_message_pump()
+        {
+            if constexpr (debugmode) log("window_message_pump started");
+            auto read_buffer = text(256, '\0'); // 256: Avoid SSO.
+            read_buffer.resize(x11::recv_packet_size); // Classic read_buffer size.
+            while (session.x11connection->recv_all(read_buffer.data(), read_buffer.size()).size() == x11::recv_packet_size)
+            {
+                assert(read_buffer.size() == x11::recv_packet_size);
+                auto ev = netxs::start_lifetime_as<x11::event::any>(read_buffer.data());
+                auto type = ev.type & 0x7F;
+                if constexpr (debugmode) if (type != x11::event::GenericEvent) log("%%seq=%% event=%% (%%)", prompt::x11, ev.sequence, session.event_str(type), type);
+                //if constexpr (debugmode)
+                //{
+                //    if (session.received_replies[ev.sequence].load(std::memory_order_acquire))
+                //    {
+                //        log("%%Frame rendering is complete", prompt::x11);
+                //    }
+                //}
+                session.received_replies[ev.sequence].store(faux, std::memory_order_release);
+                if (type == x11::event::Error)
+                {
+                    session.parse_error(ev, read_buffer);
+                    read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
+                    continue;
+                }
+                else if (type == x11::event::Reply)
+                {
+                    session.parse_reply(ev, read_buffer);
+                    read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
+                }
+                //else if (type == x11::event::CreateNotify)
+                //{
+                //    if constexpr (debugmode) log("Window created");
+                //    break;
+                //}
+                //else if (type == x11::event::MapNotify)
+                //{
+                //    auto mn = netxs::start_lifetime_as<x11::event::map_notify>(read_buffer.data());
+                //    if constexpr (debugmode) log("%%Window mapped window_id=0x%%", prompt::x11, utf::to_hex(mn.window_id));
+                //    if (mn.window_id == master.fg_hWnd)
+                //    {
+                //        window_make_focused_impl();
+                //    }
+                //}
+                else if (type == x11::event::Expose)
+                {
+                    auto ex = netxs::start_lifetime_as<x11::event::expose_event>(read_buffer.data());
+                    auto dirty_region = rect{{ ex.x, ex.y }, { ex.width, ex.height }};
+                    if constexpr (debugmode) log("Expose event: window_id=0x%% region=%% left_count=%% is_foreground_window=%%", utf::to_hex(ex.window_id), dirty_region, ex.count, is_foreground_window);
+                    if (!is_foreground_window)
+                    for (auto& l : layers)
+                    {
+                        auto& s = l.get();
+                        if (s.live && s.wm_hWnd == ex.window_id)
+                        {
+                            s.strike(dirty_region);
+                        }
+                        if (ex.count == 0)
+                        {
+                            netxs::set_flag<task::all>(reload);
+                        }
+                    }
+                }
+                else if (type == x11::event::ConfigureNotify) // WM_WINDOWPOSCHANGED
+                {
+                    auto cn = netxs::start_lifetime_as<x11::event::configure_notify>(read_buffer.data());
+                    if constexpr (debugmode) log("Window reconfigured: window_id=%% event_window_id=%% area=%%", utf::to_hex(cn.window_id), utf::to_hex(cn.event_window_id), rect{{ cn.x, cn.y }, { cn.width, cn.height }});
+                    auto size = twod{ cn.width, cn.height };
+                    if (cn.window_id == session.root_window_id && session.x11_display_size != size)
+                    {
+                        base::enqueue([&, size](auto& /*boss*/)
+                        {
+                            session.set_x11_display_size(size);
+                            hidden_coor = session.x11_display_size - dot_11;
+                            if (fsmode == winstate::maximized) set_state(winstate::normal);
+                            if (!master.area.trim(rect{ dot_00, hidden_coor })) // Move window to the display center if out.
+                            {
+                                auto delta = hidden_coor / 2 - (master.area.coor + master.area.size / 2);
+                                move_window(delta);
+                            }
+                            _update_hidden_layers_size_and_position();
+                            //sync_pixel_layout(); // Align grips and shadow.
+                            netxs::set_flag<task::all>(reload); // Refill all layers to trigger WM rescaling.
+                            update_gui();
+                        });
+                        if constexpr (debugmode) log("    Root window reconfigured: area=%%", rect{{ cn.x, cn.y }, { cn.width, cn.height }});
+                    }
+                    else
+                    {
+                        //check_window(twod{ cn.x, cn.y }); // Window move/resize.
+                    }
+                }
+                else if (type == x11::event::ClientMessage)
+                {
+                    auto msg = netxs::start_lifetime_as<x11::req::send_event::reply>(read_buffer.data());
+                    auto originator_id = msg.originator_id;
+                    if (auto iter = recv_buffers.find(originator_id); iter != recv_buffers.end() && iter->second.received_data.size()) // Append existing buffer.
+                    {
+                        auto& peer = iter->second;
+                        auto data_length = peer.received_data.size();
+                        auto rest = data_length - peer.received_bytes;
+                        auto step = std::min((size_t)6 * 4, rest);
+                        auto src = (char*)&msg.message_type; // Start from chunk.data32[0].
+                        auto dst = peer.received_data.data() + peer.received_bytes;
+                        std::memcpy(dst, src, step);
+                        peer.received_bytes += step;
+                        if constexpr (debugmode) log("WIN32_WM_USER: Append existing buffer from originator_id=0x%% recvd=%% rest=%% total=%%", utf::to_hex(originator_id), peer.received_bytes, peer.received_data.size() - peer.received_bytes, peer.received_data.size());
+                        if (peer.received_bytes == data_length) // Done.
+                        {
+                            auto result = run_command(ipc::cmd_w_data, originator_id);
+                            _reply_command(originator_id, peer.serial, (ui32)result);
+                            peer.received_bytes = 0;
+                            peer.received_data.clear();
+                        }
+                    }
+                    else if (msg.message_type == session.atom_vtmx && msg.format == 32) // WIN32_WM_USER
+                    {
+                        auto command = (arch)msg.command;
+                        auto lParam  = (arch)msg.lParam;
+                        if constexpr (debugmode) log("%%WIN32_WM_USER cmd=%% (%%) lParam=%%", prompt::x11, ipc::str(command), command, lParam);
+                        if (command == ipc::cmd_w_data) // msg.lParam contains data length.
+                        {
+                            auto data_length = (size_t)lParam;
+                            auto& peer = recv_buffers[originator_id];
+                            peer.received_data.resize(data_length);
+                            auto dst = peer.received_data.data();
+                            auto src = (char*)&msg.data32[0];
+                            auto step = std::min((size_t)4 * 2/*first packet payload*/, data_length);
+                            std::memcpy(dst, src, step);
+                            peer.received_bytes = step;
+                            peer.serial = msg.serial;
+                            if (data_length == peer.received_bytes) // Single packet.
+                            {
+                                auto result = run_command(command, lParam);
+                                peer.received_bytes = 0;
+                                peer.received_data.clear();
+                                if (peer.received_data.capacity() > 4096)
+                                {
+                                    peer.received_data.shrink_to_fit();
+                                }
+                                _reply_command(msg.originator_id, msg.serial, (ui32)result);
+                            }
+                        }
+                        else if (command != ipc::send_reply)
+                        {
+                            auto result = run_command(command, lParam);
+                            _reply_command(msg.originator_id, msg.serial, (ui32)result);
+                        }
+                    }
+                    else if (msg.message_type == session.atom_wm_protocols
+                            && msg.serial       == session.atom_wm_delete_window)
+                    {
+                        // - User somehow closes window via window manager.
+                        // - window_shutdown().
+                        // Just interrupt the event loop.
+                        goto break_break;
+                    }
+                }
+                else if (type == x11::event::PropertyNotify) // Tracking refocus.
+                {
+                    auto e = netxs::start_lifetime_as<x11::event::property_notify>(read_buffer.data());
+                    if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
+                    if (e.window_id == session.root_window_id)
+                    {
+                        if (session.atom_net_workarea && e.atom == session.atom_net_workarea)
+                        {
+                            if constexpr (debugmode) log("Request atom_net_workarea value");
+                            session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
+                                                                        .property    = session.atom_net_workarea,
+                                                                        .prop_type   = session.atom_cardinal,
+                                                                        .long_length = 4 }, {},
+                            [&](auto& ev, view payload)
+                            {
+                                if (ev.type == x11::event::Error)
+                                {
+                                    if constexpr (debugmode) log("get_property atom_net_workarea error");
+                                }
+                                else
+                                {
+                                    payload.remove_prefix(sizeof(ev));
+                                    if constexpr (debugmode) log("Recieved reply for atom_net_workarea value");
+                                    auto reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                                    if (reply.format == sizeof(ui32) * 8 && reply.prop_type == session.atom_cardinal && payload.size() >= 16)
+                                    {
+                                        //todo unify
+                                        auto ptr = (ui32 const*)(payload.data());
+                                        auto x = netxs::start_lifetime_as<si32>(ptr + 0);
+                                        auto y = netxs::start_lifetime_as<si32>(ptr + 1);
+                                        auto w = netxs::start_lifetime_as<si32>(ptr + 2);
+                                        auto h = netxs::start_lifetime_as<si32>(ptr + 3);
+                                        session.workarea = rect{{ x, y }, { w, h }};
+                                        if constexpr (debugmode) log("%%Received property for atom='_NET_WORKAREA' value=", prompt::x11, session.workarea);
+                                    }
+                                }
+                            });
+                        }
+                        else if (e.atom == session.atom_xkb_rules_names) // The list of keyboard layouts has changed.
+                        {
+                            _keybd_load_layouts();
+                        }
+                    }
+                    continue; // Skip sys_command(syscmd::update).
+                }
+                else if (type == x11::event::GenericEvent)
+                {
+                    if (ev.detail == session.xi2_major_opcode) // XInput2.
+                    {
+                        auto tail_size = ev.length * 4;
+                        read_buffer.resize(x11::recv_packet_size + tail_size); // Read a whole XI2 packet.
+                        if (session.x11connection->recv_all(read_buffer.data() + x11::recv_packet_size, tail_size).size() == tail_size)
+                        {
+                            if (!input_read(read_buffer))
+                            {
+                                goto break_break;
+                            }
+                        }
+                        read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
+                    }
+                    else if (ev.detail == session.xpresent_major_opcode) // XPresent.
+                    {
+                        auto tail_size = ev.length * 4;
+                        read_buffer.resize(x11::recv_packet_size + tail_size); // Read a whole XI2 packet.
+                        if (session.x11connection->recv_all(read_buffer.data() + x11::recv_packet_size, tail_size).size() == tail_size)
+                        {
+                            auto be = netxs::start_lifetime_as<x11::req::xpresent::base>(read_buffer.data());
+                            if constexpr (debugmode) log(ansi::hi("XPresent Notify evtype=%% length=%%"), be.evtype, be.length);
+                            if (be.evtype == x11::req::xpresent::ConfigureNotify)
+                            {
+                                auto cf = netxs::start_lifetime_as<x11::req::xpresent::configure_notify>(read_buffer.data());
+                                if constexpr (debugmode) log(ansi::hi("PresentConfigureNotify:"),
+                                    "\n\t event_id      = 0x", utf::to_hex(cf.event_id),
+                                    "\n\t window_id     = 0x", utf::to_hex(cf.window_id),
+                                    "\n\t x             = ", cf.x,
+                                    "\n\t y             = ", cf.y,
+                                    "\n\t width         = ", cf.width,
+                                    "\n\t height        = ", cf.height,
+                                    "\n\t off_x         = ", cf.off_x,
+                                    "\n\t off_y         = ", cf.off_y,
+                                    "\n\t pixmap_width  = ", cf.pixmap_width,
+                                    "\n\t pixmap_height = ", cf.pixmap_height,
+                                    "\n\t pixmap_flags  = ", cf.pixmap_flags);
+                            }
+                            else if (be.evtype == x11::req::xpresent::CompleteNotify)
+                            {
+                                auto cm = netxs::start_lifetime_as<x11::req::xpresent::complete_notify>(read_buffer.data());
+                                if constexpr (debugmode) log(ansi::hi("PresentCompleteNotify:"),
+                                    "\n\t serial    = ",   (ui32)cm.serial,
+                                    "\n\t kind      = ",   (ui32)cm.kind,
+                                    "\n\t mode      = ",   (ui32)cm.mode,
+                                    "\n\t event_id  = 0x", utf::to_hex(cm.event_id),
+                                    "\n\t window_id = 0x", utf::to_hex(cm.window_id),
+                                    "\n\t ust       = ",   cm.ust,
+                                    "\n\t msc       = ",   cm.msc);
+                                current_msc = cm.msc;
+                                session.received_replies[cm.serial & 0xFFFF].store(faux, std::memory_order_release);
+                            }
+                            else if (be.evtype == x11::req::xpresent::IdleNotify)
+                            {
+                                auto in = netxs::start_lifetime_as<x11::req::xpresent::idle_notify>(read_buffer.data());
+                                if constexpr (debugmode) log(ansi::hi("PresentIdleNotify:"),
+                                    "\n\t event_id     = 0x", utf::to_hex(in.event_id),
+                                    "\n\t window_id    = 0x", utf::to_hex(in.window_id),
+                                    "\n\t serial       = ",   (ui32)in.serial,
+                                    "\n\t pixmap_id    = 0x", utf::to_hex(in.pixmap_id),
+                                    "\n\t idle_fence   = 0x", utf::to_hex(in.idle_fence));
+                                //session.received_replies[in.serial & 0xFFFF].store(faux, std::memory_order_release);
+                            }
+                        }
+                        read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
+                    }
+                }
+                //else if (type == session.xkb_first_event && is_foreground_window) // XKB Notify.
+                //{
+                //    auto xkb_ev = netxs::start_lifetime_as<x11::req::xkb::event::any>(read_buffer.data());
+                //    if (xkb_ev.xkb_type == x11::req::xkb::event::MapNotify) // Layout changed.
+                //    {
+                //        if constexpr (debugmode) log("%% XkbMapNotify received. Keyboard map changed.", prompt::x11);
+                //        //load_keyboard_map();
+                //        //_query_latin_layout();
+                //    }
+                //    else if (xkb_ev.xkb_type == x11::req::xkb::event::StateNotify) // Modifiers changed.
+                //    {
+                //        auto state_ev = netxs::start_lifetime_as<x11::req::xkb::event::state_notify>(read_buffer.data());
+                //        if constexpr (debugmode) log("XkbStateNotify: locked_mods=0x%% active_group=%%", utf::to_hex(state_ev.locked_mods), (si32)state_ev.group);
+                //        _set_keyboard_led_state(state_ev.locked_mods);
+                //        //_set_current_layout_group(state_ev.group);
+                //    }
+                //}
                 sys_command(syscmd::update);
             }
+            break_break:
             window_cleanup();
+            if constexpr (debugmode) log("window_message_pump ended");
         }
-        void window_initilize() {}
-        void window_shutdown() {}
-        void window_cleanup() {}
-        void window_set_title(view /*utf8*/) {}
-        twod mouse_get_pos() { return twod{}; }
-        void mouse_capture(si32 /*captured_by*/) {}
-        void mouse_release(si32 /*released_by*/) {}
+        void window_initialize()
+        {
+            _keybd_load_layouts();
+            _keybd_turn_layout(0);
+            compose.load();
+            session.listen_root_events();
+            session.query_device(x11::req::xi2::dev_type::all_devices);
+            session.activate_xinput2(master.fg_hWnd);
+            session.activate_xinput2(master.bg_hWnd);
+            session.activate_xinput2(master.wm_hWnd);
+            hidden_coor = session.x11_display_size - dot_11;
+            auto lock = std::lock_guard{ session.mutex };
+            session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+            session.set_mouse_input(batch_buffer, master.wm_hWnd, faux);
+            for (auto& l : layers)
+            {
+                auto& s = l.get();
+                // Move backing_window off screen.
+                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
+                                              x11::req::configure_window::payload{ .x = (si16)hidden_coor.x,
+                                                                                   .y = (si16)hidden_coor.y });
+                session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
+                session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.bg_hWnd });
+                session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.wm_hWnd });
+                // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+                session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
+                                                                    .gc_id       = (ui32)s.bg_hdc });
+                session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.wm_hWnd,
+                                                                    .gc_id       = (ui32)s.wm_hdc });
+            }
+            if (batch_buffer.size())
+            {
+                session.x11connection->send(batch_buffer);
+                batch_buffer.clear();
+            }
+        }
+        void window_shutdown()
+        {
+            _close_command((ui32)master.hWnd);
+        }
+        void window_cleanup() { /*do nothing on X11*/ }
+        void window_set_title(view utf8)
+        {
+            x11::session_ptr->window_set_title(master.wm_hWnd, utf8);
+        }
+        fp2d mouse_get_pos()
+        {
+            return current_mouse_pos;
+        }
+        void mouse_capture_impl()
+        {
+            captured_pointer_id = master_pointer_id;
+            if constexpr (debugmode)
+            {
+                x11::session_ptr->sendrq<x11::req::xi2::grab_device>({ .major_opcode = x11::session_ptr->xi2_major_opcode,
+                                                                       .window_id    = (ui32)master.wm_hWnd,
+                                                                       .device_id    = master_pointer_id }, {},
+                [&](auto& ev, view payload)
+                {
+                    if (ev.type != x11::event::Error)
+                    {
+                        auto reply = netxs::start_lifetime_as<x11::req::xi2::grab_device::reply>(payload.data());
+                        log("%%  Grab device reply: status=%% (%%)", prompt::x11, (si32)reply.status,
+                            reply.status == x11::req::xi2::grab_device::StatusGrabSuccess     ? "StatusGrabSuccess"     :
+                            reply.status == x11::req::xi2::grab_device::StatusAlreadyGrabbed  ? "StatusAlreadyGrabbed"  :
+                            reply.status == x11::req::xi2::grab_device::StatusGrabInvalidTime ? "StatusGrabInvalidTime" :
+                            reply.status == x11::req::xi2::grab_device::StatusGrabNotViewable ? "StatusGrabNotViewable" :
+                            reply.status == x11::req::xi2::grab_device::StatusGrabFrozen      ? "StatusGrabFrozen"      : "unknown");
+                    }
+                });
+            }
+            else
+            {
+                x11::session_ptr->sendrq<x11::req::xi2::grab_device>({ .major_opcode = x11::session_ptr->xi2_major_opcode,
+                                                                       .window_id    = (ui32)master.wm_hWnd,
+                                                                       .device_id    = master_pointer_id });
+            }
+        }
+        void mouse_release_impl()
+        {
+            x11::session_ptr->sendrq<x11::req::xi2::ungrab_device>({ .major_opcode = x11::session_ptr->xi2_major_opcode,
+                                                                     .device_id    = captured_pointer_id });
+        }
         void mouse_catch_outside() {}
+        bool input_read(view packet)
+        {
+            if constexpr (debugmode) log("Beg ----------------------------------------");//, "Packet in hex:\n", utf::buffer_to_hex(packet, true));
+            auto d = netxs::start_lifetime_as<x11::req::xi2::event::base>(packet.data());
+            auto device_id = d.deviceid;
+            auto is_master = session.input_devices[d.deviceid].is_master;
+            if constexpr (debugmode) log("XInput2: %% evtype=%% deviceid=%% '%%' is_master=%%", x11::req::xi2::event::names[d.evtype], d.evtype, d.deviceid, session.input_devices[d.deviceid].name, is_master);
+
+            if (d.evtype == x11::req::xi2::event::DeviceChanged) // Layout changed? Mouse DPI changed?
+            {
+                auto dc = netxs::start_lifetime_as<x11::req::xi2::event::device_changed>(packet.data());
+                if constexpr (debugmode) log("  DeviceChanged: deviceid=%% '%%' reason=%%(%%) classes=%% source_dev_id=%% '%%'",//\n packet:\n%%",
+                    dc.header.deviceid, session.input_devices[dc.header.deviceid].name,
+                    dc.reason == x11::req::xi2::event::device_changed::SlaveSwitch ? "SlaveSwitch" : (dc.reason == x11::req::xi2::event::device_changed::DeviceChange ? "DeviceChange" : "unknown"), (si32)dc.reason,
+                    dc.num_classes, dc.sourceid, session.input_devices[dc.sourceid].name);//, utf::buffer_to_hex(packet, true));
+                if (dc.reason == x11::req::xi2::event::device_changed::DeviceChange) // Update physical device.
+                {
+                    packet.remove_prefix(sizeof(dc));
+                    session.input_devices[dc.sourceid].axes.clear();
+                    session.sync_device_classes(dc.num_classes, packet);
+                }
+            }
+            else if (d.evtype == x11::req::xi2::event::HierarchyChanged)
+            {
+                auto hc = netxs::start_lifetime_as<x11::req::xi2::event::hierarchy_changed>(packet.data());
+                if constexpr (debugmode) log("  HierarchyChanged: deviceid=%% '%%' info_count=%% flags=0x%%",//\n packet:\n%%",
+                    hc.header.deviceid, session.input_devices[hc.header.deviceid].name,
+                    hc.num_info, utf::to_hex(hc.flags));//, utf::buffer_to_hex(packet, true));
+
+                if (packet.size() >= sizeof(hc) + hc.num_info * sizeof(x11::req::xi2::event::hierarchy_changed::info))
+                {
+                    auto info_ptr = packet.data() + sizeof(hc);
+                    for (auto i = 0u; i < hc.num_info; ++i)
+                    {
+                        auto inf = netxs::start_lifetime_as<x11::req::xi2::event::hierarchy_changed::info>(info_ptr + (i * sizeof(x11::req::xi2::event::hierarchy_changed::info)));
+                        if constexpr (debugmode) log("\tdeviceid=%% '%%' attachment=%% use=%% enabled=%% flags=0x%%(%%)",
+                                inf.deviceid, session.input_devices[inf.deviceid].name, inf.attachment, (ui32)inf.use, (ui32)inf.enabled, utf::to_hex(inf.flags),
+                                utf::concat(inf.flags & x11::req::xi2::event::hierarchy_changed::MasterAdded    ? "MasterAdded | "    : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::MasterDeleted  ? "MasterDeleted | "  : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::SlaveAdded     ? "SlaveAdded | "     : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::SlaveRemoved   ? "SlaveRemoved | "   : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::SlaveAttached  ? "SlaveAttached | "  : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::SlaveDetached  ? "SlaveDetached | "  : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::DeviceEnabled  ? "DeviceEnabled | "  : "",
+                                            inf.flags & x11::req::xi2::event::hierarchy_changed::DeviceDisabled ? "DeviceDisabled | " : ""));
+                        if (inf.flags & (x11::req::xi2::event::hierarchy_changed::MasterAdded | x11::req::xi2::event::hierarchy_changed::SlaveAdded))
+                        {
+                            session.query_device(inf.deviceid);
+                        }
+                        if (inf.flags & (x11::req::xi2::event::hierarchy_changed::MasterDeleted | x11::req::xi2::event::hierarchy_changed::SlaveRemoved))
+                        {
+                            session.input_devices.erase(inf.deviceid);
+                        }
+                        if (inf.flags & x11::req::xi2::event::hierarchy_changed::DeviceEnabled)
+                        {
+                            session.input_devices[inf.deviceid].enabled = true;
+                        }
+                        if (inf.flags & x11::req::xi2::event::hierarchy_changed::DeviceDisabled)
+                        {
+                            session.input_devices[inf.deviceid].enabled = faux;
+                        }
+                    }
+                }
+                else
+                {
+                    log("%%Error: HierarchyChanged packet payload truncated", prompt::x11);
+                }
+            }
+            //else if (d.evtype == x11::req::xi2::event::PropertyEvent)
+            //{
+            //    if constexpr (debugmode) log(ansi::clr(greenlt, "XI2: Property changed"));
+            //    _keybd_request_state();
+            //}
+            else if (is_master) // Ignore slave devices.
+            {
+                if (d.evtype == x11::req::xi2::event::KeyPress || d.evtype == x11::req::xi2::event::KeyRelease)
+                {
+                    auto k = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
+                    auto is_pressed = d.evtype == x11::req::xi2::event::KeyPress;
+                    auto keycode    = k.detail & 0xFF; // Native keycode.
+                    auto repeated   = is_pressed && netxs::get_bit(vkstat, keycode);
+                    auto layout_id  = (byte)(k.group.effective & 0x03);
+                    auto modifiers  = (ui16)k.mods.effective;
+                    netxs::set_bit(vkstat, keycode, is_pressed);
+                    _set_keyboard_led_state(k.mods.locked); // NumLocks.
+                    if (xlayout != layout_id)
+                    {
+                        keybd_turn_layout(layout_id);
+                    }
+                    auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
+                    auto [symcode, compose_mods] = _process_shift_level(keycode, modifiers, layout_id);
+                    auto unicode = x11::key::sym_to_unicode(symcode);
+                    auto cluster = utf::to_utf_from_code(unicode);
+                    auto virtcod = 0;
+                    auto extflag = 0;
+                    auto scancod = std::max(0, (si32)keycode - 8);
+                    auto latin_keysym = _get_keysym(keycode, hkl_latin);
+                    auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym);
+                    if (latin_keyall)
+                    {
+                        auto& keyrec = input::key::map::data(latin_keyall);
+                        virtcod = keyrec.vkey;
+                        extflag = keyrec.extflag;
+                        //scancod = keyrec.scan;
+                    }
+                    else
+                    {
+                        virtcod = keycode_to_vkey[keycode];
+                    }
+                    if (is_pressed)
+                    {
+                        std_compose_retry:
+                        auto res = compose.process_keysym(symcode, compose_mods);
+                        if (res.stat == x11::compose::status::matching)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress"));
+                            //todo send preview for deadkeys
+                            return true;
+                        }
+                        else if (res.stat == x11::compose::status::completed)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
+                            if (!res.utf8.empty()) cluster = res.utf8;
+                            if (res.symcode) // Figure out a new key.
+                            {
+                                symcode = res.symcode;
+                                if (auto keyall = input::key::xkb_to_all(symcode))
+                                {
+                                    auto& r = input::key::map::data(keyall);
+                                    latin_keyall = keyall;
+                                    virtcod = r.vkey;
+                                    extflag = r.extflag;
+                                }
+                            }
+                        }
+                        else if (res.stat == x11::compose::status::completed_wait) // Consume the result and retry.
+                        {
+                            auto res_cluster = text{};
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
+                            if (!res.utf8.empty()) res_cluster = res.utf8;
+                            if (res.symcode) // Figure out a new key.
+                            {
+                                auto res_virtcod = 0;
+                                auto res_extflag = 0;
+                                if (auto keyall = input::key::xkb_to_all(res.symcode))
+                                {
+                                    auto& r = input::key::map::data(keyall);
+                                    latin_keyall = keyall;
+                                    res_virtcod = r.vkey;
+                                    res_extflag = r.extflag;
+                                }
+                                _keybd_send_state(keycode, latin_keyall, modifiers, layout_id, res_virtcod, keystat, scancod, res_extflag, res_cluster);
+                            }
+                            else
+                            {
+                                keybd_send_input(res_cluster, input::keybd::type::imeinput);
+                            }
+                            goto std_compose_retry;
+                        }
+                        else if (res.stat == x11::compose::status::invalidated)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "compose invalidated: %%"), utf::debase437(cluster));
+                            if (compose.input_backup.empty())
+                            {
+                                // Plain symbol.
+                            }
+                            else // Missed. Reset the state and retry.
+                            {
+                                compose.reset();
+                                goto std_compose_retry;
+                            }
+                        }
+                        else if (res.stat == x11::compose::status::inactive)
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "compose inactive: %%"), utf::debase437(cluster));
+                        }
+                    }
+                    if constexpr (debugmode)
+                    {
+                        log("%%sourceid=%% '%%' Key%%: keycode=%% sym=%% name=%% test_name_to_sym=%% mods=0x%% leds=0x%% layout_idx=%%", prompt::x11, k.sourceid, session.input_devices[k.sourceid].name, is_pressed ? (repeated ? "Repeat" : "Press") : "Release", keycode, utf::to_hex(symcode), x11::key::sym_to_name(symcode), utf::to_hex(x11::key::name_to_sym(x11::key::sym_to_name(symcode))), utf::to_hex(k.mods.effective), utf::to_hex(led_state), (si32)layout_id);
+                        log("   mods:    pressed=%% latched=%% locked=%% effective=%%", utf::to_bin((byte)k.mods.pressed), utf::to_bin((byte)k.mods.latched), utf::to_bin((byte)k.mods.locked), utf::to_bin((byte)k.mods.effective));
+                        log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
+                        //keybd_print_vkstat("KeyPress");
+                    }
+                    _keybd_send_state(keycode, latin_keyall, modifiers, layout_id, virtcod, keystat, scancod, extflag, cluster);
+                }
+                else if (d.evtype == x11::req::xi2::event::ButtonPress
+                      || d.evtype == x11::req::xi2::event::ButtonRelease
+                      || d.evtype == x11::req::xi2::event::Motion)
+                {
+                    master_pointer_id = device_id;
+                    auto m = netxs::start_lifetime_as<x11::req::xi2::event::km>(packet.data());
+                    auto& dev = session.input_devices[m.sourceid];
+                    auto emulated = !!(m.flags & x11::req::xi2::event::km::PointerEmulated);
+                    //auto xi_mods = m.mods.effective;
+                    auto mouse_coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
+                    auto moved = _check_if_mouse_moved(mouse_coor, faux);
+                    if constexpr (debugmode)
+                    {
+                        static auto start_time = datetime::now();
+                        auto rel_mouse_coor = fp2d{ m.event_x.to_fp32(), m.event_y.to_fp32() };
+                        log("%%Mouse: %% sourceid=%% '%%' coor=%% rel_coor=%% wincoor=%% mods=0x%% flags=0x%% emulated=%%", prompt::x11,
+                            ansi::clr(yellowlt, datetime::round<si32>(datetime::now() - start_time), "ms"), m.sourceid, session.input_devices[m.sourceid].name,
+                            moved ? ansi::clr(tint::greenlt, mouse_coor) : utf::concat(mouse_coor),
+                            moved ? ansi::clr(tint::greenlt, rel_mouse_coor) : utf::concat(rel_mouse_coor),
+                            mouse_coor - rel_mouse_coor,
+                            utf::to_hex(m.mods.effective), utf::to_hex(m.flags), (si32)emulated);
+                    }
+                    if (d.evtype != x11::req::xi2::event::Motion && !emulated) // ButtonPress or ButtonRelease.
+                    {
+                        auto is_pressed = d.evtype == x11::req::xi2::event::ButtonPress;
+                        if (is_pressed && !moved) // Sync mouse position before any click (click on unfocused window).
+                        {
+                            mouse_moved();
+                        }
+                        auto button_id  = m.detail;
+                        if constexpr (debugmode) log("  Mouse Button%%: bttn_id=%%", is_pressed ? "Press" : "Release", button_id);
+                        // Workaround bug with pressed buttons right after startup.
+                        if (is_pressed || stream.m.buttons) // Filter fake button release.
+                        {
+                                 if (button_id == 1) mouse_press(bttn::left,   is_pressed);
+                            else if (button_id == 2) mouse_press(bttn::middle, is_pressed);
+                            else if (button_id == 3) mouse_press(bttn::right,  is_pressed);
+                            //else if (button_id == 4 && is_pressed) mouse_wheel(120, 0);  // WheelUp -> WHEEL_DELTA (120)
+                            //else if (button_id == 5 && is_pressed) mouse_wheel(-120, 0); // WheelDn -> -WHEEL_DELTA (-120)
+                            //else if (button_id == 6 && is_pressed) mouse_wheel(120, 1); // WheelLeft
+                            //else if (button_id == 7 && is_pressed) mouse_wheel(-120, 1);  // WheelRight
+                            else if (button_id == 8) mouse_press(bttn::xbutton1, is_pressed);
+                            else if (button_id == 9) mouse_press(bttn::xbutton2, is_pressed);
+                        }
+                    }
+                    //else if (d.evtype == x11::req::xi2::event::Motion)
+                    //{
+                    //}
+                    if (m.valuators_len > 0)
+                    {
+                        auto mask_ptr = m.valuators_mask_ptr(packet.data());
+                        auto data_ptr = m.valuators_data_ptr(packet.data());
+                        auto data_index = 0u;
+                        for (auto word_idx = 0u; word_idx < (ui32)m.valuators_len; ++word_idx)
+                        {
+                            auto mask = mask_ptr[word_idx];
+                            while (mask)
+                            {
+                                auto bit_idx = std::countr_zero(mask);
+                                auto axis = (word_idx * 32) + bit_idx;
+                                auto axis_value = netxs::start_lifetime_as<fx32>(data_ptr + data_index);
+                                data_index++;
+                                auto current_value = axis_value.to_fp64();
+                                if constexpr (debugmode) log("\t Axis %% changed to fp64=%%", axis, current_value);
+                                if (dev.axes.size() <= axis) dev.axes.resize(axis + 1);
+                                auto& axis_info = dev.axes[axis];
+                                auto delta = std::exchange(axis_info.last_val, current_value) - current_value;
+                                if (axis_info.is_scroll)
+                                {
+                                    //todo test
+                                    //static auto kk = 1.0;
+                                    //kk = std::clamp(kk + (delta > 0 ? 0.1 : -0.1), 0.0, 1.0);
+                                    //layer_opacity((ui32)master.fg_hWnd, kk);
+                                    wdelta = axis_info.inc_step;
+                                    if (os::dtvt::wheelrate) delta *= os::dtvt::wheelrate;
+                                    axis_info.vertical ? mouse_wheel(delta, faux)
+                                                       : mouse_wheel(delta, true);
+                                    if constexpr (debugmode) log("\t delta=%% cur_val=%% (fullstep=%%)", delta, current_value, wdelta);
+                                }
+                                mask &= mask - 1;
+                            }
+                        }
+                    }
+                }
+                else if (d.evtype == x11::req::xi2::event::Enter || d.evtype == x11::req::xi2::event::Leave)
+                {
+                    master_pointer_id = device_id;
+                    auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
+                    auto hover = d.evtype == x11::req::xi2::event::Enter;
+                    if constexpr (debugmode) log("%%Hover: sourceid=%% '%%' mode=%% mods=0x%% leds=0x%% hover=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, (si32)f.mode, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)hover);
+                    _set_keyboard_led_state(f.mods.locked); // Sync CapsLock/NumLock/ScrollLock.
+                    if (!hover && f.mode == 0/*Normal*/)
+                    {
+                        mouse_leave();
+                    }
+                    else if (!hover) // Sometimes, system reports nothing when mouse leaving (mouse moved +/- 1px w/o reporting).
+                    {
+                        //todo WL(XWL) only: They sometime (after drag) also return broken coords (+/- 1px):
+                        //session.accumrq(batch_buffer, x11::req::query_pointer{ .window_id = session.root_window_id }, {},
+                        //[&](auto& ev, view payload)
+                        //{
+                        //    if (ev.type != x11::event::Error)
+                        //    {
+                        //        auto m = netxs::start_lifetime_as<x11::req::query_pointer::reply>(payload.data());
+                        //        auto coor = fp2d{ m.root_x, m.root_y };
+                        //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
+                        //        _check_if_mouse_moved(coor, faux);
+                        //    }
+                        //});
+                        //session.sendrq(x11::req::xi2::query_pointer{ .major_opcode = session.xi2_major_opcode,
+                        //                                             .window_id    = (ui32)master.wm_hWnd,
+                        //                                             .device_id    = device_id }, {},
+                        //[&](auto& ev, view payload)
+                        //{
+                        //    if (ev.type != x11::event::Error)
+                        //    {
+                        //        auto m = netxs::start_lifetime_as<x11::req::xi2::query_pointer::reply>(payload.data());
+                        //        auto coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
+                        //        log(ansi::clr(tint::greenlt, "mouse sync at ", coor));
+                        //        _check_if_mouse_moved(coor, faux);
+                        //    }
+                        //});
+                    }
+                }
+                else if (d.evtype == x11::req::xi2::event::FocusIn || d.evtype == x11::req::xi2::event::FocusOut)
+                {
+                    auto f = netxs::start_lifetime_as<x11::req::xi2::event::focus>(packet.data());
+                    auto focused = d.evtype == x11::req::xi2::event::FocusIn;
+                    if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%% layout=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused, (si32)f.group.effective);
+                    _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
+                    _toggle_foreground(focused);
+                    focus_event(focused);
+                }
+            }
+            if constexpr (debugmode) log("End ----------------------------------------");
+            return true;
+        }
         void sync_os_settings()
         {
             wdelta = 1.f;
@@ -6699,45 +8726,47 @@ namespace netxs::gui
             : winbase{ Args... }
         { }
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
         bool keybd_read_media(si16 /*cmd*/, ui16 /*uDevice*/, ui16 /*dwKeys*/) { return 0; }
+        void keybd_load_vkstat(void* /*ptr*/, ui32 /*len*/) {}
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
+        si32 keybd_read_state() { return 0; }
+        si32 keybd_test_state() { return 0; }
+        void keybd_print_vkstat(text /*s*/) {}
         void keybd_send_block(view /*block*/) {}
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
-        void keybd_sync_state(si32 /*virtcod*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
-        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
-        void layer_move_all() {}
-        void layer_present(layer& /*s*/) {}
+        bool layer_create(layer& /*s*/, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
+        void layers_move() {}
+        void layers_present() {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
         void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
         bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
         void window_sync_taskbar(si32 /*new_state*/) {}
         rect window_get_fs_area(rect window_area) { return window_area; }
-        void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void window_send_command_impl(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
         void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
         cont window_recv_command(arch /*lParam*/) { return cont{}; }
         void window_make_foreground() {}
-        void window_make_focused() {}
+        void window_make_focused_impl() {}
         void window_make_exposed() {}
         void window_make_topmost(bool) {}
         void window_message_pump() {}
-        void window_initilize() {}
+        void window_initialize() {}
         void window_shutdown() {}
         void window_cleanup() {}
         void window_set_title(view /*utf8*/) {}
-        twod mouse_get_pos() { return twod{}; }
-        void mouse_capture(si32 /*captured_by*/) {}
-        void mouse_release(si32 /*released_by*/) {}
+        fp2d mouse_get_pos() { return fp2d{}; }
+        void mouse_capture_impl() {}
+        void mouse_release_impl() {}
         void mouse_catch_outside() {}
         void sync_os_settings() {}
     };

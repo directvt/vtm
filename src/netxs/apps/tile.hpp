@@ -1004,7 +1004,7 @@ namespace netxs::app::tile
             if (appcfg.cwd.size())
             {
                 auto err = std::error_code{};
-                fs::current_path(appcfg.cwd, err);
+                os::fs::current_path(appcfg.cwd, err);
                 if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, appcfg.cwd, err.value());
                 else     log("%%Change current directory to '%cwd%'", prompt::tile, appcfg.cwd);
             }
