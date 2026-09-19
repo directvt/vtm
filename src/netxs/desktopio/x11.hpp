@@ -1091,7 +1091,7 @@ namespace netxs::x11
                 ui32 cursor_id = 0;
                 ui16 device_id;         // Virtual master pointer id.
                 byte grab_mode          = grab_device::GrabModeAsync;
-                byte paired_device_mode = grab_device::GrabModeAsync;;
+                byte paired_device_mode = grab_device::GrabModeAsync;
                 byte owner_events = 0;  // 0: window_id is the only owner.
                 byte pad = {};
                 ui16 mask_len = 1;

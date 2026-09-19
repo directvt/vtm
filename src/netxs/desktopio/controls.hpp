@@ -3122,7 +3122,7 @@ namespace netxs::ui
             {
                 if (!area) return;
                 auto lt = rect{ area.coor - dot_11, dot_11 };
-                auto rb = rect{ area.coor + area.size, dot_11 };;
+                auto rb = rect{ area.coor + area.size, dot_11 };
                 auto rt = rect{{ rb.coor.x, lt.coor.y }, dot_11 };
                 auto lb = rect{{ lt.coor.x, rb.coor.y }, dot_11 };
                 canvas.fill(lt, cell::shaders::shadow(x3y3));

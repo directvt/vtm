@@ -3966,7 +3966,7 @@ namespace netxs::lixx // li++, libinput++.
                             queue_push_event(EV_KEY, i, next);
                         }
                     }
-                    key_values = keystate;;
+                    key_values = keystate;
                     return 0;
                 }
                 si32 sync_led_state()
@@ -19499,7 +19499,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto& li = li_device->li;
                     auto timer_name = utf::fprint("%s% wheel scroll", li_device->ud_device.sysname);
-                    generic.wheel.scroll_timer = li.timers.create(timer_name, [&](time now){ wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now);; });
+                    generic.wheel.scroll_timer = li.timers.create(timer_name, [&](time now){ wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now); });
                 }
             }
             void fallback_init_debounce()

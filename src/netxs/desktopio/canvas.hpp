@@ -3580,7 +3580,7 @@ namespace netxs
                 template<class D>
                 inline void operator () (D& dst) const
                 {
-                    auto i = dst.inv() ^ invert;;
+                    auto i = dst.inv() ^ invert;
                     auto b = i ? dst.fgc() : dst.bgc();
                     dst.uv = colors;
                     dst.inv(i);
