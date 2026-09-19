@@ -3919,8 +3919,9 @@ namespace netxs::x11
             }
             if (current_node && current_node->leaf) // Stop waiting on overlap (sequence complete with result).
             {
+                auto result = input_result{ .stat = status::completed_wait, .utf8 = current_node->utf8, .symcode = current_node->symcode };
                 reset();
-                return input_result{ .stat = status::completed_wait, .utf8 = current_node->utf8, .symcode = current_node->symcode };;
+                return result;
             }
             if (current_node)
             {
