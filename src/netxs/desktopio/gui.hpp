@@ -4615,17 +4615,10 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 virtcod = {},
-                              si32 keystat = {},
-                              si32 scancod = {},
-                              bool extflag = {},
-                              view cluster = {},
-                              bool synth = faux,
-                              byte payload = input::keybd::type::keypress)
+        void keybd_send_state()
         {
-            auto state = synth ? keymod
-                               : keybd_test_state();
-            auto changed = std::exchange(keymod, state) != keymod || synth;
+            auto state = keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod;
 
             if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                        mouse_release(by::keybd);
@@ -4642,32 +4635,20 @@ namespace netxs::gui
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
             }
-            gear.payload = payload;
-            gear.extflag = extflag;
-            gear.virtcod = virtcod;
-            gear.scancod = scancod;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
-            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
-            {
-                auto latin_shifted = text{};
-                auto latin_unshift = text{};
-                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
-                return std::pair{ latin_shifted, latin_unshift };
-            });
-            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
-            gear.keystat = keystat;
-            gear.keycode = keycode;
+            gear.payload = input::keybd::type::keypress;
+            gear.extflag = {};
+            gear.virtcod = {};
+            gear.scancod = {};
+            gear.keystat = {};
+            gear.keycode = input::key::undef;
             gear.xlayout = xlayout;
-            gear.cluster = cluster;
-            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
-            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
-                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
+            gear.shifted.clear();
+            gear.unshift.clear();
+            gear.cluster.clear();
             //keybd_print_vkstat("keybd_send_state");
-            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            if (changed)
             {
-                synth ? chords.build(gear)
-                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                //chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                 stream_keybd(gear);
             }
         }
