@@ -7561,7 +7561,7 @@ namespace netxs::gui
         {
             _keybd_request_state();
             mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            keybd_print_vkstat("keybd_read_vkstat");
+            //keybd_print_vkstat("keybd_read_vkstat");
             //tslink.set_focus();
         }
         void keybd_send_block(view /*block*/) {}
