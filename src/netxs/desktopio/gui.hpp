@@ -5685,6 +5685,62 @@ namespace netxs::gui
         }
         bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        void _keybd_send_state(si32 virtcod = {},
+                               si32 keystat = {},
+                               si32 scancod = {},
+                               bool extflag = {},
+                               view cluster = {},
+                               bool synth = faux,
+                               byte payload = input::keybd::type::keypress)
+        {
+            auto state = synth ? keymod
+                               : keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod || synth;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
+            auto& gear = *stream.gears;
+            if ((changed || gear.ctlstat != keymod))
+            {
+                gear.ctlstat = keymod;
+                if (stream.m.enabled == hids::stat::ok)
+                {
+                    stream.m.ctlstat = keymod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                }
+            }
+            gear.payload = payload;
+            gear.extflag = extflag;
+            gear.virtcod = virtcod;
+            gear.scancod = scancod;
+            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
+            {
+                auto latin_shifted = text{};
+                auto latin_unshift = text{};
+                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
+                return std::pair{ latin_shifted, latin_unshift };
+            });
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
+            gear.keystat = keystat;
+            gear.keycode = keycode;
+            gear.xlayout = xlayout;
+            gear.cluster = cluster;
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
+                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
+            //keybd_print_vkstat("keybd_send_state");
+            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            {
+                synth ? chords.build(gear)
+                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                stream_keybd(gear);
+            }
+        }
         void keybd_sync_shift(bool async)
         {
             //Left/RightShift detection notes: The event of releasing any Shift key while both Shift keys are pressed
@@ -5704,12 +5760,12 @@ namespace netxs::gui
                     //if (old_rs && !new_rs) // RightShift released.
                     {
                         keymod &= ~mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                     }
                     //if (old_ls && !new_ls) // LeftShift released.
                     {
                         keymod &= ~mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                     }
                 }
                 else
@@ -5717,23 +5773,23 @@ namespace netxs::gui
                     if (old_ls && !new_ls) // LeftShift released.
                     {
                         keymod &= ~mods::LShift;
-                        keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, lshift.scan, lshift.extflag, {}, true);
                     }
                     if (old_rs && !new_rs) // RightShift released.
                     {
                         keymod &= ~mods::RShift;
-                        keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
+                        _keybd_send_state(vkey::shift, input::key::released, rshift.scan, rshift.extflag, {}, true);
                     }
                 }
                 if (!old_ls && new_ls) // LeftShift pressed.
                 {
                     keymod |= mods::LShift;
-                    keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
+                    _keybd_send_state(vkey::shift, input::key::pressed, lshift.scan, lshift.extflag, {}, true);
                 }
                 if (!old_rs && new_rs) // RightShift pressed.
                 {
                     keymod |= mods::RShift;
-                    keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
+                    _keybd_send_state(vkey::shift, input::key::pressed, rshift.scan, rshift.extflag, {}, true);
                 }
                 if (new_ls && new_rs) // Two Shifts pressed.
                 {
@@ -5829,7 +5885,7 @@ namespace netxs::gui
                     if (keystat == input::key::released && chords.pressed(input::key::Break)) // Ctrl released before Pause. Forcing simulation of Break KeyUp.
                     {
                         auto& break_key = input::key::map::data(input::key::Break);
-                        keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
+                        _keybd_send_state(vkey::cancel, input::key::released, break_key.scan, break_key.extflag, {}, true);
                         if constexpr (debugmode) log("Fake Pause 'release' key event generated");
                     }
                     fake_time = {};
@@ -5845,7 +5901,7 @@ namespace netxs::gui
                         {
                             fake_ralt = true;
                             keymod &= ~mods::LCtrl; // Pop left ctrl from the ctrlstate.
-                            keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
+                            _keybd_send_state(vkey::ctrl, input::key::released, fake_scan, faux, {}, true);
                         }
                         if (fake_ralt) // Simulate AltGr.
                         {
@@ -5865,12 +5921,12 @@ namespace netxs::gui
                         auto& sysreq_key = input::key::map::data(input::key::SysReq);
                         if (extflag == prntscrn_key.extflag && !chords.pressed(input::key::PrintScreen))
                         {
-                            keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
+                            _keybd_send_state(virtcod, input::key::pressed, prntscrn_key.scan, prntscrn_key.extflag, {}, true);
                             if constexpr (debugmode) log("Fake PrintScreen 'pressed' key event generated");
                         }
                         else if (extflag == sysreq_key.extflag && !chords.pressed(input::key::SysReq))
                         {
-                            keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
+                            _keybd_send_state(virtcod, input::key::pressed, sysreq_key.scan, sysreq_key.extflag, {}, true);
                             if constexpr (debugmode) log("Fake SysReq 'pressed' key event generated");
                         }
                     }
@@ -5896,7 +5952,7 @@ namespace netxs::gui
             if (is_deadkey_released)
             {
                 //if constexpr (debugmode) log("deadkey released");
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
                 last_deadkey_vkey = {};
             }
             else if (keytype != 2)
@@ -5905,7 +5961,7 @@ namespace netxs::gui
                 {
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
-                        keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
+                        _keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(cluster, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         //keybd_print_vkstat("Alt+Numpad");
                         return true;
@@ -5915,13 +5971,13 @@ namespace netxs::gui
                 {
                     cluster.clear();
                 }
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
             }
             else
             {
                 last_deadkey_vkey = virtcod;
                 //if constexpr (debugmode) log("deadkey pressed");
-                keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
+                _keybd_send_state(virtcod, keystat, scancod, extflag, cluster, faux, input::keybd::type::deadkey);
             }
             //keybd_print_vkstat("keybd_read_input");
             return true;
@@ -6010,7 +6066,7 @@ namespace netxs::gui
         void keybd_sync_state(si32 virtcod = {})
         {
             ::GetKeyboardState(vkstat.data());
-            keybd_send_state(virtcod);
+            _keybd_send_state(virtcod);
             //keybd_print_vkstat("keybd_sync_state");
         }
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
@@ -7368,6 +7424,58 @@ namespace netxs::gui
             auto compose_mods = (ui16)((modifiers & ~consumed_mods) | preserved_mods);
             return result{ group_key_rec.syms[target_level], compose_mods };
         }
+        //todo unify with win32
+        void _keybd_send_state(si32 keycode = {},
+                               si32 virtcod = {},
+                               si32 keystat = {},
+                               si32 scancod = {},
+                               bool extflag = {},
+                               view cluster = {},
+                               bool synth = faux,
+                               byte payload = input::keybd::type::keypress)
+        {
+            auto state = synth ? keymod
+                               : keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod || synth;
+
+            if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                        mouse_release(by::keybd);
+
+            auto& gear = *stream.gears;
+            if ((changed || gear.ctlstat != keymod))
+            {
+                gear.ctlstat = keymod;
+                if (stream.m.enabled == hids::stat::ok)
+                {
+                    stream.m.ctlstat = keymod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                }
+            }
+            gear.payload = payload;
+            gear.extflag = extflag;
+            gear.virtcod = virtcod;
+            gear.scancod = scancod;
+            //todo gear.shifted, gear.unshift
+            //keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
+            gear.keystat = keystat;
+            gear.keycode = keycode;
+            gear.xlayout = xlayout;
+            gear.cluster = cluster;
+            if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
+            auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
+                                                                || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                                                || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
+            //keybd_print_vkstat("keybd_send_state");
+            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
+            {
+                synth ? chords.build(gear)
+                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                stream_keybd(gear);
+            }
+        }
 
         bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
         {
@@ -8406,12 +8514,12 @@ namespace netxs::gui
                         else if (res.stat == x11::compose::status::completed_wait)
                         {
                             auto res_cluster = text{};
-                            auto res_virtcod = 0;
-                            auto res_extflag = 0;
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
                             if (!res.utf8.empty()) res_cluster = res.utf8;
                             if (res.symcode) // Figure out a new key.
                             {
+                                auto res_virtcod = 0;
+                                auto res_extflag = 0;
                                 if (auto keyall = input::key::xkb_to_all(res.symcode))
                                 {
                                     auto& r = input::key::map::data(keyall);
@@ -8419,9 +8527,12 @@ namespace netxs::gui
                                     res_virtcod = r.vkey;
                                     res_extflag = r.extflag;
                                 }
+                                _keybd_send_state(latin_keyall, res_virtcod, keystat, scancod, res_extflag, res_cluster); // Consume the result and retry.
                             }
-                            //todo use latin_keyall
-                            keybd_send_state(res_virtcod, keystat, scancod, res_extflag, res_cluster); // Consume the result and retry.
+                            else
+                            {
+                                keybd_send_input(res_cluster, input::keybd::type::imeinput);
+                            }
                             goto std_compose_retry;
                         }
                         else if (res.stat == x11::compose::status::invalidated)
@@ -8449,7 +8560,7 @@ namespace netxs::gui
                         log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
                         //keybd_print_vkstat("KeyPress");
                     }
-                    keybd_send_state(virtcod, keystat, scancod, extflag, cluster);
+                    _keybd_send_state(latin_keyall, virtcod, keystat, scancod, extflag, cluster);
                 }
                 else if (d.evtype == x11::req::xi2::event::ButtonPress
                       || d.evtype == x11::req::xi2::event::ButtonRelease
