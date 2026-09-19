@@ -6697,8 +6697,8 @@ namespace netxs::gui
         std::vector<x11_key_type_t> key_types;
         std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
         modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
-        std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
-        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
+        std::array<byte, 256>       keycode_to_vkey{}; // window: Latin keycodes to vkey lut.
+        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to national keycodes lut.
         std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
 
@@ -7329,9 +7329,8 @@ namespace netxs::gui
             }
             return (arch)latin_hkl;
         }
-        auto _wrap_layout(auto& base_key, byte global_layout_id)
+        auto _wrap_layout(auto& base_key, byte target_group)
         {
-            auto target_group = global_layout_id;
             auto layout_count = std::max((byte)1, base_key.layout_count);
             if (target_group >= layout_count) // Figure out the target layout (group).
             {
@@ -7351,11 +7350,11 @@ namespace netxs::gui
             }
             return target_group;
         }
-        auto _get_latinbased_keysym(byte keycode)
+        auto _get_keysym(si32 keycode, arch layout_id)
         {
-            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
-            auto target_layout = _wrap_layout(base_key, hkl_latin);
-            auto target_keysym = layouts[target_layout].key_syms[keycode].syms[0];
+            auto& base_key = layouts[0].key_syms[(byte)keycode]; // The key properties are the same across all groups.
+            auto target_layout = _wrap_layout(base_key, (byte)layout_id & 3);
+            auto target_keysym = layouts[target_layout].key_syms[(byte)keycode].syms[0];
             return target_keysym;
         }
         auto _process_shift_level(byte keycode, ui16 modifiers, byte global_layout_id)
@@ -7569,7 +7568,7 @@ namespace netxs::gui
         void _keybd_turn_layout(ui32 layout_id)
         {
             if (layout_id >= layouts.size()) layout_id = 0;
-            xlayout = layout_id;
+            auto native_changed = std::exchange(xlayout, layout_id) != xlayout;
             auto latin_changed = faux;
             if (layouts[layout_id].is_latin())
             {
@@ -7585,12 +7584,25 @@ namespace netxs::gui
                 extvkey_to_keycode = {};
                 for (auto keycode = 0; keycode < 256; keycode++)
                 {
-                    if (auto latin_keysym = _get_latinbased_keysym(keycode))
+                    if (auto latin_keysym = _get_keysym(keycode, hkl_latin))
                     if (auto latin_keyall = input::key::xkb_to_all(latin_keysym))
                     {
                         auto& keyrec = input::key::map::data(latin_keyall);
                         auto virtcod = keyrec.vkey & 0x1FF; // 0x1FF: 8bit + extflag.
                         extvkey_to_keycode[virtcod] = keycode;
+                    }
+                }
+            }
+            // Refill vkey_to_keycode[virtcode] lookup table.
+            if (native_changed)
+            {
+                vkey_to_keycode = {};
+                for (auto keycode = 0; keycode < 256; keycode++)
+                {
+                    if (auto native_keysym = _get_keysym(keycode, layout_id))
+                    if (auto virtcod = x11::key::base_keysym_to_vkey(native_keysym))
+                    {
+                        vkey_to_keycode[virtcod] = keycode;
                     }
                 }
             }
@@ -8466,13 +8478,11 @@ namespace netxs::gui
                     auto [symcode, compose_mods] = _process_shift_level(keycode, modifiers, layout_id);
                     auto unicode = x11::key::sym_to_unicode(symcode);
                     auto cluster = utf::to_utf_from_code(unicode);
-
-                    auto latin_keysym = _get_latinbased_keysym(keycode);
-                    auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym);
-
                     auto virtcod = 0;
                     auto extflag = 0;
                     auto scancod = std::max(0, (si32)keycode - 8);
+                    auto latin_keysym = _get_keysym(keycode, hkl_latin);
+                    auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym);
                     if (latin_keyall)
                     {
                         auto& keyrec = input::key::map::data(latin_keyall);
