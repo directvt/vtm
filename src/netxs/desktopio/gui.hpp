@@ -3561,7 +3561,7 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
               xlayout{},
-              hkl_latin{ -1u },
+              hkl_latin{ (ui32)-1 },
               layout_hint{ -1 }
         { }
 
@@ -3586,7 +3586,6 @@ namespace netxs::gui
             gear.payload = temp;
             if constexpr (debugmode) log("Sync kb layout: xlayout=%%", utf::to_hex(xlayout));
         }
-        virtual void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers) = 0;
         virtual void keybd_load_vkstat(void* ptr, ui32 len) = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
@@ -5535,7 +5534,7 @@ namespace netxs::gui
             auto sc = input::key::map::data(input::key::Space).scan;
             ::ToUnicodeEx(vk, sc, ks.data(), &uc, 1, 0, (HKL)hkl);
         }
-        void keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
+        void _keybd_peek_layout(si32 virtcod, si32 scancod, bool extflag, text& shifted, text& unshift, arch layout_id, bool apply_modifiers)
         {
             shifted.clear();
             unshift.clear();
@@ -5697,12 +5696,12 @@ namespace netxs::gui
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
+            _keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
             auto keycode = input::key::xlat_direct(virtcod, scancod, extflag, layout_hint, [&]
             {
                 auto latin_shifted = text{};
                 auto latin_unshift = text{};
-                keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
+                _keybd_peek_layout(virtcod, scancod, extflag, latin_shifted, latin_unshift, hkl_latin, faux);
                 return std::pair{ latin_shifted, latin_unshift };
             });
             if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
@@ -7405,19 +7404,41 @@ namespace netxs::gui
             auto compose_mods = (ui16)((modifiers & ~consumed_mods) | preserved_mods);
             return result{ group_key_rec.syms[target_level], compose_mods };
         }
+        void _keybd_peek_layout(byte keycode, byte modifiers, byte layout_id, text& shifted, text& unshift)
+        {
+            shifted.clear();
+            unshift.clear();
+            if (keycode)
+            {
+                auto unshift_mods = modifiers & ~modifier_map.shift;
+                auto res_unshift = _process_shift_level(keycode, unshift_mods, layout_id);
+                if (res_unshift.keysym)
+                {
+                    auto unicode = x11::key::sym_to_unicode(res_unshift.keysym);
+                    if (unicode) unshift = utf::to_utf_from_code(unicode);
+                }
+                auto shift_mods = modifiers | modifier_map.shift;
+                auto res_shift = _process_shift_level(keycode, shift_mods, layout_id);
+                if (res_shift.keysym)
+                {
+                    auto unicode = x11::key::sym_to_unicode(res_shift.keysym);
+                    if (unicode) shifted = utf::to_utf_from_code(unicode);
+                }
+            }
+        }
         //todo unify with win32
-        void _keybd_send_state(si32 keycode = {},
+        void _keybd_send_state(byte keycode = {},
+                               si32 key_all = {},
+                               byte modifiers = {},
+                               byte layout_id = {},
                                si32 virtcod = {},
                                si32 keystat = {},
                                si32 scancod = {},
                                bool extflag = {},
-                               view cluster = {},
-                               bool synth = faux,
-                               byte payload = input::keybd::type::keypress)
+                               view cluster = {})
         {
-            auto state = synth ? keymod
-                               : keybd_test_state();
-            auto changed = std::exchange(keymod, state) != keymod || synth;
+            auto state = keybd_test_state();
+            auto changed = std::exchange(keymod, state) != keymod;
 
             if (keymod & mods::anyCtrl) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                        mouse_release(by::keybd);
@@ -7434,15 +7455,14 @@ namespace netxs::gui
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
             }
-            gear.payload = payload;
+            gear.payload = input::keybd::type::keypress;
             gear.extflag = extflag;
             gear.virtcod = virtcod;
             gear.scancod = scancod;
-            //todo gear.shifted, gear.unshift
-            //keybd_peek_layout(virtcod, scancod, extflag, gear.shifted, gear.unshift, 0, true);
-            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
+            _keybd_peek_layout(keycode, modifiers, layout_id, gear.shifted, gear.unshift);
+            if ((gear.keystat == input::key::released || key_all != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the Windows OS as a repeated LeftMod.
             gear.keystat = keystat;
-            gear.keycode = keycode;
+            gear.keycode = key_all;
             gear.xlayout = xlayout;
             gear.cluster = cluster;
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
@@ -7452,8 +7472,7 @@ namespace netxs::gui
             //keybd_print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
-                synth ? chords.build(gear)
-                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
+                chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                 stream_keybd(gear);
             }
         }
@@ -7462,9 +7481,9 @@ namespace netxs::gui
         {
             return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
         }
-        bool keybd_test_pressed_ex(si32 virtcod, si32 /*keycode*/ = 0)
+        bool keybd_test_pressed_ex(si32 ext_virtcod, si32 /*keycode*/ = 0)
         {
-            return netxs::get_bit(vkstat, extvkey_to_keycode[virtcod & 0x1FF]); // 0x1FF: 8bit + extflag.
+            return netxs::get_bit(vkstat, extvkey_to_keycode[ext_virtcod & 0x1FF]); // 0x1FF: 8bit + extflag.
         }
         bool keybd_test_toggled(si32 virtcod)
         {
@@ -7567,7 +7586,7 @@ namespace netxs::gui
                 for (auto keycode = 0; keycode < 256; keycode++)
                 {
                     if (auto latin_keysym = _get_latinbased_keysym(keycode))
-                    if (auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym))
+                    if (auto latin_keyall = input::key::xkb_to_all(latin_keysym))
                     {
                         auto& keyrec = input::key::map::data(latin_keyall);
                         auto virtcod = keyrec.vkey & 0x1FF; // 0x1FF: 8bit + extflag.
@@ -7582,7 +7601,6 @@ namespace netxs::gui
             log("%%Keyboard layout changed to ", prompt::gui, utf::adjust(utf::to_hex(layout_id), 8, "0", true));
             winbase::keybd_sync_layout();
         }
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& s, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
@@ -8492,7 +8510,7 @@ namespace netxs::gui
                                 }
                             }
                         }
-                        else if (res.stat == x11::compose::status::completed_wait)
+                        else if (res.stat == x11::compose::status::completed_wait) // Consume the result and retry.
                         {
                             auto res_cluster = text{};
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
@@ -8508,7 +8526,7 @@ namespace netxs::gui
                                     res_virtcod = r.vkey;
                                     res_extflag = r.extflag;
                                 }
-                                _keybd_send_state(latin_keyall, res_virtcod, keystat, scancod, res_extflag, res_cluster); // Consume the result and retry.
+                                _keybd_send_state(keycode, latin_keyall, modifiers, layout_id, res_virtcod, keystat, scancod, res_extflag, res_cluster);
                             }
                             else
                             {
@@ -8541,7 +8559,7 @@ namespace netxs::gui
                         log(" layout:    pressed=%% latched=%% locked=%% effective=%%", (si32)k.group.base_group, (si32)k.group.latched, (si32)k.group.locked, (si32)k.group.effective);
                         //keybd_print_vkstat("KeyPress");
                     }
-                    _keybd_send_state(latin_keyall, virtcod, keystat, scancod, extflag, cluster);
+                    _keybd_send_state(keycode, latin_keyall, modifiers, layout_id, virtcod, keystat, scancod, extflag, cluster);
                 }
                 else if (d.evtype == x11::req::xi2::event::ButtonPress
                       || d.evtype == x11::req::xi2::event::ButtonRelease
@@ -8713,7 +8731,6 @@ namespace netxs::gui
         void keybd_send_block(view /*block*/) {}
         void keybd_turn_layout(ui32 /*hkl*/) {}
         void keybd_sync_layout() {}
-        void keybd_peek_layout(si32 /*virtcod*/, si32 /*scancod*/, bool /*extflag*/, text& /*shifted*/, text& /*unshift*/, arch /*layout_id*/, bool /*apply_modifiers*/) {}
         void keybd_reset_deadkey(arch /*hkl*/ = {}) {}
         bool layer_create(layer& /*s*/, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return faux; }
         void layers_move() {}
