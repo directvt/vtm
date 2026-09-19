@@ -8737,6 +8737,8 @@ namespace netxs::gui
         void keybd_load_vkstat(void* /*ptr*/, ui32 /*len*/) {}
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
+        si32 keybd_read_state() { return 0; }
+        si32 keybd_test_state() { return 0; }
         void keybd_print_vkstat(text /*s*/) {}
         void keybd_send_block(view /*block*/) {}
         void keybd_turn_layout(ui32 /*hkl*/) {}
