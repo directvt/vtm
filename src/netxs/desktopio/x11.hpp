@@ -3221,7 +3221,7 @@ namespace netxs::x11
             X(numpad9 , KP_9            , 0xffb9) /* VK_NUMPAD9  */ \
             X(numpadD , KP_Decimal      , 0xffae) /* VK_DECIMAL  */
         // Sync with input::vkey::* from input.hpp.
-        constexpr byte keysym_to_vkey(ui32 keysym)
+        constexpr byte base_keysym_to_vkey(ui32 keysym)
         {
             auto vk = (byte)0;
             switch (keysym)

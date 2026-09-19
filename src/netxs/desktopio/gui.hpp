@@ -3561,7 +3561,7 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client },
               xlayout{},
-              hkl_latin{},
+              hkl_latin{ -1u },
               layout_hint{ -1 }
         { }
 
@@ -3597,6 +3597,7 @@ namespace netxs::gui
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
         virtual bool keybd_read_pressed(si32 virtcod) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
+        virtual bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0) = 0;
         virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
         virtual si32 keybd_conv_media2keyid(si32 mediakey) = 0;
         virtual bool keybd_read_media(si16 cmd, ui16 uDevice, ui16 dwKeys) = 0;
@@ -4666,7 +4667,7 @@ namespace netxs::gui
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
                 synth ? chords.build(gear)
-                      : chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                      : chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                 stream_keybd(gear);
             }
         }
@@ -5669,6 +5670,10 @@ namespace netxs::gui
             }
             return !!(vkstat[virtcod] & 0x80);
         }
+        bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0)
+        {
+            return keybd_test_pressed(virtcod, keycode);
+        }
         bool keybd_read_pressed(si32 virtcod)
         {
             if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
@@ -6228,7 +6233,7 @@ namespace netxs::gui
                     auto gen_event = [&](auto keystat)
                     {
                         gear.keystat = keystat;
-                        chords.build(gear, [&](auto vk, auto keyid){ return !keybd_test_pressed(vk, keyid); });
+                        chords.build(gear, [&](auto ext_vk, auto keyid){ return !keybd_test_pressed_ex(ext_vk, keyid); });
                         stream_keybd(gear);
                     };
                     gen_event(input::key::pressed);
@@ -6658,6 +6663,7 @@ namespace netxs::gui
         modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
         std::array<byte, 256>       keycode_to_vkey{}; // window: Keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to keycodes lut.
+        std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
 
         window(auto&& ...Args)
@@ -7151,7 +7157,7 @@ namespace netxs::gui
                     q.remove_prefix(sizeof(key_desc));
                     // Peek led modifiers for block 3.
                     if (auto peek_keysym = netxs::start_lifetime_as<ui32>(q.data()))
-                    if (auto virtcode = x11::key::keysym_to_vkey(peek_keysym))
+                    if (auto virtcode = x11::key::base_keysym_to_vkey(peek_keysym))
                     {
                         keycode_to_vkey[key_code] = virtcode;
                         vkey_to_keycode[virtcode] = key_code;
@@ -7287,21 +7293,10 @@ namespace netxs::gui
             }
             return (arch)latin_hkl;
         }
-        auto _process_shift_level(byte keycode, ui16 modifiers, byte global_layout_id)
+        auto _wrap_layout(auto& base_key, byte global_layout_id)
         {
-            struct result
-            {
-                ui32 keysym;
-                ui16 compose_mods; // Modifiers left after shifting.
-            };
-
-            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
-            if (base_key.width == 0)
-            {
-                return result{ 0u, modifiers }; // Key has no symbols.
-            }
-            auto layout_count = std::max((byte)1, base_key.layout_count);
             auto target_group = global_layout_id;
+            auto layout_count = std::max((byte)1, base_key.layout_count);
             if (target_group >= layout_count) // Figure out the target layout (group).
             {
                 using key_sym_map_desc = x11::req::xkb::get_map::reply::key_sym_map_desc;
@@ -7318,6 +7313,29 @@ namespace netxs::gui
                     target_group = 0;
                 }
             }
+            return target_group;
+        }
+        auto _get_latinbased_keysym(byte keycode)
+        {
+            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
+            auto target_layout = _wrap_layout(base_key, hkl_latin);
+            auto target_keysym = layouts[target_layout].key_syms[keycode].syms[0];
+            return target_keysym;
+        }
+        auto _process_shift_level(byte keycode, ui16 modifiers, byte global_layout_id)
+        {
+            struct result
+            {
+                ui32 keysym;
+                ui16 compose_mods; // Modifiers left after shifting.
+            };
+
+            auto& base_key = layouts[0].key_syms[keycode]; // The key properties are the same across all groups.
+            if (base_key.width == 0)
+            {
+                return result{ 0u, modifiers }; // Key has no symbols.
+            }
+            auto target_group = _wrap_layout(base_key, global_layout_id);
             auto& group_key_rec = layouts[target_group].key_syms[keycode];
             auto type_idx = group_key_rec.behavior_type;
             if (type_idx >= key_types.size())
@@ -7354,6 +7372,10 @@ namespace netxs::gui
         bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
         {
             return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
+        }
+        bool keybd_test_pressed_ex(si32 virtcod, si32 /*keycode*/ = 0)
+        {
+            return netxs::get_bit(vkstat, extvkey_to_keycode[virtcod & 0x1FF]); // 0x1FF: 8bit + extflag.
         }
         bool keybd_test_toggled(si32 virtcod)
         {
@@ -7440,13 +7462,29 @@ namespace netxs::gui
         {
             if (layout_id >= layouts.size()) layout_id = 0;
             xlayout = layout_id;
+            auto latin_changed = faux;
             if (layouts[layout_id].is_latin())
             {
-                hkl_latin = layout_id;
+                latin_changed = std::exchange(hkl_latin, layout_id) != hkl_latin;
             }
             else
             {
-                hkl_latin = _keybd_find_latin_layout();
+                latin_changed = std::exchange(hkl_latin, _keybd_find_latin_layout()) != hkl_latin;
+            }
+            // Refill extvkey_to_keycode[virtcode] lookup table.
+            if (latin_changed)
+            {
+                extvkey_to_keycode = {};
+                for (auto keycode = 0; keycode < 256; keycode++)
+                {
+                    if (auto latin_keysym = _get_latinbased_keysym(keycode))
+                    if (auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym))
+                    {
+                        auto& keyrec = input::key::map::data(latin_keyall);
+                        auto virtcod = keyrec.vkey & 0x1FF; // 0x1FF: 8bit + extflag.
+                        extvkey_to_keycode[virtcod] = keycode;
+                    }
+                }
             }
         }
         void keybd_turn_layout(ui32 layout_id)
@@ -8319,11 +8357,26 @@ namespace netxs::gui
                     }
                     auto keystat = is_pressed ? (repeated ? input::key::repeated : input::key::pressed) : input::key::released;
                     auto [symcode, compose_mods] = _process_shift_level(keycode, modifiers, layout_id);
-                    auto unicode = x11::key::sym_to_unicode(symcode); //todo apply compose
-                    auto cluster = utf::to_utf_from_code(unicode);    //
-                    auto virtcod = keycode_to_vkey[keycode];//todo select from ALL
-                    auto scancod = std::max(0, (si32)keycode - 8);
+                    auto unicode = x11::key::sym_to_unicode(symcode);
+                    auto cluster = utf::to_utf_from_code(unicode);
+
+                    auto latin_keysym = _get_latinbased_keysym(keycode);
+                    auto latin_keyall = input::key::xkb_to_all((ui32)latin_keysym);
+
+                    auto virtcod = 0;
                     auto extflag = 0;
+                    auto scancod = std::max(0, (si32)keycode - 8);
+                    if (latin_keyall)
+                    {
+                        auto& keyrec = input::key::map::data(latin_keyall);
+                        virtcod = keyrec.vkey;
+                        extflag = keyrec.extflag;
+                        //scancod = keyrec.scan;
+                    }
+                    else
+                    {
+                        virtcod = keycode_to_vkey[keycode];
+                    }
                     if (is_pressed)
                     {
                         std_compose_retry:
@@ -8331,25 +8384,42 @@ namespace netxs::gui
                         if (res.stat == x11::compose::status::matching)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "composing in progress"));
-                            //todo composing
-                            //return;
+                            //todo send preview for deadkeys
+                            return true;
                         }
                         else if (res.stat == x11::compose::status::completed)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got compose result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
                             if (!res.utf8.empty()) cluster = res.utf8;
-                            if (res.symcode)       symcode = res.symcode;
-                            //todo
-                            //return;
+                            if (res.symcode) // Figure out a new key.
+                            {
+                                symcode = res.symcode;
+                                if (auto keyall = input::key::xkb_to_all(symcode))
+                                {
+                                    auto& r = input::key::map::data(keyall);
+                                    latin_keyall = keyall;
+                                    virtcod = r.vkey;
+                                    extflag = r.extflag;
+                                }
+                            }
                         }
                         else if (res.stat == x11::compose::status::completed_wait)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
                             if (!res.utf8.empty()) cluster = res.utf8;
-                            if (res.symcode)       symcode = res.symcode;
-                            //todo Consume the result and retry.
+                            if (res.symcode) // Figure out a new key.
+                            {
+                                symcode = res.symcode;
+                                if (auto keyall = input::key::xkb_to_all(symcode))
+                                {
+                                    auto& r = input::key::map::data(keyall);
+                                    latin_keyall = keyall;
+                                    virtcod = r.vkey;
+                                    extflag = r.extflag;
+                                }
+                            }
+                            keybd_send_state(virtcod, keystat, scancod, extflag, cluster); // Consume the result and retry.
                             goto std_compose_retry;
-                            //return;
                         }
                         else if (res.stat == x11::compose::status::invalidated)
                         {
@@ -8363,12 +8433,10 @@ namespace netxs::gui
                                 compose.reset();
                                 goto std_compose_retry;
                             }
-                            //return;
                         }
                         else if (res.stat == x11::compose::status::inactive)
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "compose inactive: %%"), utf::debase437(cluster));
-                            //return;
                         }
                     }
                     if constexpr (debugmode)
@@ -8535,6 +8603,7 @@ namespace netxs::gui
             : winbase{ Args... }
         { }
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_input() { return true; }

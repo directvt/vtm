@@ -530,7 +530,7 @@ namespace netxs::input
         }();
         static constexpr auto fx_map = []
         {
-            auto m = std::array<si16, 512>{};
+            auto m = std::array<si16, 512>{}; // 512: 8 bit + 1 bit (extflag).
             auto fill = [&](si32 KeyId, si32 Vk)
             {
                 if (Vk > (si32)m.size() || m[Vk]) log("The Vk value is duplicated or incorrect (vk=%%)", Vk); // It won't compile if broken.
@@ -687,6 +687,46 @@ namespace netxs::input
                 }
             };
         };
+
+        constexpr auto xkb_to_all(ui32 keysym)
+        {
+            struct keyrec_t
+            {
+                si16 keyid;
+                ui32 keysym;
+            };
+            constexpr auto total_xkb_key_count = []
+            {
+                auto total_xkb_key_count = 0;
+                #define X(KeyId, Input, Vk, XSym, XName, Name, Generic, Literal, Uc, KkpDef, KkpSuffix, KkpIsFx, KkpAscii, KkpCtl, PhysicalCode) \
+                    if constexpr (XSym) total_xkb_key_count++;
+                    key_list
+                #undef X
+                return total_xkb_key_count;
+            }();
+            constexpr auto keysym_lut = []
+            {
+                auto m = std::array<keyrec_t, total_xkb_key_count>{};
+                auto i = 0;
+                auto fill = [&](si16 KeyId, ui32 XSym)
+                {
+                    if (XSym) m[i++] = { .keyid = KeyId, .keysym = XSym };
+                };
+                #define X(KeyId, Input, Vk, XSym, XName, Name, Generic, Literal, Uc, KkpDef, KkpSuffix, KkpIsFx, KkpAscii, KkpCtl, PhysicalCode) \
+                    fill(KeyId, XSym);
+                    key_list
+                #undef X
+                std::ranges::sort(m, {}, &keyrec_t::keysym);
+                return m;
+            }();
+            auto keyid = input::key::undef;
+            auto it = std::lower_bound(keysym_lut.begin(), keysym_lut.end(), keysym, [](auto& rec, ui32 val){return rec.keysym < val; });
+            if (it != keysym_lut.end() && it->keysym == keysym)
+            {
+                keyid = it->keyid;
+            }
+            return keyid;
+        }
 
         static const auto kkp_minFx = []
         {
