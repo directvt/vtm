@@ -8405,20 +8405,23 @@ namespace netxs::gui
                         }
                         else if (res.stat == x11::compose::status::completed_wait)
                         {
+                            auto res_cluster = text{};
+                            auto res_virtcod = 0;
+                            auto res_extflag = 0;
                             if constexpr (debugmode) log(ansi::clr(greenlt, "got awaited result: utf8='%%' keysym=%%"), res.utf8, x11::key::sym_to_name(res.symcode));
-                            if (!res.utf8.empty()) cluster = res.utf8;
+                            if (!res.utf8.empty()) res_cluster = res.utf8;
                             if (res.symcode) // Figure out a new key.
                             {
-                                symcode = res.symcode;
-                                if (auto keyall = input::key::xkb_to_all(symcode))
+                                if (auto keyall = input::key::xkb_to_all(res.symcode))
                                 {
                                     auto& r = input::key::map::data(keyall);
                                     latin_keyall = keyall;
-                                    virtcod = r.vkey;
-                                    extflag = r.extflag;
+                                    res_virtcod = r.vkey;
+                                    res_extflag = r.extflag;
                                 }
                             }
-                            keybd_send_state(virtcod, keystat, scancod, extflag, cluster); // Consume the result and retry.
+                            //todo use latin_keyall
+                            keybd_send_state(res_virtcod, keystat, scancod, res_extflag, res_cluster); // Consume the result and retry.
                             goto std_compose_retry;
                         }
                         else if (res.stat == x11::compose::status::invalidated)
