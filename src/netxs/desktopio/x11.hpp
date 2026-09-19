@@ -2488,7 +2488,9 @@ namespace netxs::x11
                 free_resource_id(shm_segment_xid);
             }
             shm_buffer_fd =
-                #if defined(__linux__)
+                #if defined(__ANDROID__)
+                    os::shm_open("vtm", O_RDWR | O_CREAT | O_EXCL, 0600);
+                #elif defined(__linux__)
                     ::memfd_create("x11_shm_buffer", MFD_CLOEXEC);
                 #else
                     ::shm_open(SHM_ANON, O_RDWR | O_CREAT | O_EXCL, 0600); // SHM_ANON - native anonymous descriptor in BSD.

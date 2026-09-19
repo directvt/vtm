@@ -1534,6 +1534,32 @@ namespace netxs::os
             #endif
         }
 
+        #if defined(__ANDROID__)
+            // Based on: https://github.com/termux/termux-packages/issues/30815#issuecomment-5445977114
+            auto shm_open(qiew name, si32 oflag, mode_t mode)
+            {
+                utf::trim_front(name, '/');
+                if (!name) // The name "/" is not supported.
+                {
+                    errno = EINVAL;
+                    return -1;
+                }
+                auto fname = utf::concat("@TERMUX_PREFIX@/tmp/", name);
+                auto fd = ::open(fname.c_str(), oflag, mode);
+                if (fd != os::invalid_fd) // Set the FD_CLOEXEC bit.
+                {
+                    auto flags = ::fcntl(fd, F_GETFD, 0);
+                    flags = ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+                    if (flags == -1) // Something went wrong.  We cannot return the descriptor.
+                    {
+                        auto save_errno = errno;
+                        ::close(std::exchange(fd, os::invalid_fd));
+                        errno = save_errno;
+                    }
+                }
+                return fd;
+            }
+        #endif
     #endif
 
     auto get_system_error_message(auto ec)
