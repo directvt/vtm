@@ -6670,12 +6670,12 @@ namespace netxs::gui
                 byte                layout_count;
                 byte                behavior_type;
                 byte                width;
-                std::array<ui32, 8> syms;
+                std::array<ui32, 8> syms; // 8: Level1Shift..Level8Shift
             };
             std::array<key_sym_t, 256> key_syms{};
             si32                       key_count{};
             si32                       latin_key_count{};
-            bool is_latin() { return latin_key_count >= 26; }
+            bool is_latin() { return latin_key_count > 'Z' - 'A'; }
         };
 
         using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
@@ -6701,6 +6701,8 @@ namespace netxs::gui
         std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to national keycodes lut.
         std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
+        std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
+        std::mutex                             timer_mutex;   // window: Timer mutex.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -6855,13 +6857,15 @@ namespace netxs::gui
                                                     x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                          .y      = (ui16)target_area.coor.y,
                                                                                          .width  = (ui16)target_area.size.x,
-                                                                                         .height = (ui16)target_area.size.y });
+                                                                                         .height = (ui16)target_area.size.y,
+                                                                                         .stack_mode = x11::req::configure_window::Above });
                         target_area.size = dot_11;
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd },
                                                     x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                          .y      = (ui16)target_area.coor.y,
                                                                                          .width  = (ui16)target_area.size.x,
-                                                                                         .height = (ui16)target_area.size.y });
+                                                                                         .height = (ui16)target_area.size.y,
+                                                                                         .stack_mode = x11::req::configure_window::Above });
                         //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.bg_hWnd });
                         //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
                         if (s.live)
@@ -6909,11 +6913,6 @@ namespace netxs::gui
                         session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
                                                                             .gc_id       = (ui32)s.bg_hdc });
                     }
-                    // Make base layer foreground.
-                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.fg_hWnd },
-                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
-                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.bg_hWnd },
-                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
                     // Configure mouse input.
                     session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
                     session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
@@ -7819,8 +7818,38 @@ namespace netxs::gui
                 }
             }
         }
-        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
-        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        void layer_timer_start(layer& s, span elapse, ui32 eventid)
+        {
+            if (!eventid) return;
+            layer_timer_stop(s, eventid);
+            if (std::find(s.klok.begin(), s.klok.end(), eventid) == s.klok.end())
+            {
+                s.klok.push_back(eventid);
+            }
+            timer_threads[eventid] = std::jthread([&, timeout = elapse, eventid](std::stop_token stop_token)
+            {
+                while (!stop_token.stop_requested())
+                {
+                    auto lock = std::unique_lock{ timer_mutex };
+                    std::condition_variable_any{}.wait_for(lock, stop_token, timeout, [&]{ return stop_token.stop_requested(); });
+                    if (stop_token.stop_requested()) break;
+                    timer_event(eventid);
+                }
+            });
+        }
+        void layer_timer_stop(layer& s, ui32 eventid)
+        {
+            auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
+            if (iter != s.klok.end())
+            {
+                s.klok.erase(iter);
+            }
+            auto it = timer_threads.find(eventid);
+            if (it != timer_threads.end())
+            {
+                timer_threads.erase(it); // jthread dtor auto calls request_stop() and join.
+            }
+        }
         bits layer_get_bits(layer& s, bool zeroize = faux)
         {
             if (s.area)
