@@ -4689,6 +4689,7 @@ namespace netxs::os
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
             sptr<consrv>            termlink{};
+            bool            last_written_esc{}; // Should we wake up bash readline if it blocks after a single "\x1b". Even SIGHUP is ignored.
 
             operator bool () { return attached; }
 
@@ -4750,6 +4751,10 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
+                    if (cache.size())
+                    {
+                        last_written_esc = cache.back() == '\x1b';
+                    }
                     if (terminal.io_log) log(prompt::cin, "\n\t", utf::replace_all(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache))
                     {
@@ -4778,6 +4783,12 @@ namespace netxs::os
             }
             auto sighup(bool state = true)
             {
+                if (last_written_esc) // Wake up bash readline if it blocks after a single "\x1b". Even SIGHUP is ignored. // "\x07\x03"
+                {
+                    write("\x07"); //termlink->send("\x07");
+                    std::this_thread::sleep_for(10ms);
+                    //termlink->handle.close(); // This wakes up bash but breaks all app logs while its closing.
+                }
                 if (attached && !signaled.exchange(state))
                 {
                     termlink->sighup();
