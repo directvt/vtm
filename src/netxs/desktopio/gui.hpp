@@ -3795,13 +3795,13 @@ namespace netxs::gui
                 netxs::set_flag<task::grips>(reload);
             }
         }
-        void set_state(si32 new_state)
+        void set_state(si32 new_state, bool first_run = faux)
         {
             if (fsmode == new_state && fsmode != winstate::normal) return; // Restore to normal if it was silently hidden by the system.
-            log("%%Set window to ", prompt::gui, new_state == winstate::maximized ? "maximized" : new_state == winstate::normal ? "normal" : "minimized", " state");
+            if constexpr (debugmode) log("%%Set window to ", prompt::gui, new_state == winstate::maximized ? "maximized" : new_state == winstate::normal ? "normal" : "minimized", " state");
             auto old_state = std::exchange(fsmode, winstate::undefined);
             if (new_state != winstate::minimized) reset_blinky(); // To avoid visual desync.
-            window_sync_taskbar(new_state);
+            if (!first_run) window_sync_taskbar(new_state); // Trigger WM_SETFOCUS on win32.
             fsmode = new_state;
             if (old_state == winstate::normal) normsz = master.area;
             if (fsmode == winstate::normal)
@@ -4804,21 +4804,18 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
-                    //todo try to make it sync (drop enqueue) (Key press events can precede focus events because they are sent synchronously!(X11))
-                    base::enqueue([&](auto& /*boss*/)
+                    // Focus event must be sent sync (without queueing). Key press events can precede focus events because they are sent synchronously.
+                    base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
+                    if (!has_layout) // The first focus event - sync keybd layout.
                     {
-                        base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
-                        if (!has_layout) // The first focus event - sync keybd layout.
-                        {
-                            has_layout = true;
-                            keybd_sync_layout();
-                        }
-                        if (mfocus.wheel)
-                        {
-                            //todo share keybd layout between group focused windows
-                            window_post_command(ipc::sync_state);
-                        }
-                    });
+                        has_layout = true;
+                        keybd_sync_layout();
+                    }
+                    if (mfocus.wheel)
+                    {
+                        //todo share keybd layout between group focused windows
+                        window_post_command(ipc::sync_state);
+                    }
                 }
             }
             else if (command == ipc::drop_focus)
@@ -4828,10 +4825,7 @@ namespace netxs::gui
                 keybd_send_state();
                 if (focus_bus_on)
                 {
-                    base::enqueue([&](auto& /*boss*/)
-                    {
-                        auto seed = base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
-                    });
+                    base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                 }
             }
             else if (command == ipc::solo_focus)
@@ -5004,11 +4998,6 @@ namespace netxs::gui
                 os::dtvt::flagsz = true; // Notify app::shared::splice.
                 os::dtvt::flagsz.notify_all();
                 auto lock = bell::sync();
-                normsz = master.area;
-                size_window();
-                set_state(config.win_state);
-                update_gui();
-                window_initialize();
 
                 //todo it doesn't work on win32 (deferred mediakey)
                 //LISTEN(tier::release, input::events::keybd::any, gear)
@@ -5079,7 +5068,13 @@ namespace netxs::gui
                     auto window_id = id_t{};
                     stream.footer.send(stream.intio, window_id, utf8);
                 };
-                base::broadcast(tier::anycast, e2::form::upon::started, This());
+
+                normsz = master.area;
+                size_window(); // First resize.
+                set_state(config.win_state, true/*don't window_sync_taskbar*/);
+                update_gui();
+                base::broadcast(tier::anycast, e2::form::upon::started, This()); // Subscribe on ui::title update with pro::focus.
+                window_initialize(); // Trigger WM_SETFOCUS/event::FocusIn and ui::header update.
             }
             auto winio = std::thread{ [&]
             {
@@ -5435,6 +5430,7 @@ namespace netxs::gui
         ui32 fake_time{};     // window: Fake alt/ctrl event time stamp.
         si32 fake_scan{};     // window: Fake LeftCtrl scancode.
         b256 vkstat{};        // window: Win32 keyboard virtual keys state.
+        flag shutdown_called{}; // window: window_shutdow was called.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -6286,7 +6282,7 @@ namespace netxs::gui
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
         void window_make_topmost(bool s) { ontop_state = s; ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
         void window_make_foreground()    { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void window_shutdown()           { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
+        void window_shutdown()           { if (!shutdown_called.exchange(true)) ::PostMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); } // Deadlock when SendMessageW synchronously calls focus() which locks UI mutex.
         void window_cleanup()            { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         fp2d mouse_get_pos()             { return fp2d{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture_impl()        { ::SetCapture((HWND)master.hWnd); }
@@ -6344,7 +6340,7 @@ namespace netxs::gui
             }
             else
             {
-                ::ShowWindow((HWND)master.hWnd, SW_RESTORE);
+                ::ShowWindow((HWND)master.hWnd, SW_RESTORE); // Trigger WM_SETFOCUS on win32.
             }
         }
         void sync_os_settings()
@@ -6370,16 +6366,16 @@ namespace netxs::gui
             //todo implement
             ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
-            // The first ShowWindow() call ignores SW_SHOW.
+            // The first ShowWindow call ignores explicit flags (like SW_SHOW) for the main window
+            // and forces the visibility mode specified in STARTUPINFO by the OS (explorer.exe/lnk).
             auto mode = SW_SHOW;
             for (auto& l : layers)
             {
                 auto& p = l.get();
-                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA));
+                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA)); // Trigger WM_SETFOCUS on win32 if explorer.exe sets it visible.
             }
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
-            window_make_foreground();
         }
 
         //todo static

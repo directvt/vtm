@@ -1542,6 +1542,7 @@ namespace netxs::input
             }
             void hide()
             {
+                //log("hide: fresh=%% visible=%% canceled=%% changed_visibility=%%", fresh, visible, canceled, changed_visibility);
                 fresh = true;
                 visible = faux;
                 canceled = true;
@@ -1549,11 +1550,14 @@ namespace netxs::input
             }
             void recalc(hint deed)
             {
+                //log("recalc: fresh=%% visible=%% canceled=%% changed_visibility=%%", fresh, visible, canceled, changed_visibility);
                 if (canceled) return;
                 if (deed == input::key::MouseMove)
                 {
+                    //log("  deed==input::key::MouseMove");
                     if (coor(gear.mouse::coord)) // Hide tooltip on mouse move.
                     {
+                        //log("    coor changed to %%", coor);
                         if (visible)
                         {
                             hide();
@@ -1568,6 +1572,7 @@ namespace netxs::input
                      ||  deed == input::key::MouseLeave             // Hide tooltip on mouse leave.
                      || (deed >> 8 == input::key::MouseDown >> 8))  // Hide tooltip on any press.
                 {
+                    //log("  deed==input::key::MouseLeave");
                     hide();
                 }
             }
@@ -1575,6 +1580,7 @@ namespace netxs::input
             {
                 if (changed_visibility)
                 {
+                    //log("check: changed_visibility=1");
                     changed_visibility = faux;
                     return true;
                 }
@@ -1585,10 +1591,12 @@ namespace netxs::input
                     visible = true;
                     canceled = current_sptr->get().empty();
                     coor(gear.mouse::coord);
+                    //log("check: current_sptr && digest != current_sptr->digest coor=%%", coor);
                     return true;
                 }
                 else if (!canceled && !visible && current_sptr && time_to_run < now) // Show tooltip on idle timeout.
                 {
+                    //log("check: !canceled && !visible && current_sptr && time_to_run=%% < now=%%", time_to_run, now);
                     fresh = true;
                     visible = true;
                     return true;
