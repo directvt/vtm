@@ -3590,7 +3590,6 @@ namespace netxs::gui
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual void keybd_print_vkstat(text s) = 0;
-        virtual bool keybd_read_input() = 0;
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
@@ -5773,7 +5772,7 @@ namespace netxs::gui
                 }
             }
         }
-        bool keybd_read_input()
+        bool _keybd_read_input()
         {
             union key_state_t
             {
@@ -6028,7 +6027,7 @@ namespace netxs::gui
                 if (mfocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
                                      winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
                 {
-                    keybd_read_input();
+                    _keybd_read_input();
                     sys_command(syscmd::update);
                 }
                 else
@@ -7517,7 +7516,6 @@ namespace netxs::gui
             auto state = keybd_test_state();
             return state;
         }
-        bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
@@ -7668,7 +7666,7 @@ namespace netxs::gui
         {
             if (!s.data.data() || s.area.size.x <= 0 || s.area.size.y <= 0) return;
             auto target_coor = s.live ? s.area.coor : hidden_coor;
-            auto windowmoved = s.prev.coor != target_coor;
+            auto windowmoved = s.prev.coor(target_coor);
             s.windowsized = s.live && std::exchange(s.prev_size, s.area.size) != s.area.size;
             if (s.windowsized)
             {
@@ -7681,7 +7679,6 @@ namespace netxs::gui
             }
             else if (windowmoved)
             {
-                s.prev.coor = target_coor;
                 session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
                                               x11::req::configure_window::payload{ .x = (si16)target_coor.x,
                                                                                    .y = (si16)target_coor.y });
@@ -7713,6 +7710,11 @@ namespace netxs::gui
                     .shm_seg_id   = session.shm_segment_xid,
                     .offset       = (ui32)dirty_offset, // New data start.
                 });
+            }
+            if (!s.live && windowmoved) // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+            {
+                session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.fg_hWnd,
+                                                                    .gc_id       = (ui32)s.fg_hdc });
             }
             if (seq_num.has_value())
             {
@@ -7779,11 +7781,13 @@ namespace netxs::gui
                         if (s.windowsized)
                         {
                             s.windowsized = faux;
+                            // Hide the layer with prev size.
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
                                                         x11::req::configure_window::payload{ .x      = (ui16)hidden_coor.x,
                                                                                              .y      = (ui16)hidden_coor.y,
                                                                                              .width  = 1,
                                                                                              .height = 1 });
+                            // Reveal the layer with new size.
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
                                                         x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
                                                                                              .y = (ui16)s.area.coor.y });
@@ -8754,7 +8758,6 @@ namespace netxs::gui
         bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }

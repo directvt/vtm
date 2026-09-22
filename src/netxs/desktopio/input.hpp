@@ -1435,9 +1435,12 @@ namespace netxs::input
         }
         void set(view utf8)
         {
-            digest++;
-            string = utf8;
-            page_sptr.reset();
+            if (string != utf8)
+            {
+                digest++;
+                string = utf8;
+                page_sptr.reset();
+            }
         }
         auto get_render_sptr(cell const& tooltip_colors)
         {
@@ -1504,9 +1507,8 @@ namespace netxs::input
                     if (!canceled)
                     {
                         time_to_run = datetime::now() + timeout;
-                        digest = current_sptr->digest;
                     }
-                    if (current_sptr)
+                    if (current_sptr) // Sync empty tooltips too. Show it if updated later.
                     {
                         digest = current_sptr->digest;
                     }
@@ -1542,7 +1544,6 @@ namespace netxs::input
             }
             void hide()
             {
-                //log("hide: fresh=%% visible=%% canceled=%% changed_visibility=%%", fresh, visible, canceled, changed_visibility);
                 fresh = true;
                 visible = faux;
                 canceled = true;
@@ -1550,14 +1551,11 @@ namespace netxs::input
             }
             void recalc(hint deed)
             {
-                //log("recalc: fresh=%% visible=%% canceled=%% changed_visibility=%%", fresh, visible, canceled, changed_visibility);
                 if (canceled) return;
                 if (deed == input::key::MouseMove)
                 {
-                    //log("  deed==input::key::MouseMove");
-                    if (coor(gear.mouse::coord)) // Hide tooltip on mouse move.
+                    if (coor(gear.mouse::coord)) // Hide tooltip on intercell mouse move.
                     {
-                        //log("    coor changed to %%", coor);
                         if (visible)
                         {
                             hide();
@@ -1572,15 +1570,13 @@ namespace netxs::input
                      ||  deed == input::key::MouseLeave             // Hide tooltip on mouse leave.
                      || (deed >> 8 == input::key::MouseDown >> 8))  // Hide tooltip on any press.
                 {
-                    //log("  deed==input::key::MouseLeave");
                     hide();
                 }
             }
-            auto check(time now) // Called every timer tick.
+            auto check(time now) // Called every timer tick. Return true if tooltip changed (damaged).
             {
                 if (changed_visibility)
                 {
-                    //log("check: changed_visibility=1");
                     changed_visibility = faux;
                     return true;
                 }
@@ -1588,15 +1584,13 @@ namespace netxs::input
                 {
                     digest = current_sptr->digest;
                     fresh = true;
-                    visible = true;
                     canceled = current_sptr->get().empty();
+                    visible = !canceled;
                     coor(gear.mouse::coord);
-                    //log("check: current_sptr && digest != current_sptr->digest coor=%%", coor);
                     return true;
                 }
                 else if (!canceled && !visible && current_sptr && time_to_run < now) // Show tooltip on idle timeout.
                 {
-                    //log("check: !canceled && !visible && current_sptr && time_to_run=%% < now=%%", time_to_run, now);
                     fresh = true;
                     visible = true;
                     return true;
