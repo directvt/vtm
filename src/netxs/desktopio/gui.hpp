@@ -6675,27 +6675,29 @@ namespace netxs::gui
 
         using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
-        x11::session_t& session = *x11::session_ptr;
-        mouse_state_t mouse_state;
-        text batch_buffer;
-        fp2d current_mouse_pos;
-        ui16 master_pointer_id{};
-        ui16 captured_pointer_id{};
-        bool is_foreground_window{};
-        twod hidden_coor;
-        flag block_mouse_movement{};
-        std::unordered_map<ui32, peer_state> recv_buffers;
-        std::atomic<ui64> current_msc = 0;
+        x11::session_t& session = *x11::session_ptr; // window: Current X11 session state.
 
-        ui32                        led_state{};    // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
-        std::array<byte, 32>        vkstat{};       // window: X11 keyboard virtual keys state.
-        std::vector<x11_key_type_t> key_types;
-        std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
-        modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
-        std::array<byte, 256>       keycode_to_vkey{}; // window: Latin keycodes to vkey lut.
-        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to national keycodes lut.
-        std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
+        mouse_state_t                        mouse_state;            // window: Filter for chaotic mouse movements in xwl.
+        text                                 batch_buffer;           // window: X11 sending buffer.
+        fp2d                                 current_mouse_pos;      // window: Current mouse coor.
+        ui16                                 master_pointer_id{};    // window: Master mouse device id for mouse capturing/releasing.
+        ui16                                 captured_pointer_id{};  // window: Lasted captured master mouse device id.
+        bool                                 is_foreground_window{}; // window: Foreground window flag (has input focus).
+        twod                                 hidden_coor;            // window: Safe coordinates where hidden windows can be moved.
+        flag                                 block_mouse_movement{}; // window: Flag blocking mouse movement event processing (discarding).
+        std::unordered_map<ui32, peer_state> recv_buffers;           // window: Buffers for receiving fragmented messages from neighboring windows (multifocus).
+        std::atomic<ui64>                    current_msc{};          // window: Current media stream counter value (for  vblank synchronization).
+
+        ui32                        led_state{};             // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
+        std::array<byte, 32>        vkstat{};                // window: X11 keyboard virtual keys state.
+        std::vector<x11_key_type_t> key_types;               // window: X11 key behavior type list.
+        std::array<kb_layout_t, 4>  layouts;                 // window: Keyboard layout list.
+        modifier_map_t              modifier_map{};          // window: Dynamic modifier bit bindings for compose processing.
+        std::array<byte, 256>       keycode_to_vkey{};       // window: Latin keycodes to vkey lut.
+        std::array<byte, 256>       vkey_to_keycode{};       // window: vkey to national keycodes lut.
+        std::array<byte, 512>       extvkey_to_keycode{};    // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
+
         std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
         std::mutex                             timer_mutex;   // window: Timer mutex.
 
