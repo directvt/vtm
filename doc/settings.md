@@ -984,7 +984,7 @@ Notes
             <height=1/>  <!-- Reserved space at the top of the desktop. -->
         </panel>
         <background>  <!-- Desktop background settings. -->
-            <color fgc=whitedk bgc= #00007fFF/>  <!-- Background color. -->
+            <color fgc=whitedk bgc= #00004080/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Optional: Truecolor ANSI-art for the background. -->
         </background>
     </desktop>
