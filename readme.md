@@ -26,7 +26,7 @@ vtm ssh user@host vtm
 
 ### Demos
 
-Check out AnyPlex and VT2D power (Windows only for now):
+Check out AnyPlex and VT2D power:
 
 ```bash
 vtm --run test
@@ -54,7 +54,7 @@ vtm --run gems
 
 [Tested Terminals](https://github.com/directvt/vtm/discussions/72)
 
-<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix-like platforms, a terminal emulator is required.</sup>
+<sup>Currently, rendering in the GUI window is not available on macOS, and a terminal emulator is required.</sup>
 
 ## Binary downloads
 
