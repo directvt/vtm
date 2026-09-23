@@ -91,26 +91,18 @@ namespace netxs::gui
             arch  fg_hWnd = {}; // OR=1 foreground layer.
             arch  bg_hdc  = {}; // OR=1 background layer.
             arch  bg_hWnd = {}; // OR=1 background layer.
-            ui32  shm_offset = {};
-            twod  prev_size;
+            ui32  shm_offset = {}; // Offset in bytes.
+            ui32  shm_pixel_limit{}; // Buffer pixel limit in pixels (argb).
+            twod  prev_size; // Layer size for allocated bitmap.
             bool  prev_live = {};
             bool  windowsized = {};
-            bool  bank = {}; // Bank is switching offset segment on every resize iteration.
-            std::array<ui16, 2> seq_nums = { 0xFFFF, 0xFFFF };
+            ui16  seq_num = 0xFFFF; // X11 request sequence number for layer output tracking.
 
-            auto get_offset(auto& session, bool toggle_bank = faux)
+            void set_seq_num(auto& session, ui16 new_seq_num)
             {
-                //if (toggle_bank)
-                bank ^= toggle_bank;
-                //todo deadlock by unknown reason
-                //session.sync_reply(seq_nums[bank]); // It is already synced in layers_present()
-                return (ui32)((session.shm_buffer_len / 2) * bank + shm_offset);
-            }
-            void set_seq_num(auto& session, ui16 seq_num)
-            {
-                seq_nums[bank] = seq_num;
+                seq_num = new_seq_num;
                 session.received_replies[seq_num].store(true, std::memory_order_release);
-                if constexpr (debugmode) log("Frame seq=%%", seq_num);
+                //if constexpr (debugmode) log("Frame seq=%%", seq_num);
             }
             void swap_backing()
             {
@@ -128,8 +120,13 @@ namespace netxs::gui
         { }
         void hide() { live = faux; }
         void show() { live = true; }
-        void wipe() { std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb)); }
         auto resized() { return area.size != prev.size; }
+        void wipe()
+        {
+            assert(!resized());
+            //todo ?should we use prev to be safe
+            std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
+        }
         template<bool Forced = faux>
         void strike(rect r)
         {
@@ -3590,7 +3587,6 @@ namespace netxs::gui
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
         virtual void keybd_print_vkstat(text s) = 0;
-        virtual bool keybd_read_input() = 0;
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
@@ -3795,13 +3791,13 @@ namespace netxs::gui
                 netxs::set_flag<task::grips>(reload);
             }
         }
-        void set_state(si32 new_state)
+        void set_state(si32 new_state, bool first_run = faux)
         {
             if (fsmode == new_state && fsmode != winstate::normal) return; // Restore to normal if it was silently hidden by the system.
-            log("%%Set window to ", prompt::gui, new_state == winstate::maximized ? "maximized" : new_state == winstate::normal ? "normal" : "minimized", " state");
+            if constexpr (debugmode) log("%%Set window to ", prompt::gui, new_state == winstate::maximized ? "maximized" : new_state == winstate::normal ? "normal" : "minimized", " state");
             auto old_state = std::exchange(fsmode, winstate::undefined);
             if (new_state != winstate::minimized) reset_blinky(); // To avoid visual desync.
-            window_sync_taskbar(new_state);
+            if (!first_run) window_sync_taskbar(new_state); // Trigger WM_SETFOCUS on win32.
             fsmode = new_state;
             if (old_state == winstate::normal) normsz = master.area;
             if (fsmode == winstate::normal)
@@ -4804,21 +4800,18 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
-                    //todo try to make it sync (drop enqueue) (Key press events can precede focus events because they are sent synchronously!(X11))
-                    base::enqueue([&](auto& /*boss*/)
+                    // Focus event must be sent sync (without queueing). Key press events can precede focus events because they are sent synchronously.
+                    base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
+                    if (!has_layout) // The first focus event - sync keybd layout.
                     {
-                        base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
-                        if (!has_layout) // The first focus event - sync keybd layout.
-                        {
-                            has_layout = true;
-                            keybd_sync_layout();
-                        }
-                        if (mfocus.wheel)
-                        {
-                            //todo share keybd layout between group focused windows
-                            window_post_command(ipc::sync_state);
-                        }
-                    });
+                        has_layout = true;
+                        keybd_sync_layout();
+                    }
+                    if (mfocus.wheel)
+                    {
+                        //todo share keybd layout between group focused windows
+                        window_post_command(ipc::sync_state);
+                    }
                 }
             }
             else if (command == ipc::drop_focus)
@@ -4828,10 +4821,7 @@ namespace netxs::gui
                 keybd_send_state();
                 if (focus_bus_on)
                 {
-                    base::enqueue([&](auto& /*boss*/)
-                    {
-                        auto seed = base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
-                    });
+                    base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                 }
             }
             else if (command == ipc::solo_focus)
@@ -5004,11 +4994,6 @@ namespace netxs::gui
                 os::dtvt::flagsz = true; // Notify app::shared::splice.
                 os::dtvt::flagsz.notify_all();
                 auto lock = bell::sync();
-                normsz = master.area;
-                size_window();
-                set_state(config.win_state);
-                update_gui();
-                window_initialize();
 
                 //todo it doesn't work on win32 (deferred mediakey)
                 //LISTEN(tier::release, input::events::keybd::any, gear)
@@ -5079,7 +5064,13 @@ namespace netxs::gui
                     auto window_id = id_t{};
                     stream.footer.send(stream.intio, window_id, utf8);
                 };
-                base::broadcast(tier::anycast, e2::form::upon::started, This());
+
+                normsz = master.area;
+                size_window(); // First resize.
+                set_state(config.win_state, true/*don't window_sync_taskbar*/);
+                update_gui();
+                base::broadcast(tier::anycast, e2::form::upon::started, This()); // Subscribe on ui::title update with pro::focus.
+                window_initialize(); // Trigger WM_SETFOCUS/event::FocusIn and ui::header update.
             }
             auto winio = std::thread{ [&]
             {
@@ -5435,6 +5426,7 @@ namespace netxs::gui
         ui32 fake_time{};     // window: Fake alt/ctrl event time stamp.
         si32 fake_scan{};     // window: Fake LeftCtrl scancode.
         b256 vkstat{};        // window: Win32 keyboard virtual keys state.
+        flag shutdown_called{}; // window: window_shutdow was called.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -5777,7 +5769,7 @@ namespace netxs::gui
                 }
             }
         }
-        bool keybd_read_input()
+        bool _keybd_read_input()
         {
             union key_state_t
             {
@@ -6032,7 +6024,7 @@ namespace netxs::gui
                 if (mfocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
                                      winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
                 {
-                    keybd_read_input();
+                    _keybd_read_input();
                     sys_command(syscmd::update);
                 }
                 else
@@ -6286,7 +6278,7 @@ namespace netxs::gui
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
         void window_make_topmost(bool s) { ontop_state = s; ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
         void window_make_foreground()    { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void window_shutdown()           { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
+        void window_shutdown()           { if (!shutdown_called.exchange(true)) ::PostMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); } // Deadlock when SendMessageW synchronously calls focus() which locks UI mutex.
         void window_cleanup()            { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         fp2d mouse_get_pos()             { return fp2d{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture_impl()        { ::SetCapture((HWND)master.hWnd); }
@@ -6344,7 +6336,7 @@ namespace netxs::gui
             }
             else
             {
-                ::ShowWindow((HWND)master.hWnd, SW_RESTORE);
+                ::ShowWindow((HWND)master.hWnd, SW_RESTORE); // Trigger WM_SETFOCUS on win32.
             }
         }
         void sync_os_settings()
@@ -6370,16 +6362,16 @@ namespace netxs::gui
             //todo implement
             ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
-            // The first ShowWindow() call ignores SW_SHOW.
+            // The first ShowWindow call ignores explicit flags (like SW_SHOW) for the main window
+            // and forces the visibility mode specified in STARTUPINFO by the OS (explorer.exe/lnk).
             auto mode = SW_SHOW;
             for (auto& l : layers)
             {
                 auto& p = l.get();
-                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA));
+                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA)); // Trigger WM_SETFOCUS on win32 if explorer.exe sets it visible.
             }
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
-            window_make_foreground();
         }
 
         //todo static
@@ -6670,58 +6662,77 @@ namespace netxs::gui
                 byte                layout_count;
                 byte                behavior_type;
                 byte                width;
-                std::array<ui32, 8> syms;
+                std::array<ui32, 8> syms; // 8: Level1Shift..Level8Shift
             };
             std::array<key_sym_t, 256> key_syms{};
             si32                       key_count{};
             si32                       latin_key_count{};
-            bool is_latin() { return latin_key_count >= 26; }
+            bool is_latin() { return latin_key_count > 'Z' - 'A'; }
         };
 
         using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
-        x11::session_t& session = *x11::session_ptr;
-        mouse_state_t mouse_state;
-        text batch_buffer;
-        fp2d current_mouse_pos;
-        ui16 master_pointer_id{};
-        ui16 captured_pointer_id{};
-        bool is_foreground_window{};
-        twod hidden_coor;
-        flag block_mouse_movement{};
-        std::unordered_map<ui32, peer_state> recv_buffers;
-        std::atomic<ui64> current_msc = 0;
+        x11::session_t& session = *x11::session_ptr; // window: Current X11 session state.
 
-        ui32                        led_state{};    // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
-        std::array<byte, 32>        vkstat{};       // window: X11 keyboard virtual keys state.
-        std::vector<x11_key_type_t> key_types;
-        std::array<kb_layout_t, 4>  layouts;        // window: Keyboard layout list.
-        modifier_map_t              modifier_map{}; // window: Dynamic modifier bit bindings for compose processing.
-        std::array<byte, 256>       keycode_to_vkey{}; // window: Latin keycodes to vkey lut.
-        std::array<byte, 256>       vkey_to_keycode{}; // window: vkey to national keycodes lut.
-        std::array<byte, 512>       extvkey_to_keycode{}; // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
+        mouse_state_t                        mouse_state;            // window: Filter for chaotic mouse movements in xwl.
+        text                                 batch_buffer;           // window: X11 sending buffer.
+        fp2d                                 current_mouse_pos;      // window: Current mouse coor.
+        ui16                                 master_pointer_id{};    // window: Master mouse device id for mouse capturing/releasing.
+        ui16                                 captured_pointer_id{};  // window: Lasted captured master mouse device id.
+        bool                                 is_foreground_window{}; // window: Foreground window flag (has input focus).
+        twod                                 hidden_coor;            // window: Safe coordinates where hidden windows can be moved.
+        flag                                 block_mouse_movement{}; // window: Flag blocking mouse movement event processing (discarding).
+        std::unordered_map<ui32, peer_state> recv_buffers;           // window: Buffers for receiving fragmented messages from neighboring windows (multifocus).
+        std::atomic<ui64>                    current_msc{};          // window: Current media stream counter value (for  vblank synchronization).
+
+        ui32                        led_state{};             // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
+        std::array<byte, 32>        vkstat{};                // window: X11 keyboard virtual keys state.
+        std::vector<x11_key_type_t> key_types;               // window: X11 key behavior type list.
+        std::array<kb_layout_t, 4>  layouts;                 // window: Keyboard layout list.
+        modifier_map_t              modifier_map{};          // window: Dynamic modifier bit bindings for compose processing.
+        std::array<byte, 256>       keycode_to_vkey{};       // window: Latin keycodes to vkey lut.
+        std::array<byte, 256>       vkey_to_keycode{};       // window: vkey to national keycodes lut.
+        std::array<byte, 512>       extvkey_to_keycode{};    // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
+
+        std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
+        std::mutex                             timer_mutex;   // window: Timer mutex.
 
         window(auto&& ...Args)
             : winbase{ Args... }
         {
-            //todo it is just a test
-            auto align = [](ui32 offset){ return (ui32)(offset + 15) & ~15; };
-            auto large_step = (session.shm_buffer_len / 2) / 3;
-            auto small_step = (session.shm_buffer_len / 2) / 9;
-            layers[0].get().shm_offset = 0;
-            layers[1].get().shm_offset = align(large_step);
-            layers[2].get().shm_offset = align(layers[1].get().shm_offset + large_step);
-            layers[3].get().shm_offset = align(layers[2].get().shm_offset + small_step);
-            layers[4].get().shm_offset = align(layers[3].get().shm_offset + small_step);
-            if constexpr (debugmode) log("shm_size=%% l0=%% l1=%% l2=%% l3=%% l4=%%", session.shm_buffer_len,
+            _recalc_layer_offsets();
+        }
+
+        auto _recalc_layer_offsets()
+        {
+            auto prev_images = std::array<bits, sizeof(layers) / sizeof(layers[0])>{};
+            auto large_step = session.shm_buffer.len / 3;
+            auto small_step = large_step / 3;
+            auto current_offset = 0u;
+            auto set_limits =[&](si32 i, ui32 shm_limit)
+            {
+                auto align = [](ui32 offset){ return (ui32)(offset + 15) & ~15; }; // 4bit aligning.
+                auto& l = layers[i].get();
+                prev_images[i] = l.data;
+                l.shm_offset = current_offset;
+                auto new_limit = align(shm_limit);
+                l.shm_pixel_limit = new_limit / sizeof(argb);
+                current_offset += new_limit;
+            };
+            set_limits(0, large_step);
+            set_limits(1, large_step);
+            set_limits(2, small_step);
+            set_limits(3, small_step);
+            set_limits(4, small_step);
+            if constexpr (debugmode) log("shm_size=%% l0=%% l1=%% l2=%% l3=%% l4=%%", session.shm_buffer.len,
                 layers[0].get().shm_offset,
                 layers[1].get().shm_offset,
                 layers[2].get().shm_offset,
                 layers[3].get().shm_offset,
                 layers[4].get().shm_offset);
+            return prev_images;
         }
-
         auto _check_if_mouse_moved(fp2d coor, bool forced) //todo: Workaround: Master's root coords are broken when windows are intensively moved in the most of linux distributions (even query_pointer affected).
         {
             if (current_mouse_pos != coor && (forced || !block_mouse_movement.load(std::memory_order_acquire)))
@@ -6753,7 +6764,7 @@ namespace netxs::gui
                                                                                  .height = (ui16)target_area.size.y });
                 auto r = target_area;
                 r.coor -= s.area.coor;
-                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                 seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
@@ -6767,7 +6778,7 @@ namespace netxs::gui
                     .src_height   = (ui16)r.size.y, //
                     .dst_x        = (si16)0,//r.coor.x, // Window dest coor.
                     .dst_y        = (si16)0,//r.coor.y, //
-                    .shm_seg_id   = session.shm_segment_xid,
+                    .shm_seg_id   = session.shm_buffer.xid,
                     .offset       = (ui32)dirty_offset, // New data start.
                 });
             }
@@ -6855,19 +6866,21 @@ namespace netxs::gui
                                                     x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                          .y      = (ui16)target_area.coor.y,
                                                                                          .width  = (ui16)target_area.size.x,
-                                                                                         .height = (ui16)target_area.size.y });
+                                                                                         .height = (ui16)target_area.size.y,
+                                                                                         .stack_mode = x11::req::configure_window::Above });
                         target_area.size = dot_11;
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd },
                                                     x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                          .y      = (ui16)target_area.coor.y,
                                                                                          .width  = (ui16)target_area.size.x,
-                                                                                         .height = (ui16)target_area.size.y });
+                                                                                         .height = (ui16)target_area.size.y,
+                                                                                         .stack_mode = x11::req::configure_window::Above });
                         //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.bg_hWnd });
                         //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
                         if (s.live)
                         {
                             auto r = rect{ dot_00, s.area.size };
-                            auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                            auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                             seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                             {
                                 .major_opcode = session.shm_major_opcode,
@@ -6881,7 +6894,7 @@ namespace netxs::gui
                                 .src_height   = (ui16)r.size.y, //
                                 .dst_x        = (si16)r.coor.x, // Window dest coor.
                                 .dst_y        = (si16)r.coor.y, //
-                                .shm_seg_id   = session.shm_segment_xid,
+                                .shm_seg_id   = session.shm_buffer.xid,
                                 .offset       = (ui32)dirty_offset, // New data start.
                             });
                         }
@@ -6909,11 +6922,6 @@ namespace netxs::gui
                         session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
                                                                             .gc_id       = (ui32)s.bg_hdc });
                     }
-                    // Make base layer foreground.
-                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.fg_hWnd },
-                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
-                    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)master.bg_hWnd },
-                                                x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
                     // Configure mouse input.
                     session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
                     session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
@@ -7522,7 +7530,6 @@ namespace netxs::gui
             auto state = keybd_test_state();
             return state;
         }
-        bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }
@@ -7673,7 +7680,7 @@ namespace netxs::gui
         {
             if (!s.data.data() || s.area.size.x <= 0 || s.area.size.y <= 0) return;
             auto target_coor = s.live ? s.area.coor : hidden_coor;
-            auto windowmoved = s.prev.coor != target_coor;
+            auto windowmoved = s.prev.coor(target_coor);
             s.windowsized = s.live && std::exchange(s.prev_size, s.area.size) != s.area.size;
             if (s.windowsized)
             {
@@ -7686,7 +7693,6 @@ namespace netxs::gui
             }
             else if (windowmoved)
             {
-                s.prev.coor = target_coor;
                 session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
                                               x11::req::configure_window::payload{ .x = (si16)target_coor.x,
                                                                                    .y = (si16)target_coor.y });
@@ -7701,7 +7707,7 @@ namespace netxs::gui
                 {
                     continue;
                 }
-                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                 seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
@@ -7715,9 +7721,14 @@ namespace netxs::gui
                     .src_height   = (ui16)r.size.y, //
                     .dst_x        = (si16)r.coor.x, // Window dest coor.
                     .dst_y        = (si16)r.coor.y, //
-                    .shm_seg_id   = session.shm_segment_xid,
+                    .shm_seg_id   = session.shm_buffer.xid,
                     .offset       = (ui32)dirty_offset, // New data start.
                 });
+            }
+            if (!s.live && windowmoved) // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
+            {
+                session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.fg_hWnd,
+                                                                    .gc_id       = (ui32)s.fg_hdc });
             }
             if (seq_num.has_value())
             {
@@ -7784,11 +7795,13 @@ namespace netxs::gui
                         if (s.windowsized)
                         {
                             s.windowsized = faux;
+                            // Hide the layer with prev size.
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
                                                         x11::req::configure_window::payload{ .x      = (ui16)hidden_coor.x,
                                                                                              .y      = (ui16)hidden_coor.y,
                                                                                              .width  = 1,
                                                                                              .height = 1 });
+                            // Reveal the layer with new size.
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
                                                         x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
                                                                                              .y = (ui16)s.area.coor.y });
@@ -7819,17 +7832,79 @@ namespace netxs::gui
                 }
             }
         }
-        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
-        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        void layer_timer_start(layer& s, span elapse, ui32 eventid)
+        {
+            if (!eventid) return;
+            layer_timer_stop(s, eventid);
+            if (std::find(s.klok.begin(), s.klok.end(), eventid) == s.klok.end())
+            {
+                s.klok.push_back(eventid);
+            }
+            timer_threads[eventid] = std::jthread([&, timeout = elapse, eventid](std::stop_token stop_token)
+            {
+                while (!stop_token.stop_requested())
+                {
+                    auto lock = std::unique_lock{ timer_mutex };
+                    std::condition_variable_any{}.wait_for(lock, stop_token, timeout, [&]{ return stop_token.stop_requested(); });
+                    if (stop_token.stop_requested()) break;
+                    timer_event(eventid);
+                }
+            });
+        }
+        void layer_timer_stop(layer& s, ui32 eventid)
+        {
+            auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
+            if (iter != s.klok.end())
+            {
+                s.klok.erase(iter);
+            }
+            auto it = timer_threads.find(eventid);
+            if (it != timer_threads.end())
+            {
+                timer_threads.erase(it); // jthread dtor auto calls request_stop() and join.
+            }
+        }
         bits layer_get_bits(layer& s, bool zeroize = faux)
         {
             if (s.area)
             {
                 if (s.resized())
                 {
-                    auto layer_shm_ptr = (argb*)(session.shm_buffer_ptr + s.get_offset(session, true));
+                    auto required_pixels = std::max(1u, (ui32)(s.area.size.x * s.area.size.y));
+                    if (required_pixels > s.shm_pixel_limit) // Recalc new shm buffer limits.
+                    {
+                        auto ratio = (fp32)session.shm_buffer.len / s.shm_pixel_limit; // inc div by 4
+                        auto new_shm_buffer_len = (ui32)std::ceil(ratio * required_pixels * 1.1f); // inc mul by 4  // 1.1f: +~10%
+                        auto shm_buffer = x11::session_t::shm_buffer_t{};
+                        if (shm_buffer.allocate(new_shm_buffer_len))
+                        {
+                            auto prev_buffer = session.shm_attach(shm_buffer);
+                            auto prev_images = _recalc_layer_offsets();
+                            auto i = 0;
+                            for (auto prev_data : prev_images) // Copy existing bitmaps from the prev_buffer to the new buffer.
+                            {
+                                auto& l = layers[i++].get();
+                                auto dst = shm_buffer.ptr + l.shm_offset;
+                                std::memcpy(dst, prev_data.data(), prev_data.length() * sizeof(argb));
+                                // Switch to the new buffer.
+                                auto bitmap_span = std::span<argb>{ (argb*)dst, prev_data.length() };
+                                l.data = bits{ bitmap_span, prev_data.area() };
+                            }
+                            session.shm_detach(prev_buffer);
+                            // Deferred deallocation in sync with X-server.
+                            session.sendrq(x11::req::get_input_focus{}, {}, [prev_buffer](auto& /*ev*/, view /*payload*/) mutable
+                            {
+                                prev_buffer.deallocate();
+                                if constexpr (debugmode) log("prev shm_buffer deallocated");
+                            });
+                        }
+                        else
+                        {
+                            log(ansi::err("%%Failed to allocate MIT-SHM buffer of %% bytes", prompt::x11, new_shm_buffer_len));
+                        }
+                    }
                     s.prev.size = s.area.size;
-                    auto bitmap_span = std::span<argb>{ layer_shm_ptr, (size_t)s.area.size.x * s.area.size.y };
+                    auto bitmap_span = std::span<argb>{ (argb*)(session.shm_buffer.ptr + s.shm_offset), required_pixels };
                     s.data = bits{ bitmap_span, s.area };
                     zeroize = true;
                 }
@@ -7895,7 +7970,7 @@ namespace netxs::gui
             //    session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.fg_hWnd });
             //    session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
             //    auto r = rect{ dot_00, s.area.size };
-            //    auto dirty_offset = s.get_offset(session);
+            //    auto dirty_offset = s.shm_offset;
             //    auto seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
             //    {
             //        .major_opcode = session.shm_major_opcode,
@@ -7909,7 +7984,7 @@ namespace netxs::gui
             //        .src_height   = (ui16)r.size.y, //
             //        .dst_x        = (si16)r.coor.x, // Window dest coor.
             //        .dst_y        = (si16)r.coor.y, //
-            //        .shm_seg_id   = session.shm_segment_xid,
+            //        .shm_seg_id   = session.shm_buffer.xid,
             //        .offset       = (ui32)dirty_offset, // New data start.
             //    });
             //    s.set_seq_num(session, seq_num);
@@ -8729,7 +8804,6 @@ namespace netxs::gui
         bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool keybd_read_input() { return true; }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }

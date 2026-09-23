@@ -447,7 +447,7 @@ namespace netxs::generics
             friend auto operator + (iter i, si32 n) { i += n; return i;                                                     }
             friend auto operator + (si32 n, iter i) { i += n; return i;                                                     }
             friend auto operator - (iter i, si32 n) { i -= n; return i;                                                     }
-            reference operator[](difference_type n) const { return *(*this + (si32)n);                                      }
+            reference operator [] (difference_type n) const { return *(*this + (si32)n);                                    }
         };
 
         ring(si32 ring_size, si32 grow_by = 0, si32 grow_mx = 0)
@@ -1137,9 +1137,9 @@ namespace netxs::generics
             handle_type h;
             bool        done;
 
-            void operator++()                            { h.resume(); done = h.done(); }
-            auto& operator*() const                      { return *(h.promise().current_value); }
-            auto operator!=(iterator const& other) const { return done != other.done; }
+            void operator ++ ()                            { h.resume(); done = h.done(); }
+            auto& operator * () const                      { return *(h.promise().current_value); }
+            auto operator != (iterator const& other) const { return done != other.done; }
         };
 
         auto begin()

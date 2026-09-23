@@ -848,7 +848,7 @@ Notes
         <gridsize=""/>        <!-- Initial window grid size as "width,height" in text cells. If empty or "0,0", the OS window manager determines the size. -->
         <wincoor=""/>         <!-- Initial window coordinates "x,y" (top-left corner in physical pixels). If empty, the OS window manager determines the position. -->
         <winstate="normal"/>  <!-- Initial window state: "normal" | "maximized" | "minimized". -->
-        <blinkrate=400ms/>    <!-- Cursor/text blink rate (SGR 5/6). Set to zero to disable blinking. -->
+        <blinkrate=400ms/>    <!-- Text blink rate (SGR 5/6). Set to zero to disable blinking. -->
         <quality=80/>         <!-- 1-100: JPEG compression quality for raster graphics preview. -->
         <fonts>  <!-- Ordered font fallback list. Other available system fonts will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts to start a new list. -->
@@ -984,7 +984,7 @@ Notes
             <height=1/>  <!-- Reserved space at the top of the desktop. -->
         </panel>
         <background>  <!-- Desktop background settings. -->
-            <color fgc=whitedk bgc= #00007fFF/>  <!-- Background color. -->
+            <color fgc=whitedk bgc= #00004080/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Optional: Truecolor ANSI-art for the background. -->
         </background>
     </desktop>

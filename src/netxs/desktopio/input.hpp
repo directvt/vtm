@@ -553,8 +553,8 @@ namespace netxs::input
                 si16 vkey;
                 struct cmp
                 {
-                    auto operator()(keyrec const& r, si32 vkey) const { return r.vkey < vkey; }
-                    auto operator()(si32 vkey, keyrec const& r) const { return vkey < r.vkey; }
+                    auto operator () (keyrec const& r, si32 vkey) const { return r.vkey < vkey; }
+                    auto operator () (si32 vkey, keyrec const& r) const { return vkey < r.vkey; }
                 };
             };
             constexpr auto total_hash_count = []
@@ -681,7 +681,7 @@ namespace netxs::input
             bool operator == (map const& m) const = default;
             struct hashproc
             {
-                auto operator()(map const& m) const
+                auto operator () (map const& m) const
                 {
                     return m.hash;
                 }
@@ -1435,9 +1435,12 @@ namespace netxs::input
         }
         void set(view utf8)
         {
-            digest++;
-            string = utf8;
-            page_sptr.reset();
+            if (string != utf8)
+            {
+                digest++;
+                string = utf8;
+                page_sptr.reset();
+            }
         }
         auto get_render_sptr(cell const& tooltip_colors)
         {
@@ -1504,9 +1507,8 @@ namespace netxs::input
                     if (!canceled)
                     {
                         time_to_run = datetime::now() + timeout;
-                        digest = current_sptr->digest;
                     }
-                    if (current_sptr)
+                    if (current_sptr) // Sync empty tooltips too. Show it if updated later.
                     {
                         digest = current_sptr->digest;
                     }
@@ -1552,7 +1554,7 @@ namespace netxs::input
                 if (canceled) return;
                 if (deed == input::key::MouseMove)
                 {
-                    if (coor(gear.mouse::coord)) // Hide tooltip on mouse move.
+                    if (coor(gear.mouse::coord)) // Hide tooltip on intercell mouse move.
                     {
                         if (visible)
                         {
@@ -1571,7 +1573,7 @@ namespace netxs::input
                     hide();
                 }
             }
-            auto check(time now) // Called every timer tick.
+            auto check(time now) // Called every timer tick. Return true if tooltip changed (damaged).
             {
                 if (changed_visibility)
                 {
@@ -1582,8 +1584,8 @@ namespace netxs::input
                 {
                     digest = current_sptr->digest;
                     fresh = true;
-                    visible = true;
                     canceled = current_sptr->get().empty();
+                    visible = !canceled;
                     coor(gear.mouse::coord);
                     return true;
                 }

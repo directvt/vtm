@@ -1072,7 +1072,7 @@ namespace netxs
               a{ c.chan.a * inv_255 }
         { }
 
-        operator argb() const { return argb{ r, g, b, a }; }
+        operator argb () const { return argb{ r, g, b, a }; }
 
         bool operator > (auto n) const { return r > n || g > n || b > n || a > n; }
         auto operator / (auto n) const { return irgb{ r / n, g / n, b / n, a / n }; } // 10% faster than divround.
