@@ -91,26 +91,18 @@ namespace netxs::gui
             arch  fg_hWnd = {}; // OR=1 foreground layer.
             arch  bg_hdc  = {}; // OR=1 background layer.
             arch  bg_hWnd = {}; // OR=1 background layer.
-            ui32  shm_offset = {};
-            twod  prev_size;
+            ui32  shm_offset = {}; // Offset in bytes.
+            ui32  shm_pixel_limit{}; // Buffer pixel limit in pixels (argb).
+            twod  prev_size; // Layer size for allocated bitmap.
             bool  prev_live = {};
             bool  windowsized = {};
-            bool  bank = {}; // Bank is switching offset segment on every resize iteration.
-            std::array<ui16, 2> seq_nums = { 0xFFFF, 0xFFFF };
+            ui16  seq_num = 0xFFFF; // X11 request sequence number for layer output tracking.
 
-            auto get_offset(auto& session, bool toggle_bank = faux)
+            void set_seq_num(auto& session, ui16 new_seq_num)
             {
-                //if (toggle_bank)
-                bank ^= toggle_bank;
-                //todo deadlock by unknown reason
-                //session.sync_reply(seq_nums[bank]); // It is already synced in layers_present()
-                return (ui32)((session.shm_buffer_len / 2) * bank + shm_offset);
-            }
-            void set_seq_num(auto& session, ui16 seq_num)
-            {
-                seq_nums[bank] = seq_num;
+                seq_num = new_seq_num;
                 session.received_replies[seq_num].store(true, std::memory_order_release);
-                if constexpr (debugmode) log("Frame seq=%%", seq_num);
+                //if constexpr (debugmode) log("Frame seq=%%", seq_num);
             }
             void swap_backing()
             {
@@ -128,8 +120,13 @@ namespace netxs::gui
         { }
         void hide() { live = faux; }
         void show() { live = true; }
-        void wipe() { std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb)); }
         auto resized() { return area.size != prev.size; }
+        void wipe()
+        {
+            assert(!resized());
+            //todo ?should we use prev to be safe
+            std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
+        }
         template<bool Forced = faux>
         void strike(rect r)
         {
@@ -6704,23 +6701,38 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         {
-            //todo it is just a test
-            auto align = [](ui32 offset){ return (ui32)(offset + 15) & ~15; };
-            auto large_step = (session.shm_buffer_len / 2) / 3;
-            auto small_step = (session.shm_buffer_len / 2) / 9;
-            layers[0].get().shm_offset = 0;
-            layers[1].get().shm_offset = align(large_step);
-            layers[2].get().shm_offset = align(layers[1].get().shm_offset + large_step);
-            layers[3].get().shm_offset = align(layers[2].get().shm_offset + small_step);
-            layers[4].get().shm_offset = align(layers[3].get().shm_offset + small_step);
-            if constexpr (debugmode) log("shm_size=%% l0=%% l1=%% l2=%% l3=%% l4=%%", session.shm_buffer_len,
+            _recalc_layer_offsets();
+        }
+
+        auto _recalc_layer_offsets()
+        {
+            auto prev_images = std::array<bits, sizeof(layers) / sizeof(layers[0])>{};
+            auto large_step = session.shm_buffer.len / 3;
+            auto small_step = large_step / 3;
+            auto current_offset = 0u;
+            auto set_limits =[&](si32 i, ui32 shm_limit)
+            {
+                auto align = [](ui32 offset){ return (ui32)(offset + 15) & ~15; }; // 4bit aligning.
+                auto& l = layers[i].get();
+                prev_images[i] = l.data;
+                l.shm_offset = current_offset;
+                auto new_limit = align(shm_limit);
+                l.shm_pixel_limit = new_limit / sizeof(argb);
+                current_offset += new_limit;
+            };
+            set_limits(0, large_step);
+            set_limits(1, large_step);
+            set_limits(2, small_step);
+            set_limits(3, small_step);
+            set_limits(4, small_step);
+            if constexpr (debugmode) log("shm_size=%% l0=%% l1=%% l2=%% l3=%% l4=%%", session.shm_buffer.len,
                 layers[0].get().shm_offset,
                 layers[1].get().shm_offset,
                 layers[2].get().shm_offset,
                 layers[3].get().shm_offset,
                 layers[4].get().shm_offset);
+            return prev_images;
         }
-
         auto _check_if_mouse_moved(fp2d coor, bool forced) //todo: Workaround: Master's root coords are broken when windows are intensively moved in the most of linux distributions (even query_pointer affected).
         {
             if (current_mouse_pos != coor && (forced || !block_mouse_movement.load(std::memory_order_acquire)))
@@ -6752,7 +6764,7 @@ namespace netxs::gui
                                                                                  .height = (ui16)target_area.size.y });
                 auto r = target_area;
                 r.coor -= s.area.coor;
-                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                 seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
@@ -6766,7 +6778,7 @@ namespace netxs::gui
                     .src_height   = (ui16)r.size.y, //
                     .dst_x        = (si16)0,//r.coor.x, // Window dest coor.
                     .dst_y        = (si16)0,//r.coor.y, //
-                    .shm_seg_id   = session.shm_segment_xid,
+                    .shm_seg_id   = session.shm_buffer.xid,
                     .offset       = (ui32)dirty_offset, // New data start.
                 });
             }
@@ -6868,7 +6880,7 @@ namespace netxs::gui
                         if (s.live)
                         {
                             auto r = rect{ dot_00, s.area.size };
-                            auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                            auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                             seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                             {
                                 .major_opcode = session.shm_major_opcode,
@@ -6882,7 +6894,7 @@ namespace netxs::gui
                                 .src_height   = (ui16)r.size.y, //
                                 .dst_x        = (si16)r.coor.x, // Window dest coor.
                                 .dst_y        = (si16)r.coor.y, //
-                                .shm_seg_id   = session.shm_segment_xid,
+                                .shm_seg_id   = session.shm_buffer.xid,
                                 .offset       = (ui32)dirty_offset, // New data start.
                             });
                         }
@@ -7695,7 +7707,7 @@ namespace netxs::gui
                 {
                     continue;
                 }
-                auto dirty_offset = s.get_offset(session) + (r.coor.y * s.area.size.x * sizeof(ui32));
+                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
                 seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
@@ -7709,7 +7721,7 @@ namespace netxs::gui
                     .src_height   = (ui16)r.size.y, //
                     .dst_x        = (si16)r.coor.x, // Window dest coor.
                     .dst_y        = (si16)r.coor.y, //
-                    .shm_seg_id   = session.shm_segment_xid,
+                    .shm_seg_id   = session.shm_buffer.xid,
                     .offset       = (ui32)dirty_offset, // New data start.
                 });
             }
@@ -7858,9 +7870,41 @@ namespace netxs::gui
             {
                 if (s.resized())
                 {
-                    auto layer_shm_ptr = (argb*)(session.shm_buffer_ptr + s.get_offset(session, true));
+                    auto required_pixels = std::max(1u, (ui32)(s.area.size.x * s.area.size.y));
+                    if (required_pixels > s.shm_pixel_limit) // Recalc new shm buffer limits.
+                    {
+                        auto ratio = (fp32)session.shm_buffer.len / s.shm_pixel_limit; // inc div by 4
+                        auto new_shm_buffer_len = (ui32)std::ceil(ratio * required_pixels * 1.1f); // inc mul by 4  // 1.1f: +~10%
+                        auto shm_buffer = x11::session_t::shm_buffer_t{};
+                        if (shm_buffer.allocate(new_shm_buffer_len))
+                        {
+                            auto prev_buffer = session.shm_attach(shm_buffer);
+                            auto prev_images = _recalc_layer_offsets();
+                            auto i = 0;
+                            for (auto prev_data : prev_images) // Copy existing bitmaps from the prev_buffer to the new buffer.
+                            {
+                                auto& l = layers[i++].get();
+                                auto dst = shm_buffer.ptr + l.shm_offset;
+                                std::memcpy(dst, prev_data.data(), prev_data.length() * sizeof(argb));
+                                // Switch to the new buffer.
+                                auto bitmap_span = std::span<argb>{ (argb*)dst, prev_data.length() };
+                                l.data = bits{ bitmap_span, prev_data.area() };
+                            }
+                            session.shm_detach(prev_buffer);
+                            // Deferred deallocation in sync with X-server.
+                            session.sendrq(x11::req::get_input_focus{}, {}, [prev_buffer](auto& /*ev*/, view /*payload*/) mutable
+                            {
+                                prev_buffer.deallocate();
+                                if constexpr (debugmode) log("prev shm_buffer deallocated");
+                            });
+                        }
+                        else
+                        {
+                            log(ansi::err("%%Failed to allocate MIT-SHM buffer of %% bytes", prompt::x11, new_shm_buffer_len));
+                        }
+                    }
                     s.prev.size = s.area.size;
-                    auto bitmap_span = std::span<argb>{ layer_shm_ptr, (size_t)s.area.size.x * s.area.size.y };
+                    auto bitmap_span = std::span<argb>{ (argb*)(session.shm_buffer.ptr + s.shm_offset), required_pixels };
                     s.data = bits{ bitmap_span, s.area };
                     zeroize = true;
                 }
@@ -7926,7 +7970,7 @@ namespace netxs::gui
             //    session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.fg_hWnd });
             //    session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
             //    auto r = rect{ dot_00, s.area.size };
-            //    auto dirty_offset = s.get_offset(session);
+            //    auto dirty_offset = s.shm_offset;
             //    auto seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
             //    {
             //        .major_opcode = session.shm_major_opcode,
@@ -7940,7 +7984,7 @@ namespace netxs::gui
             //        .src_height   = (ui16)r.size.y, //
             //        .dst_x        = (si16)r.coor.x, // Window dest coor.
             //        .dst_y        = (si16)r.coor.y, //
-            //        .shm_seg_id   = session.shm_segment_xid,
+            //        .shm_seg_id   = session.shm_buffer.xid,
             //        .offset       = (ui32)dirty_offset, // New data start.
             //    });
             //    s.set_seq_num(session, seq_num);

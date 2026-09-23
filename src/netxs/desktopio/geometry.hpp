@@ -113,8 +113,8 @@ namespace netxs
         constexpr auto  operator ~  ()       const { return xy2d{       y, x       };  }
 
         //In C++11, signed shift left of a negative number is always undefined
-        //void operator>>= (T i) { x >>=i; y >>=i; }
-        //void operator<<= (T i) { x <<=i; y <<=i; }
+        //void operator >>= (T i) { x >>=i; y >>=i; }
+        //void operator <<= (T i) { x <<=i; y <<=i; }
         //
         //In C++11, signed shift left of a negative number is always undefined
         //xy2d operator << (T i) const { return { x << i, y << i }; }
@@ -753,7 +753,7 @@ namespace netxs
         base _data;
         rect _area;
         rect _clip;
-        auto length() const { return _data.length(); }
+        auto length() const { return _data.size();   }
         auto  begin()       { return _data.begin();  }
         auto  begin() const { return _data.begin();  }
         auto   data()       { return _data.data();   }

@@ -553,8 +553,8 @@ namespace netxs::input
                 si16 vkey;
                 struct cmp
                 {
-                    auto operator()(keyrec const& r, si32 vkey) const { return r.vkey < vkey; }
-                    auto operator()(si32 vkey, keyrec const& r) const { return vkey < r.vkey; }
+                    auto operator () (keyrec const& r, si32 vkey) const { return r.vkey < vkey; }
+                    auto operator () (si32 vkey, keyrec const& r) const { return vkey < r.vkey; }
                 };
             };
             constexpr auto total_hash_count = []
@@ -681,7 +681,7 @@ namespace netxs::input
             bool operator == (map const& m) const = default;
             struct hashproc
             {
-                auto operator()(map const& m) const
+                auto operator () (map const& m) const
                 {
                     return m.hash;
                 }

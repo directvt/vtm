@@ -1840,6 +1840,70 @@ namespace netxs::x11
             bool is_master{};
             bool enabled{};
         };
+        struct shm_buffer_t
+        {
+            fd_t  fd{ os::invalid_fd };
+            byte* ptr{};
+            ui32  len{};
+            ui32  xid{};
+
+            bool allocate(size_t size)
+            {
+                assert(fd == os::invalid_fd);
+                fd =
+                    #if defined(__ANDROID__)
+                        os::shm_open("vtm", O_RDWR | O_CREAT | O_EXCL, 0600);
+                    #elif defined(__linux__)
+                        ::memfd_create("x11_shm_buffer", MFD_CLOEXEC);
+                    #else
+                        ::shm_open(SHM_ANON, O_RDWR | O_CREAT | O_EXCL, 0600); // SHM_ANON - native anonymous descriptor in BSD.
+                    #endif
+                if (fd == os::invalid_fd)
+                {
+                    log("%%Failed to create anonymous shared memory fd (errno=%%)", prompt::gui, os::error());
+                }
+                else
+                {
+                    if (::ftruncate(fd, size) == -1) // Set shm size.
+                    {
+                        ::close(fd);
+                        fd = os::invalid_fd;
+                        log("%%Failed to truncate shared memory file to required size (errno=%%)", prompt::gui, os::error());
+                    }
+                    else
+                    {
+                        auto mapped_ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+                        if (mapped_ptr == MAP_FAILED)
+                        {
+                            ::close(fd);
+                            fd = os::invalid_fd;
+                            log("%%Failed to mmap shared memory descriptor (errno=%%)", prompt::gui, os::error());
+                        }
+                        else
+                        {
+                            ptr = (byte*)mapped_ptr;
+                            len = size;
+                            if constexpr (debugmode) log("%%Shared buffer successfuly created at 0x%%, %% bytes", prompt::x11, utf::to_hex(ptr), len);
+                        }
+                    }
+                }
+                return len > 0;
+            }
+            void deallocate()
+            {
+                if (ptr && ptr != MAP_FAILED)
+                {
+                    ::munmap(ptr, len);
+                    len = {};
+                    ptr = {};
+                }
+                if (fd != os::invalid_fd)
+                {
+                    ::close(fd);
+                    fd = os::invalid_fd;
+                }
+            }
+        };
 
         text                                  vendor_str;     // buffer[32..32+vendor_length] = vendor_str
         std::vector<format>                   pixmap_formats; // format * number_of_formats = pixmap_formats
@@ -1892,10 +1956,7 @@ namespace netxs::x11
 
         byte                                  shm_major_opcode = 0;
         byte                                  shm_completion_event = 0;
-        fd_t                                  shm_buffer_fd = os::invalid_fd;
-        byte*                                 shm_buffer_ptr = {};
-        ui32                                  shm_buffer_len = {};
-        ui32                                  shm_segment_xid = {};
+        shm_buffer_t                          shm_buffer;
 
         byte                                  xi2_major_opcode = 0;
 
@@ -1953,7 +2014,7 @@ namespace netxs::x11
         session_t() = default;
         ~session_t()
         {
-            reset_shared_buffer();
+            shm_buffer.deallocate();
         }
 
         void sync_reply(ui16 sequence_number) const
@@ -2308,10 +2369,11 @@ namespace netxs::x11
             log(errmsg + errdetails);
             return faux;
         }
-        void send_shm_attach_fd(ui32 client_shmseg_xid)
+        auto shm_attach(shm_buffer_t& new_shm_buffer)
         {
+            new_shm_buffer.xid = new_resource_id();
             auto request = x11::req::shm::attach_fd{ .major_opcode = shm_major_opcode,
-                                                     .shm_seg_id   = client_shmseg_xid };
+                                                     .shm_seg_id   = new_shm_buffer.xid };
             auto iov = ::iovec{ .iov_base = &request,
                                 .iov_len  = sizeof(request) };
             union // Ancillary Data
@@ -2330,20 +2392,23 @@ namespace netxs::x11
             cmsg->cmsg_len   = CMSG_LEN(sizeof(int));
             cmsg->cmsg_level = SOL_SOCKET;
             cmsg->cmsg_type  = SCM_RIGHTS;
-            std::memcpy(&(CMSG_DATA(cmsg)), &shm_buffer_fd, sizeof(shm_buffer_fd));
+            std::memcpy(&(CMSG_DATA(cmsg)), &new_shm_buffer.fd, sizeof(new_shm_buffer.fd));
             auto lock = std::lock_guard{ mutex };
             sequence_counter++;
             auto bytes_sent = ::sendmsg(x11connection->handle.w, &msg, 0);
             if (bytes_sent == -1)
             {
-                log("%%sendmsg failed during shm_attach_fd invocation", prompt::x11);
+                log(ansi::err("%%Failed to send shm_attach_fd invocation: '%%'"), prompt::x11, os::error());
             }
+            if constexpr (debugmode) log("%%New shared buffer segment XID 0x%% is attached", prompt::x11, utf::to_hex(new_shm_buffer.xid));
+            return std::exchange(shm_buffer, new_shm_buffer);
         }
-        void send_shm_detach_fd(ui32 client_shmseg_xid)
+        void shm_detach(shm_buffer_t& old_shm_buffer)
         {
             sendrq<x11::req::shm::detach>({ .major_opcode = shm_major_opcode,
-                                            .shm_seg_id   = client_shmseg_xid });
-            if constexpr (debugmode) log("%%Shared buffer segment XID %% is detached", prompt::x11, client_shmseg_xid);
+                                            .shm_seg_id   = old_shm_buffer.xid });
+            if constexpr (debugmode) log("%%Shared buffer segment XID 0x%% is detached", prompt::x11, utf::to_hex(old_shm_buffer.xid));
+            free_resource_id(old_shm_buffer.xid);
         }
         void set_mouse_input(text& batch_buffer, arch window_id, bool state) // Make sub-layer transparent for mouse.
         {
@@ -2477,70 +2542,6 @@ namespace netxs::x11
                                                 .type      = atom_utf8_string,
                                                 .format    = sizeof(byte) * 8 },  // Format (8: 8-bit chars (string)).
                                             title);
-        }
-        bool resize_shared_buffer(size_t size)
-        {
-            if (shm_buffer_len)
-            {
-                //todo implement delayed detach+copy
-                send_shm_detach_fd(shm_segment_xid);
-                reset_shared_buffer();
-                free_resource_id(shm_segment_xid);
-            }
-            shm_buffer_fd =
-                #if defined(__ANDROID__)
-                    os::shm_open("vtm", O_RDWR | O_CREAT | O_EXCL, 0600);
-                #elif defined(__linux__)
-                    ::memfd_create("x11_shm_buffer", MFD_CLOEXEC);
-                #else
-                    ::shm_open(SHM_ANON, O_RDWR | O_CREAT | O_EXCL, 0600); // SHM_ANON - native anonymous descriptor in BSD.
-                #endif
-            if (shm_buffer_fd == os::invalid_fd)
-            {
-                log("%%Failed to create anonymous shared memory fd (errno=%%)", prompt::gui, os::error());
-            }
-            else
-            {
-                if (::ftruncate(shm_buffer_fd, size) == -1) // Set shm size.
-                {
-                    ::close(shm_buffer_fd);
-                    shm_buffer_fd = os::invalid_fd;
-                    log("%%Failed to truncate shared memory file to required size (errno=%%)", prompt::gui, os::error());
-                }
-                else
-                {
-                    auto mapped_ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_buffer_fd, 0);
-                    if (mapped_ptr == MAP_FAILED)
-                    {
-                        ::close(shm_buffer_fd);
-                        shm_buffer_fd = os::invalid_fd;
-                        log("%%Failed to mmap shared memory descriptor (errno=%%)", prompt::gui, os::error());
-                    }
-                    else
-                    {
-                        shm_buffer_ptr = (byte*)mapped_ptr;
-                        shm_buffer_len = size;
-                        shm_segment_xid = new_resource_id();
-                        send_shm_attach_fd(shm_segment_xid);
-                        if constexpr (debugmode) log("%%Shared buffer successfuly created at 0x%%, %% bytes", prompt::x11, utf::to_hex(shm_buffer_ptr), shm_buffer_len);
-                    }
-                }
-            }
-            return shm_buffer_len > 0;
-        }
-        void reset_shared_buffer()
-        {
-            if (shm_buffer_ptr && shm_buffer_ptr != MAP_FAILED)
-            {
-                ::munmap(shm_buffer_ptr, shm_buffer_len);
-                shm_buffer_len = {};
-                shm_buffer_ptr = {};
-            }
-            if (shm_buffer_fd != os::invalid_fd)
-            {
-                ::close(shm_buffer_fd);
-                shm_buffer_fd = os::invalid_fd;
-            }
         }
         auto get_atoms()
         {
@@ -3163,9 +3164,11 @@ namespace netxs::x11
                     auto& x11screen = session.roots.front().s;
                     session.set_x11_display_size(twod{ x11screen.width_in_pixels, x11screen.height_in_pixels });
                     auto max_grid_size = x11screen.width_in_pixels * x11screen.height_in_pixels;
-                    auto required_buffer_size = 2 * 3 * max_grid_size * sizeof(argb); // 2: Double buffer, 3: master+blinks+header/footer/tooltip.
-                    if (session.resize_shared_buffer(required_buffer_size))
+                    auto required_buffer_size = 3 * max_grid_size * sizeof(argb); // 3: master=1/3 + blinks=1/3 + header=1/9+footer=1/9+tooltip=1/9.
+                    auto shm_buffer = session_t::shm_buffer_t{};
+                    if (shm_buffer.allocate(required_buffer_size))
                     {
+                        session.shm_attach(shm_buffer);
                         x11::session_ptr = session_ptr;
                     }
                 }
@@ -3478,7 +3481,7 @@ namespace netxs::x11
         };
         struct node_comparator
         {
-            auto operator()(auto& a, auto& b) const
+            auto operator () (auto& a, auto& b) const
             {
                 auto get_keysym = [](auto& x) -> ui32
                 {
