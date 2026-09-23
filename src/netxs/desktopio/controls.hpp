@@ -384,12 +384,21 @@ namespace netxs
             else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tonumber(lua, idx), ::lua_tonumber(lua, idx + 1) };
             else if constexpr (std::is_same_v<std::decay_t<T>, sptr<ui::base>>)
             {
-                if (auto ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get ui::base*.
+                auto object_ptr = sptr<ui::base>{};
+                if (type == LUA_TTABLE)
                 {
-                    auto object_ptr = ptr->This();
-                    return object_ptr;
+                    auto abs_idx = ::lua_absindex(lua, idx);
+                    ::lua_pushstring(lua, "__self");
+                    auto raw_type = ::lua_rawget(lua, abs_idx); // Push ptr to stack.
+                    if (raw_type == LUA_TLIGHTUSERDATA)
+                    if (auto ptr = (ui::base*)::lua_touserdata(lua, -1))
+                    {
+                        object_ptr = ptr->This();
+                    }
+                    //luna::vtmlua_log(lua);
+                    ::lua_pop(lua, 1); // Pop ptr from stack.
                 }
-                return sptr<ui::base>{};
+                return object_ptr;
             }
         }
         if constexpr (is_string_v || is_cstring_v) return text{ fallback };
