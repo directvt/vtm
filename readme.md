@@ -54,7 +54,7 @@ vtm --run gems
 
 [Tested Terminals](https://github.com/directvt/vtm/discussions/72)
 
-<sup>Currently, rendering in the GUI window is not available on macOS, and a terminal emulator is required.</sup>
+<sup>Currently, rendering in a GUI window is not available on macOS, and a terminal emulator is required.</sup>
 
 ## Binary downloads
 
