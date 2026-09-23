@@ -842,7 +842,7 @@ Notes
 
 <!-- Application configuration. -->
 <config=/Colors | /Scripting | /Macro>  <!-- Include additional namespaces: "/Colors", "/Scripting", and "/Macro". -->
-    <gui>  <!-- GUI-specific settings (currently win32 platform only). -->
+    <gui>  <!-- GUI-specific settings. -->
         <antialiasing=on/>    <!-- Glyph antialiasing. Note: Multi-layered color glyphs (e.g., emojis) are always antialiased. -->
         <cellheight=21/>      <!-- Text cell height in physical pixels. Note: Cell width is determined by the primary font (the first in the list). -->
         <gridsize=""/>        <!-- Initial window grid size as "width,height" in text cells. If empty or "0,0", the OS window manager determines the size. -->

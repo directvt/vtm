@@ -413,7 +413,7 @@ Notes:
   vtm
 ```
 
-Note: You can explicitly specify running vtm inside the terminal (run `vtm --tui`) or in its own GUI window (run `vtm --gui`). GUI mode is only available on Windows for now.
+Note: You can explicitly specify running vtm inside the terminal (run `vtm --tui`) or in its own GUI window (run `vtm --gui`).
 
 ### Run Teletype Console
 
