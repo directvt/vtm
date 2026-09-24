@@ -2433,8 +2433,11 @@ namespace netxs::input
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
                             auto is_released = test_if_key_released(val.vcode, keyid); // Check if it is still pressed.
                             auto same = k.keycode == keyid
-                                     && k.scancod == val.scode
-                                     && k.virtcod == val.vcode;
+                                     && k.virtcod == val.vcode
+                                     && k.scancod == (val.scode & 0xFF)
+                                     && k.extflag == !!(val.scode & 0x100);
+                            //log("k.keycode=%% k.virtcod=0x%% k.scancod=0x%% k.extflag=%% same=%%", k.keycode, utf::to_hex(k.virtcod), utf::to_hex(k.scancod), k.extflag, same);
+                            //log("val.vcode=0x%% val.scode=0x%% is_released=%%", utf::to_hex(val.vcode), utf::to_hex(val.scode), is_released);
                             if (!is_released)
                             {
                                 if (same && k.keystat == input::key::pressed) // The same key was pressed twice without releasing.
@@ -2479,7 +2482,7 @@ namespace netxs::input
                     if (k.keystat == input::key::pressed && (vk_valid || sc_valid)) // Filter IME/pasted clusters in chords (sc=0 vk=0).
                     {
                         auto& key = pushed[k.keycode];
-                        key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
+                        key.scode = k.scancod | (k.extflag << 8); // Store the scan code of a pressed key.
                         key.vcode = k.virtcod; // Store the virtual code to check later that it is still pressed.
                         key.stamp = datetime::now();
                     }

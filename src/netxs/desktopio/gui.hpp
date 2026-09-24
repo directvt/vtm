@@ -5642,9 +5642,9 @@ namespace netxs::gui
             }
             return !!(vkstat[virtcod] & 0x80);
         }
-        bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0)
+        bool keybd_test_pressed_ex(si32 ext_virtcod, si32 keycode = 0)
         {
-            return keybd_test_pressed(virtcod, keycode);
+            return keybd_test_pressed(ext_virtcod & 0xFF, keycode); // Fliter extflag on win32.
         }
         bool keybd_read_pressed(si32 virtcod)
         {
@@ -6692,7 +6692,7 @@ namespace netxs::gui
         modifier_map_t              modifier_map{};          // window: Dynamic modifier bit bindings for compose processing.
         std::array<byte, 256>       keycode_to_vkey{};       // window: Latin keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{};       // window: vkey to national keycodes lut.
-        std::array<byte, 512>       extvkey_to_keycode{};    // window: vkey+extflag to keycodes lut. 512: 8bit + extflag.
+        std::array<byte, input::key::lastKey> key_all_to_keycode{};    // window: key ALL to keycodes lut.
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
 
         std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
@@ -7473,6 +7473,8 @@ namespace netxs::gui
             gear.xlayout = xlayout;
             gear.cluster = cluster;
             if constexpr (debugmode) log("shifted='%%' unshift='%%'", utf::debase<faux, faux>(gear.shifted), utf::debase<faux, faux>(gear.unshift));
+            //if constexpr (debugmode) log("key_all=%% virtcod=0x%% scancod=0x%% extflag=%%", key_all, utf::to_hex(virtcod), utf::to_hex(scancod), extflag);
+            //todo switch to r/lshift, r/lctrl, r/lalt
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::ctrl    || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lsuper   || virtcod == vkey::rsuper  || virtcod == vkey::altgr);
@@ -7488,9 +7490,9 @@ namespace netxs::gui
         {
             return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
         }
-        bool keybd_test_pressed_ex(si32 ext_virtcod, si32 /*keycode*/ = 0)
+        bool keybd_test_pressed_ex(si32 /*ext_virtcod*/, si32 key_all)
         {
-            return netxs::get_bit(vkstat, extvkey_to_keycode[ext_virtcod & 0x1FF]); // 0x1FF: 8bit + extflag.
+            return netxs::get_bit(vkstat, key_all_to_keycode[key_all]);
         }
         bool keybd_test_toggled(si32 virtcod)
         {
@@ -7585,18 +7587,24 @@ namespace netxs::gui
             {
                 latin_changed = std::exchange(hkl_latin, _keybd_find_latin_layout()) != hkl_latin;
             }
-            // Refill extvkey_to_keycode[virtcode] lookup table.
+            // Refill key_all_to_keycode[key_all] lookup table.
             if (latin_changed)
             {
-                extvkey_to_keycode = {};
+                key_all_to_keycode = {};
                 for (auto keycode = 0; keycode < 256; keycode++)
                 {
                     if (auto latin_keysym = _get_keysym(keycode, hkl_latin))
                     if (auto latin_keyall = input::key::xkb_to_all(latin_keysym))
                     {
-                        auto& keyrec = input::key::map::data(latin_keyall);
-                        auto virtcod = keyrec.vkey & 0x1FF; // 0x1FF: 8bit + extflag.
-                        extvkey_to_keycode[virtcod] = keycode;
+                        auto& keycode_ref = key_all_to_keycode[latin_keyall];
+                        if (!keycode_ref) // Don't override.
+                        {
+                            keycode_ref = keycode;
+                        }
+                        else
+                        {
+                            if constexpr (debugmode) log("duplicates: latin_keyall1(%%)=keycode1(0x%%) latin_keyall2(%%)=keycode2(0x%%)", latin_keyall, utf::to_hex(keycode_ref), latin_keyall, utf::to_hex(keycode));
+                        }
                     }
                 }
             }
