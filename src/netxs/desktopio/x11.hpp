@@ -2392,7 +2392,7 @@ namespace netxs::x11
             cmsg->cmsg_len   = CMSG_LEN(sizeof(int));
             cmsg->cmsg_level = SOL_SOCKET;
             cmsg->cmsg_type  = SCM_RIGHTS;
-            std::memcpy(&(CMSG_DATA(cmsg)), &new_shm_buffer.fd, sizeof(new_shm_buffer.fd));
+            std::memcpy(CMSG_DATA(cmsg), &new_shm_buffer.fd, sizeof(new_shm_buffer.fd));
             auto lock = std::lock_guard{ mutex };
             sequence_counter++;
             auto bytes_sent = ::sendmsg(x11connection->handle.w, &msg, 0);
