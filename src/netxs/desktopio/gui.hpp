@@ -6686,7 +6686,7 @@ namespace netxs::gui
         std::atomic<ui64>                    current_msc{};          // window: Current media stream counter value (for  vblank synchronization).
 
         ui32                        led_state{};             // window: X11 keyboard LED state (CapsLock/NumLock/ScrollLock).
-        std::array<byte, 32>        vkstat{};                // window: X11 keyboard virtual keys state.
+        std::array<byte, 32>        vkstat{};                // window: X11 keyboard virtual keys state. 8 bit * 32 = 256 keys.
         std::vector<x11_key_type_t> key_types;               // window: X11 key behavior type list.
         std::array<kb_layout_t, 4>  layouts;                 // window: Keyboard layout list.
         modifier_map_t              modifier_map{};          // window: Dynamic modifier bit bindings for compose processing.
@@ -6704,9 +6704,9 @@ namespace netxs::gui
             _recalc_layer_offsets();
         }
 
-        auto _recalc_layer_offsets()
+        auto _recalc_layer_offsets() -> std::array<bits, std::tuple_size_v<decltype(layers)>>
         {
-            auto prev_images = std::array<bits, sizeof(layers) / sizeof(layers[0])>{};
+            auto prev_images = std::array<bits, std::tuple_size_v<decltype(layers)>>{};
             auto large_step = session.shm_buffer.len / 3;
             auto small_step = large_step / 3;
             auto current_offset = 0u;
