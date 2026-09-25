@@ -45,11 +45,17 @@ namespace netxs::x11
     auto serialize_str(text& yield, auto& packet, auto const& data)
     {
         static constexpr auto is_string = requires{ data.substr(0); };
+        static constexpr auto is_vector = requires{ typename std::decay_t<decltype(data)>::value_type; data.data(); };
         auto data_bytes = 0ul;
         if constexpr (is_string) // String.
         {
             data_bytes = data.size();
             packet.data_len = data.size();
+        }
+        else if constexpr (is_vector) // Vector.
+        {
+            data_bytes = data.size() * sizeof(data[0]);
+            packet.data_len = (ui32)(data_bytes * 8 / packet.format);
         }
         else // POD.
         {
@@ -58,9 +64,9 @@ namespace netxs::x11
         }
         packet.length = (ui16)(sizeof(packet) / 4 + (data_bytes + 3) / 4);
         yield += view{ (char*)&packet, sizeof(packet) };
-        if constexpr (is_string)
+        if constexpr (is_string || is_vector)
         {
-            yield += view{ data.data(), data_bytes };
+            yield += view{ (char const*)data.data(), data_bytes };
             yield.append(-data_bytes & 3, '\0');
         }
         else
@@ -1924,8 +1930,10 @@ namespace netxs::x11
         ui32                                  atom_wm_transient_for = 68; // WM_TRANSIENT_FOR
         ui32                                  atom_wm_normal_hints = 0;
         ui32                                  atom_wm_size_hints = 0;
+        ui32                                  atom_wm_class = 0;
 
         ui32                                  atom_motif_wm_hints = 0; // Disable decoractions.
+        ui32                                  atom_net_wm_icon = 0; // _NET_WM_ICON
         ui32                                  atom_net_wm_name = 0;
         ui32                                  atom_net_wm_state_skip_taskbar = 0; // Hide from the taskbar.
         ui32                                  atom_net_wm_state = 0;              //
@@ -1943,6 +1951,7 @@ namespace netxs::x11
         ui32                                  atom_wm_delete_window = 0;
         ui32                                  atom_atom = 0;
         ui32                                  atom_cardinal = 0;
+        ui32                                  atom_string = 0;
         ui32                                  atom_utf8_string = 0;
         ui32                                  atom_window = 0;
         ui32                                  atom_net_active_window = 0;
@@ -2485,6 +2494,33 @@ namespace netxs::x11
                 sendrq<x11::req::xpresent::select_input>({ .major_opcode = xpresent_major_opcode,
                                                            .event_id     = new_event_id,
                                                            .window_id    = new_window_id });
+                if (override_redirect == 0) // Wm master layer only.
+                {
+                    auto wm_class_data = "vtm\0vtm\0"sv; // "instance_name\0class_name\0". Bind to the taskbar icon in .desktop-file: StartupWMClass=vtm.
+                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                                                        .property  = atom_wm_class,
+                                                        .type      = atom_string,
+                                                        .format    = sizeof(byte) * 8 }, // 8 bit.
+                                                    wm_class_data);
+                    // Set window icon (for WSLg).
+                    auto w = 32;
+                    auto h = 32;
+                    auto buffer = std::vector<ui32>(2 + w * h);
+                    auto p = buffer.begin();
+                    *p++ = w;
+                    *p++ = h;
+                    for (auto y = 0; y < h; y++)
+                    for (auto x = 0; x < w; x++)
+                    {
+                        auto block = (x < w / 2 && y < h / 2) || (x >= w / 2 && y >= h / 2);
+                        *p++ = block ? 0xFF3A78FF : 0x00000000; // Blue.
+                        //*p++ = block ? 0xFFFF783A : 0x00000000; // Red.
+                    }
+                    sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+                                                        .property  = atom_net_wm_icon,
+                                                        .type      = atom_cardinal },
+                                                    buffer);
+                }
             }
             else
             {
@@ -2561,6 +2597,7 @@ namespace netxs::x11
             //atom_my_ping                     = get_atom_id("_MY_PING", true);
             atom_motif_wm_hints              = get_atom_id("_MOTIF_WM_HINTS", true);
             atom_net_wm_name                 = get_atom_id("_NET_WM_NAME", true);
+            atom_net_wm_icon                 = get_atom_id("_NET_WM_ICON", true);
             atom_net_wm_state                = get_atom_id("_NET_WM_STATE", true);
             atom_net_wm_state_skip_taskbar   = get_atom_id("_NET_WM_STATE_SKIP_TASKBAR", true);
             atom_net_wm_window_type          = get_atom_id("_NET_WM_WINDOW_TYPE", true);
@@ -2579,11 +2616,13 @@ namespace netxs::x11
             // Server related.
             atom_atom                   = get_atom_id("ATOM",             faux);
             atom_window                 = get_atom_id("WINDOW",           faux);
+            atom_string                 = get_atom_id("STRING",           faux);
             atom_cardinal               = get_atom_id("CARDINAL",         faux);
             atom_wm_transient_for       = get_atom_id("WM_TRANSIENT_FOR", faux);
             atom_wm_hints               = get_atom_id("WM_HINTS",         faux);
             atom_wm_normal_hints        = get_atom_id("WM_NORMAL_HINTS",  faux);
             atom_wm_size_hints          = get_atom_id("WM_SIZE_HINTS",    faux);
+            atom_wm_class               = get_atom_id("WM_CLASS",         faux);
             atom_net_workarea           = get_atom_id("_NET_WORKAREA",    faux);
             atom_wm_protocols           = get_atom_id("WM_PROTOCOLS",            true);
             atom_wm_delete_window       = get_atom_id("WM_DELETE_WINDOW",        true);
@@ -3870,7 +3909,7 @@ namespace netxs::x11
             }
             log("%%Compose file: '%%'", prompt::x11, compose_file.string());
             _load_compose_file(compose_file, include_stack);
-            if constexpr (debugmode)
+            if constexpr (faux && debugmode)
             {
                 auto s = text{};
                 s += utf::fprint("   root->next.size=%%\n", root->next.size());

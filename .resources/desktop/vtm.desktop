@@ -1,0 +1,30 @@
+[Desktop Entry]
+Version=1.1
+Type=Application
+Name=vtm
+Comment=Text-based Desktop
+GenericName=Text-based Desktop
+Exec=vtm
+Icon=vtm
+Terminal=false
+Categories=System;Utility;TerminalEmulator;
+Keywords=terminal;multiplexer;vtm;
+StartupNotify=true
+StartupWMClass=vtm
+Actions=run-terminal;run-monitor;run-vt2d-test;start-server;
+
+[Desktop Action run-terminal]
+Name=Run Terminal
+Exec=vtm -r term
+
+[Desktop Action run-monitor]
+Name=Run Log Monitor
+Exec=vtm -q -r term vtm --monitor
+
+[Desktop Action run-vt2d-test]
+Name=Run VT2D Test Window
+Exec=vtm -r test
+
+[Desktop Action start-server]
+Name=Start Background Server
+Exec=vtm --daemon
