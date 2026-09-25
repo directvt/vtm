@@ -197,17 +197,6 @@ namespace netxs::os
     {
         std::this_thread::sleep_for(t);
     }
-    auto is_redirio()
-    {
-        auto is_redirio = ::isatty(os::stdout_fd) || ::isatty(os::stdin_fd);
-        if (!is_redirio) // It is not a tty.
-        if (auto tty_fd = ::open("/dev/tty", O_RDWR | O_NOCTTY)) // Terminal detected.
-        {
-            is_redirio = tty_fd >= 0;
-            if (is_redirio) ::close(tty_fd);
-        }
-        return is_redirio;
-    }
 
     #if defined(_WIN32)
 
@@ -1543,6 +1532,17 @@ namespace netxs::os
                 }
 
             #endif
+        }
+        auto is_redirio()
+        {
+            auto is_redirio = ::isatty(os::stdout_fd) || ::isatty(os::stdin_fd);
+            if (!is_redirio) // It is not a tty.
+            if (auto tty_fd = ::open("/dev/tty", O_RDWR | O_NOCTTY)) // Terminal detected.
+            {
+                is_redirio = tty_fd >= 0;
+                if (is_redirio) ::close(tty_fd);
+            }
+            return is_redirio;
         }
 
         #if defined(__ANDROID__)
