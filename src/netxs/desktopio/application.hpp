@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.09.25";
+    static const auto version = "v2026.09.26";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1167,7 +1167,7 @@ namespace netxs::app::shared
                     window->connect();
                 }
             };
-            if (os::stdout_fd != os::invalid_fd)
+            if (os::stdin_fd != os::invalid_fd && os::stdout_fd != os::invalid_fd)
             {
                 auto runcmd = directvt::binary::command{};
                 auto readln = os::tty::readline([&](auto line){ runcmd.send(client, line); }, [&]{ if (client) client->shut(); });

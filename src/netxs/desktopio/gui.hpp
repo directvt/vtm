@@ -3590,7 +3590,7 @@ namespace netxs::gui
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
-        virtual bool keybd_read_pressed(si32 virtcod) = 0;
+        virtual bool keybd_read_pressed(si32 virtcod, si32 key_all = 0) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
         virtual bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0) = 0;
         virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
@@ -3660,10 +3660,15 @@ namespace netxs::gui
         {
             if (master.hWnd) window_post_command(master.hWnd, command);
         }
+        auto get_mods_state()
+        {
+            return mfocus.focused()? keymod
+                                   : keybd_read_state();
+        }
         auto ctrl_pressed()
         {
-            return mfocus.focused() ? keybd_test_pressed(vkey::ctrl)
-                                    : keybd_read_pressed(vkey::ctrl);
+            auto mod_state = get_mods_state();
+            return (mod_state & mods::anyCtrl) != 0;
         }
         auto lbutton_pressed()
         {
@@ -4336,11 +4341,6 @@ namespace netxs::gui
                 layers_present();
             }
             isbusy.exchange(faux);
-        }
-        auto get_mods_state()
-        {
-            return mfocus.focused()? keymod
-                                   : keybd_read_state();
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
@@ -5646,7 +5646,7 @@ namespace netxs::gui
         {
             return keybd_test_pressed(ext_virtcod & 0xFF, keycode); // Fliter extflag on win32.
         }
-        bool keybd_read_pressed(si32 virtcod)
+        bool keybd_read_pressed(si32 virtcod, si32 /*key_all*/ = 0)
         {
             if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
             {
@@ -7121,21 +7121,21 @@ namespace netxs::gui
         void _parse_layouts(qiew q)
         {
             auto reply = netxs::start_lifetime_as<x11::req::xkb::get_map::reply>(q.data());
-            if constexpr (debugmode) log(" layout: payload_size=%% present_mask=%% min_key=%% max_key=%%", q.size(), utf::to_bin(reply.present), (si32)reply.min_key_code, (si32)reply.max_key_code);
+            //if constexpr (debugmode) log(" layout: payload_size=%% present_mask=%% min_key=%% max_key=%%", q.size(), utf::to_bin(reply.present), (si32)reply.min_key_code, (si32)reply.max_key_code);
             q.remove_prefix(sizeof(reply));
             keycode_to_vkey = {};
             vkey_to_keycode = {};
             layouts         = {}; // Clear layout buffers.
-            if constexpr (debugmode) log("Parse keyboard layouts");
+            //if constexpr (debugmode) log("Parse keyboard layouts");
             if (reply.present & x11::req::xkb::KeyTypesMask)
             {
-                if constexpr (debugmode) log("1. KeyTypesMask: first_type=%% num_types=%% total_types=%%", (si32)reply.first_type, (si32)reply.num_types, (si32)reply.total_types);
+                //if constexpr (debugmode) log("1. KeyTypesMask: first_type=%% num_types=%% total_types=%%", (si32)reply.first_type, (si32)reply.num_types, (si32)reply.total_types);
                 window::key_types.resize(reply.total_types);
                 auto index = (si32)reply.first_type;
                 for (auto& kt : window::key_types)
                 {
                     kt.behavior = netxs::start_lifetime_as<decltype(kt.behavior)>(q.data());
-                    if constexpr (debugmode) log("  key behavior %%: ", index++,
+                    if constexpr (faux && debugmode) log("  key behavior %%: ", index++,
                         "\n             mask=", utf::to_bin(kt.behavior.mask),
                         "\n        real_mods=", utf::to_bin(kt.behavior.real_mods),
                         "\n     virtual_mods=", utf::to_bin(kt.behavior.virtual_mods),
@@ -7149,7 +7149,7 @@ namespace netxs::gui
                     for (auto& me : kt.map_entries)
                     {
                         me = netxs::start_lifetime_as<std::decay_t<decltype(me)>>(q.data());
-                        if constexpr (debugmode) log("\t map_entry %%: ", entry_index++,
+                        if constexpr (faux && debugmode) log("\t map_entry %%: ", entry_index++,
                             "\n\t         active=", (si32)me.active,
                             "\n\t      mods_mask=", utf::to_bin(me.mods_mask),
                             "\n\t          level=", (si32)me.level,
@@ -7164,7 +7164,7 @@ namespace netxs::gui
                         auto size = kt.behavior.num_map_entries * sizeof(x11::req::xkb::get_map::reply::key_type_desc::mods_desc);
                         std::memcpy(kt.preserve_entries.data(), q.data(), size);
                         q.remove_prefix(size);
-                        if constexpr (debugmode)
+                        if constexpr (faux && debugmode)
                         {
                             auto index = 0;
                             for (auto& m : kt.preserve_entries)
@@ -7180,7 +7180,7 @@ namespace netxs::gui
             }
             if (reply.present & x11::req::xkb::KeySymsMask)
             {
-                if constexpr (debugmode) log("2. KeySymsMask: first_key_sym=%% total_syms=%% num_key_syms=%%", (si32)reply.first_key_sym, (si32)reply.total_syms, (si32)reply.num_key_syms);
+                //if constexpr (debugmode) log("2. KeySymsMask: first_key_sym=%% total_syms=%% num_key_syms=%%", (si32)reply.first_key_sym, (si32)reply.total_syms, (si32)reply.num_key_syms);
                 auto max_key_code = reply.first_key_sym + reply.num_key_syms;
                 for (auto key_code = (si32)reply.first_key_sym; key_code < max_key_code; key_code++)
                 {
@@ -7191,7 +7191,7 @@ namespace netxs::gui
                                     : wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_ClampIntoRange    ? "Clamp"
                                     : wrap_mode == x11::req::xkb::get_map::reply::key_sym_map_desc::Wrap_RedirectIntoRange ? "Redirect"
                                                                                                                            : "unknown";
-                    if constexpr (debugmode)
+                    if constexpr (faux && debugmode)
                     {
                         log("key_syms: keyCode=%% kt_index=%%/%%/%%/%% group_info=%% g_count=%% g_wrap=%% width=%% n_syms=%%",
                             (si32)key_code, (si32)key_desc.kt_index[0], (si32)key_desc.kt_index[1], (si32)key_desc.kt_index[2], (si32)key_desc.kt_index[3],
@@ -7223,7 +7223,7 @@ namespace netxs::gui
                             {
                                 auto keysym = netxs::start_lifetime_as<ui32>(q.data());
                                 key_rec.syms[i] = keysym;
-                                if constexpr (debugmode)
+                                if constexpr (faux && debugmode)
                                 {
                                     log<faux>("  %% %%", utf::debase437(utf::to_utf_from_code(x11::key::sym_to_unicode(keysym))), utf::to_hex(keysym));
                                     if (i == key_desc.width - 1) log("");
@@ -7233,7 +7233,7 @@ namespace netxs::gui
                         }
                     }
                 }
-                if constexpr (debugmode)
+                if constexpr (faux && debugmode)
                 {
                     log("Layouts:");
                     auto i = 0;
@@ -7262,7 +7262,7 @@ namespace netxs::gui
                     else if (vkey_id == vkey::lmeta  || vkey_id == vkey::rmeta ) modifier_map.meta        |= mod_mask;
                     else if (vkey_id == vkey::lhyper || vkey_id == vkey::rhyper) modifier_map.hyper       |= mod_mask;
                 }
-                if constexpr (debugmode) log("3. ModifierMapMask: first_mod_map_key=%% num_mod_map_keys=%% total_mod_map_keys=%%", (si32)reply.first_mod_map_key, (si32)reply.num_mod_map_keys, (si32)reply.total_mod_map_keys,
+                if constexpr (faux && debugmode) log("3. ModifierMapMask: first_mod_map_key=%% num_mod_map_keys=%% total_mod_map_keys=%%", (si32)reply.first_mod_map_key, (si32)reply.num_mod_map_keys, (si32)reply.total_mod_map_keys,
                     "\n     num_mask=", utf::to_bin((byte)modifier_map.num_lock   ),
                     "\n    caps_mask=", utf::to_bin((byte)modifier_map.caps_lock  ),
                     "\n  scroll_mask=", utf::to_bin((byte)modifier_map.scroll_lock),
@@ -7277,7 +7277,7 @@ namespace netxs::gui
         void _keybd_load_layouts()
         {
             auto lock = std::lock_guard{ session.sync_mutex };
-            if constexpr (debugmode) log("_keybd_load_layouts: seq=%%", session.sync_sequence_counter + (ui16)1);
+            //if constexpr (debugmode) log("_keybd_load_layouts: seq=%%", session.sync_sequence_counter + (ui16)1);
             auto seq_num = session.syncrq(session.sync_buffer, x11::req::xkb::get_map{ .major_opcode  = session.xkb_major_opcode,
                                                                                        .first_key_sym = session.s.min_keycode,
                                                                                        .num_key_syms  = (byte)(session.s.max_keycode - session.s.min_keycode + 1) });
@@ -7293,7 +7293,7 @@ namespace netxs::gui
                 }
                 else if (type == x11::event::Reply || type == x11::event::GenericEvent)
                 {
-                    if constexpr (debugmode) log("got reply: seq=%% ev.length=%% ev.length*4=%% type=%%", ev.sequence, ev.length, ev.length * 4, type);
+                    //if constexpr (debugmode) log("got reply: seq=%% ev.length=%% ev.length*4=%% type=%%", ev.sequence, ev.length, ev.length * 4, type);
                     if (ev.length)
                     {
                         auto rest = ev.length * 4;
@@ -7302,8 +7302,8 @@ namespace netxs::gui
                         auto q = session.sync_x11connection->recv_all(session.sync_buffer.data() + start, rest);
                         if (q.size() != rest)
                         {
-                            if constexpr (debugmode) log(ansi::err("%%Get keyboard state error: Unexpected reply length: recv.size=%%\n"), prompt::x11, q.size(),
-                                utf::buffer_to_hex(view{ session.sync_buffer.data(), start + q.size() }, true));
+                            //if constexpr (debugmode) log(ansi::err("%%Get keyboard state error: Unexpected reply length: recv.size=%%\n"), prompt::x11, q.size(),
+                            //    utf::buffer_to_hex(view{ session.sync_buffer.data(), start + q.size() }, true));
                             break;
                         }
                     }
@@ -7486,9 +7486,9 @@ namespace netxs::gui
             }
         }
 
-        bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
+        bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
-            return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
+            return keybd_test_pressed_ex(virtcod, key_all);
         }
         bool keybd_test_pressed_ex(si32 /*ext_virtcod*/, si32 key_all)
         {
@@ -7501,26 +7501,26 @@ namespace netxs::gui
             else if (virtcod == vkey::scrllock) return led_state &= modifier_map.scroll_lock;
             else                                return faux;
         }
-        bool keybd_read_pressed(si32 virtcod)
+        bool keybd_read_pressed(si32 virtcod, si32 key_all = 0)
         {
             _keybd_request_state();
-            return keybd_test_pressed(virtcod);
+            return keybd_test_pressed_ex(virtcod, key_all);
         }
         si32 keybd_test_state()
         {
             auto state = 0;
-            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
-            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
-            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
-            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt;
-            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
-            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-            if (keybd_test_pressed(vkey::lhyper  )) state |= mods::LHyper;
-            if (keybd_test_pressed(vkey::rhyper  )) state |= mods::RHyper;
-            if (keybd_test_pressed(vkey::lmeta   )) state |= mods::LMeta;
-            if (keybd_test_pressed(vkey::rmeta   )) state |= mods::RMeta;
+            if (keybd_test_pressed_ex(vkey::lshift, input::key::LeftShift )) state |= mods::LShift;
+            if (keybd_test_pressed_ex(vkey::rshift, input::key::RightShift)) state |= mods::RShift;
+            if (keybd_test_pressed_ex(vkey::lctrl , input::key::LeftCtrl  )) state |= mods::LCtrl;
+            if (keybd_test_pressed_ex(vkey::rctrl , input::key::RightCtrl )) state |= mods::RCtrl;
+            if (keybd_test_pressed_ex(vkey::lalt  , input::key::LeftAlt   )) state |= mods::LAlt;
+            if (keybd_test_pressed_ex(vkey::ralt  , input::key::RightAlt  )) state |= mods::RAlt;
+            if (keybd_test_pressed_ex(vkey::lsuper, input::key::LeftSuper )) state |= mods::LSuper;
+            if (keybd_test_pressed_ex(vkey::rsuper, input::key::RightSuper)) state |= mods::RSuper;
+            if (keybd_test_pressed_ex(vkey::lhyper, input::key::LeftHyper )) state |= mods::LHyper;
+            if (keybd_test_pressed_ex(vkey::rhyper, input::key::RightHyper)) state |= mods::RHyper;
+            if (keybd_test_pressed_ex(vkey::lmeta , input::key::LeftMeta  )) state |= mods::LMeta;
+            if (keybd_test_pressed_ex(vkey::rmeta , input::key::RightMeta )) state |= mods::RMeta;
             if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
             if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
             if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
@@ -8470,16 +8470,16 @@ namespace netxs::gui
         void mouse_catch_outside() {}
         bool input_read(view packet)
         {
-            if constexpr (debugmode) log("Beg ----------------------------------------");//, "Packet in hex:\n", utf::buffer_to_hex(packet, true));
+            //if constexpr (debugmode) log("Beg ----------------------------------------");//, "Packet in hex:\n", utf::buffer_to_hex(packet, true));
             auto d = netxs::start_lifetime_as<x11::req::xi2::event::base>(packet.data());
             auto device_id = d.deviceid;
             auto is_master = session.input_devices[d.deviceid].is_master;
-            if constexpr (debugmode) log("XInput2: %% evtype=%% deviceid=%% '%%' is_master=%%", x11::req::xi2::event::names[d.evtype], d.evtype, d.deviceid, session.input_devices[d.deviceid].name, is_master);
+            //if constexpr (debugmode) log("XInput2: %% evtype=%% deviceid=%% '%%' is_master=%%", x11::req::xi2::event::names[d.evtype], d.evtype, d.deviceid, session.input_devices[d.deviceid].name, is_master);
 
             if (d.evtype == x11::req::xi2::event::DeviceChanged) // Layout changed? Mouse DPI changed?
             {
                 auto dc = netxs::start_lifetime_as<x11::req::xi2::event::device_changed>(packet.data());
-                if constexpr (debugmode) log("  DeviceChanged: deviceid=%% '%%' reason=%%(%%) classes=%% source_dev_id=%% '%%'",//\n packet:\n%%",
+                if constexpr (faux && debugmode) log("  DeviceChanged: deviceid=%% '%%' reason=%%(%%) classes=%% source_dev_id=%% '%%'",//\n packet:\n%%",
                     dc.header.deviceid, session.input_devices[dc.header.deviceid].name,
                     dc.reason == x11::req::xi2::event::device_changed::SlaveSwitch ? "SlaveSwitch" : (dc.reason == x11::req::xi2::event::device_changed::DeviceChange ? "DeviceChange" : "unknown"), (si32)dc.reason,
                     dc.num_classes, dc.sourceid, session.input_devices[dc.sourceid].name);//, utf::buffer_to_hex(packet, true));
@@ -8665,7 +8665,7 @@ namespace netxs::gui
                     //auto xi_mods = m.mods.effective;
                     auto mouse_coor = fp2d{ m.root_x.to_fp32(), m.root_y.to_fp32() };
                     auto moved = _check_if_mouse_moved(mouse_coor, faux);
-                    if constexpr (debugmode)
+                    if constexpr (faux && debugmode)
                     {
                         static auto start_time = datetime::now();
                         auto rel_mouse_coor = fp2d{ m.event_x.to_fp32(), m.event_y.to_fp32() };
@@ -8717,7 +8717,7 @@ namespace netxs::gui
                                 auto axis_value = netxs::start_lifetime_as<fx32>(data_ptr + data_index);
                                 data_index++;
                                 auto current_value = axis_value.to_fp64();
-                                if constexpr (debugmode) log("\t Axis %% changed to fp64=%%", axis, current_value);
+                                //if constexpr (debugmode) log("\t Axis %% changed to fp64=%%", axis, current_value);
                                 if (dev.axes.size() <= axis) dev.axes.resize(axis + 1);
                                 auto& axis_info = dev.axes[axis];
                                 auto delta = std::exchange(axis_info.last_val, current_value) - current_value;
@@ -8731,7 +8731,7 @@ namespace netxs::gui
                                     if (os::dtvt::wheelrate) delta *= os::dtvt::wheelrate;
                                     axis_info.vertical ? mouse_wheel(delta, faux)
                                                        : mouse_wheel(delta, true);
-                                    if constexpr (debugmode) log("\t delta=%% cur_val=%% (fullstep=%%)", delta, current_value, wdelta);
+                                    //if constexpr (debugmode) log("\t delta=%% cur_val=%% (fullstep=%%)", delta, current_value, wdelta);
                                 }
                                 mask &= mask - 1;
                             }
@@ -8788,7 +8788,7 @@ namespace netxs::gui
                     focus_event(focused);
                 }
             }
-            if constexpr (debugmode) log("End ----------------------------------------");
+            //if constexpr (debugmode) log("End ----------------------------------------");
             return true;
         }
         void sync_os_settings()
@@ -8811,7 +8811,7 @@ namespace netxs::gui
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
-        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool keybd_read_pressed(si32 /*virtcod*/, si32 /*key_all*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }

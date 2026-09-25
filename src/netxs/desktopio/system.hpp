@@ -1533,6 +1533,17 @@ namespace netxs::os
 
             #endif
         }
+        auto is_redirio()
+        {
+            auto is_redirio = ::isatty(os::stdout_fd) || ::isatty(os::stdin_fd);
+            if (!is_redirio) // It is not a tty.
+            if (auto tty_fd = ::open("/dev/tty", O_RDWR | O_NOCTTY)) // Terminal detected.
+            {
+                is_redirio = tty_fd >= 0;
+                if (is_redirio) ::close(tty_fd);
+            }
+            return is_redirio;
+        }
 
         #if defined(__ANDROID__)
             // Based on: https://github.com/termux/termux-packages/issues/30815#issuecomment-5445977114
@@ -4184,7 +4195,16 @@ namespace netxs::os
                     }
                     else
                     {
-                        dtvt::vtmode |= ui::console::redirio;
+                        if (os::is_redirio())
+                        {
+                            dtvt::vtmode |= ui::console::redirio;
+                        }
+                        else
+                        {
+                            os::stdin_fd = os::invalid_fd;
+                            os::stdout_fd = os::invalid_fd;
+                            dtvt::vtmode |= ui::console::nostdio;
+                        }
                     }
                     if (rungui)
                     {
@@ -4963,7 +4983,7 @@ namespace netxs::os
                 parser.cout(utf8);
                 #endif
             }
-            else if (!(dtvt::vtmode & (ui::console::redirio | ui::console::direct)))
+            else if (!(dtvt::vtmode & (ui::console::nostdio | ui::console::redirio | ui::console::direct)))
             {
                 io::send(utf8);
             }

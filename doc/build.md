@@ -52,6 +52,29 @@ vtm
 > cmake --install bin
 > ```
 
+#### Linux VGA Console Integration (Linux in-kernel console)
+
+In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to mouse/pointing devices. By default, only privileged users and users of the `input` group have access. To grant all users permanent access to all pointing devices, use the command:
+
+- ```
+  sudo vtm --mouse
+  ```
+To reset permanent access, use the command:
+- ```
+  sudo vtm --mouse 0
+  ```
+
+#### Deinstallation
+
+```bash
+# Reset permanent access for pointing devices if it was set
+#sudo vtm --mouse 0
+# Go to the directory with the vtm source code
+cd vtm
+# Remove the files listed in bin/install_manifest.txt
+sudo xargs rm < bin/install_manifest.txt
+```
+
 ### Windows
 
 #### Build-time Dependencies

@@ -196,4 +196,8 @@ endif()
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
+    if(NOT APPLE AND NOT ANDROID)
+        install(FILES .resources/desktop/vtm.desktop DESTINATION share/applications)
+        install(FILES .resources/images/vtm.svg      DESTINATION share/icons/hicolor/scalable/apps)
+    endif()
 endif()
