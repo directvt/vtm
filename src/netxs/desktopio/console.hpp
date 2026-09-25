@@ -13,6 +13,7 @@ namespace netxs::ui
         static constexpr auto mouse   = 1 << (__COUNTER__ - _counter);
         static constexpr auto nt      = 1 << (__COUNTER__ - _counter); // Use win32 console api for input.
         static constexpr auto redirio = 1 << (__COUNTER__ - _counter);
+        static constexpr auto nostdio = 1 << (__COUNTER__ - _counter);
         static constexpr auto gui     = 1 << (__COUNTER__ - _counter);
         static constexpr auto tui     = 1 << (__COUNTER__ - _counter); // Output is in TUI mode.
         //todo make 3-bit field for color mode

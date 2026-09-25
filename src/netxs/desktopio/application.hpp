@@ -1167,7 +1167,7 @@ namespace netxs::app::shared
                     window->connect();
                 }
             };
-            if (os::stdout_fd != os::invalid_fd)
+            if (os::stdin_fd != os::invalid_fd && os::stdout_fd != os::invalid_fd)
             {
                 auto runcmd = directvt::binary::command{};
                 auto readln = os::tty::readline([&](auto line){ runcmd.send(client, line); }, [&]{ if (client) client->shut(); });
