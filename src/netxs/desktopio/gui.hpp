@@ -3590,7 +3590,7 @@ namespace netxs::gui
         virtual void keybd_sync_shift(bool async) = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
-        virtual bool keybd_read_pressed(si32 virtcod) = 0;
+        virtual bool keybd_read_pressed(si32 virtcod, si32 key_all = 0) = 0;
         virtual bool keybd_test_pressed(si32 virtcod, si32 keycode = 0) = 0;
         virtual bool keybd_test_pressed_ex(si32 virtcod, si32 keycode = 0) = 0;
         virtual si32 keybd_conv_keyid2media(si32 keyid) = 0;
@@ -3660,10 +3660,15 @@ namespace netxs::gui
         {
             if (master.hWnd) window_post_command(master.hWnd, command);
         }
+        auto get_mods_state()
+        {
+            return mfocus.focused()? keymod
+                                   : keybd_read_state();
+        }
         auto ctrl_pressed()
         {
-            return mfocus.focused() ? keybd_test_pressed(vkey::ctrl)
-                                    : keybd_read_pressed(vkey::ctrl);
+            auto mod_state = get_mods_state();
+            return (mod_state & mods::anyCtrl) != 0;
         }
         auto lbutton_pressed()
         {
@@ -4336,11 +4341,6 @@ namespace netxs::gui
                 layers_present();
             }
             isbusy.exchange(faux);
-        }
-        auto get_mods_state()
-        {
-            return mfocus.focused()? keymod
-                                   : keybd_read_state();
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
@@ -5646,7 +5646,7 @@ namespace netxs::gui
         {
             return keybd_test_pressed(ext_virtcod & 0xFF, keycode); // Fliter extflag on win32.
         }
-        bool keybd_read_pressed(si32 virtcod)
+        bool keybd_read_pressed(si32 virtcod, si32 /*key_all*/ = 0)
         {
             if (fake_ralt) //todo get altgr state from stream::gear.pressed(input::key::AltGr) for unfocused window state
             {
@@ -7486,9 +7486,9 @@ namespace netxs::gui
             }
         }
 
-        bool keybd_test_pressed(si32 virtcod, si32 /*keycode*/ = 0)
+        bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
-            return netxs::get_bit(vkstat, vkey_to_keycode[virtcod]);
+            return keybd_test_pressed_ex(virtcod, key_all);
         }
         bool keybd_test_pressed_ex(si32 /*ext_virtcod*/, si32 key_all)
         {
@@ -7501,26 +7501,26 @@ namespace netxs::gui
             else if (virtcod == vkey::scrllock) return led_state &= modifier_map.scroll_lock;
             else                                return faux;
         }
-        bool keybd_read_pressed(si32 virtcod)
+        bool keybd_read_pressed(si32 virtcod, si32 key_all = 0)
         {
             _keybd_request_state();
-            return keybd_test_pressed(virtcod);
+            return keybd_test_pressed_ex(virtcod, key_all);
         }
         si32 keybd_test_state()
         {
             auto state = 0;
-            if (keybd_test_pressed(vkey::lshift  )) state |= mods::LShift;
-            if (keybd_test_pressed(vkey::rshift  )) state |= mods::RShift;
-            if (keybd_test_pressed(vkey::lctrl   )) state |= mods::LCtrl;
-            if (keybd_test_pressed(vkey::rctrl   )) state |= mods::RCtrl;
-            if (keybd_test_pressed(vkey::lalt    )) state |= mods::LAlt;
-            if (keybd_test_pressed(vkey::ralt    )) state |= mods::RAlt;
-            if (keybd_test_pressed(vkey::lsuper  )) state |= mods::LSuper;
-            if (keybd_test_pressed(vkey::rsuper  )) state |= mods::RSuper;
-            if (keybd_test_pressed(vkey::lhyper  )) state |= mods::LHyper;
-            if (keybd_test_pressed(vkey::rhyper  )) state |= mods::RHyper;
-            if (keybd_test_pressed(vkey::lmeta   )) state |= mods::LMeta;
-            if (keybd_test_pressed(vkey::rmeta   )) state |= mods::RMeta;
+            if (keybd_test_pressed_ex(vkey::lshift, input::key::LeftShift )) state |= mods::LShift;
+            if (keybd_test_pressed_ex(vkey::rshift, input::key::RightShift)) state |= mods::RShift;
+            if (keybd_test_pressed_ex(vkey::lctrl , input::key::LeftCtrl  )) state |= mods::LCtrl;
+            if (keybd_test_pressed_ex(vkey::rctrl , input::key::RightCtrl )) state |= mods::RCtrl;
+            if (keybd_test_pressed_ex(vkey::lalt  , input::key::LeftAlt   )) state |= mods::LAlt;
+            if (keybd_test_pressed_ex(vkey::ralt  , input::key::RightAlt  )) state |= mods::RAlt;
+            if (keybd_test_pressed_ex(vkey::lsuper, input::key::LeftSuper )) state |= mods::LSuper;
+            if (keybd_test_pressed_ex(vkey::rsuper, input::key::RightSuper)) state |= mods::RSuper;
+            if (keybd_test_pressed_ex(vkey::lhyper, input::key::LeftHyper )) state |= mods::LHyper;
+            if (keybd_test_pressed_ex(vkey::rhyper, input::key::RightHyper)) state |= mods::RHyper;
+            if (keybd_test_pressed_ex(vkey::lmeta , input::key::LeftMeta  )) state |= mods::LMeta;
+            if (keybd_test_pressed_ex(vkey::rmeta , input::key::RightMeta )) state |= mods::RMeta;
             if (keybd_test_toggled(vkey::capslock)) state |= mods::CapsLock;
             if (keybd_test_toggled(vkey::scrllock)) state |= mods::ScrollLock;
             if (keybd_test_toggled(vkey::numlock )) state |= mods::NumLock;
@@ -8811,7 +8811,7 @@ namespace netxs::gui
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
-        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool keybd_read_pressed(si32 /*virtcod*/, si32 /*key_all*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         void keybd_sync_shift(bool /*async*/) {}
         si32 keybd_conv_keyid2media(si32 /*keyid*/) { return 0; }
         si32 keybd_conv_media2keyid(si32 /*mediakey*/) { return input::key::undef; }

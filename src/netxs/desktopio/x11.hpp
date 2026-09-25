@@ -2516,7 +2516,7 @@ namespace netxs::x11
                         *p++ = block ? 0xFF3A78FF : 0x00000000; // Blue.
                         //*p++ = block ? 0xFFFF783A : 0x00000000; // Red.
                     }
-                    sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
                                                         .property  = atom_net_wm_icon,
                                                         .type      = atom_cardinal },
                                                     buffer);
