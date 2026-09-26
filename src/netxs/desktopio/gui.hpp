@@ -4356,6 +4356,12 @@ namespace netxs::gui
                     {
                         change_cell_size(faux, wheelfp, center);
                         sync_cellsz();
+                        if (hit_grips())
+                        {
+                            auto inner_rect = blinky.area;
+                            auto coord = mouse_get_pos();
+                            szgrip.calc(inner_rect, coord, border, dent{}, cellsz);
+                        }
                         update_gui();
                     };
                     if (enqueue) base::enqueue([zoom](auto& /*boss*/){ zoom(); });
@@ -6692,7 +6698,7 @@ namespace netxs::gui
         modifier_map_t              modifier_map{};          // window: Dynamic modifier bit bindings for compose processing.
         std::array<byte, 256>       keycode_to_vkey{};       // window: Latin keycodes to vkey lut.
         std::array<byte, 256>       vkey_to_keycode{};       // window: vkey to national keycodes lut.
-        std::array<byte, input::key::lastKey> key_all_to_keycode{};    // window: key ALL to keycodes lut.
+        std::array<std::array<byte, 4>, input::key::lastKey> key_all_to_keycode{};    // window: key ALL to keycode bits lut (max 4 bits).
         x11::compose                compose{ modifier_map }; // window: POSIX Compose state machine.
 
         std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
@@ -7492,7 +7498,11 @@ namespace netxs::gui
         }
         bool keybd_test_pressed_ex(si32 /*ext_virtcod*/, si32 key_all)
         {
-            return netxs::get_bit(vkstat, key_all_to_keycode[key_all]);
+            auto& slots = key_all_to_keycode[key_all];
+            return (slots[0] && netxs::get_bit(vkstat, slots[0]))
+                || (slots[1] && netxs::get_bit(vkstat, slots[1]))
+                || (slots[2] && netxs::get_bit(vkstat, slots[2]))
+                || (slots[3] && netxs::get_bit(vkstat, slots[3]));
         }
         bool keybd_test_toggled(si32 virtcod)
         {
@@ -7596,15 +7606,18 @@ namespace netxs::gui
                     if (auto latin_keysym = _get_keysym(keycode, hkl_latin))
                     if (auto latin_keyall = input::key::xkb_to_all(latin_keysym))
                     {
-                        auto& keycode_ref = key_all_to_keycode[latin_keyall];
-                        if (!keycode_ref) // Don't override.
+                        auto placed = faux;
+                        for (auto& slot : key_all_to_keycode[latin_keyall])
                         {
-                            keycode_ref = keycode;
+                            if (slot == 0)
+                            {
+                                slot = (byte)keycode;
+                                placed = true;
+                                break;
+                            }
                         }
-                        else
-                        {
-                            if constexpr (debugmode) log("duplicates: latin_keyall1(%%)=keycode1(0x%%) latin_keyall2(%%)=keycode2(0x%%)", latin_keyall, utf::to_hex(keycode_ref), latin_keyall, utf::to_hex(keycode));
-                        }
+                        if (!placed) log(ansi::err("%%No more slots to store keycode duplicates for the '%%' key.", prompt::x11, x11::key::sym_to_name(latin_keysym)));
+                        //if constexpr (debugmode) log("latin_keysym=0x%% keycode=0x%% latin_keyall=%% name=%%", utf::to_hex(latin_keysym), utf::to_hex(keycode), latin_keyall, x11::key::sym_to_name(latin_keysym));
                     }
                 }
             }

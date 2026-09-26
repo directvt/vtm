@@ -40,7 +40,7 @@
     #include <sys/wait.h>   // ::waitpid
     #include <syslog.h>     // syslog, daemonize
 
-    #include <sys/stat.h>   // ::chmod()
+    #include <sys/stat.h>   // ::fstat()
     #include <fcntl.h>      // ::splice()
 
     #if __has_include(<features.h>)
@@ -3283,6 +3283,14 @@ namespace netxs::os
             auto done = remove() || rename();
             return done;
         }
+        #if !defined(__APPLE__) && !defined(__ANDROID__)
+        auto xdg_integration_files()
+        {
+            auto vtm_desktop_file = fs::path{ "/usr/local/share/applications/vtm.desktop" };
+            auto vtm_svg_file     = fs::path{ "/usr/local/share/icons/hicolor/scalable/apps/vtm.svg" };
+            return std::pair{ vtm_desktop_file, vtm_svg_file };
+        }
+        #endif
         auto delete_reg_keys()
         {
             #if defined(_WIN32)
@@ -3293,6 +3301,14 @@ namespace netxs::os
             log("The following registry keys have been removed:"
                 "\n    HKEY_CLASSES_ROOT\\%subtree1%"
                 "\n    HKEY_CLASSES_ROOT\\%subtree2%", utf::to_utf(subtree1), utf::to_utf(subtree2));
+            #elif !defined(__APPLE__) && !defined(__ANDROID__)
+                auto code = std::error_code{};
+                auto [vtm_desktop_file, vtm_svg_file] = xdg_integration_files();
+                !code && fs::remove(vtm_desktop_file, code);
+                !code && fs::remove(vtm_svg_file, code);
+                log(code ? "Failed to remove the following files:" : "The following files have been removed:",
+                    "\n    ", vtm_desktop_file.string(),
+                    "\n    ", vtm_svg_file.string());
             #endif
             return true;
         }
@@ -3348,7 +3364,7 @@ namespace netxs::os
             auto file = fs::path{};
             auto dest = fs::path{};
             auto code = std::error_code{};
-            auto copy = [&]()
+            auto copy = [&]
             {
                 auto done = fs::copy_file(file, dest, code);
                 if (done)
@@ -3385,7 +3401,69 @@ namespace netxs::os
                         ::CloseServiceHandle(service);
                         ::CloseServiceHandle(manager);
                     #else
-                        ok(::chmod(dest.string().c_str(), 0755), "Failed to set a file's mode bits for '%path%'.", dest.string());
+                        auto access = fs::perms::owner_all
+                                    | fs::perms::group_read
+                                    | fs::perms::group_exec
+                                    | fs::perms::others_read
+                                    | fs::perms::others_exec; // 0755
+                        fs::permissions(dest, access, code);
+                        if (code) os::fail("Failed to set a file's mode bits for '%path%'.", dest.string());
+                        #if !defined(__APPLE__) && !defined(__ANDROID__)
+                            auto vtm_desktop_data = // Same as "../../../resources/desktop/vtm.desktop"
+                                "[Desktop Entry]\n"
+                                "Version=1.1\n"
+                                "Type=Application\n"
+                                "Name=vtm\n"
+                                "Comment=Text-based Desktop\n"
+                                "GenericName=Text-based Desktop\n"
+                                "Exec=vtm\n"
+                                "Icon=vtm\n"
+                                "Terminal=false\n"
+                                "Categories=System;Utility;TerminalEmulator;\n"
+                                "Keywords=terminal;multiplexer;vtm;\n"
+                                "StartupNotify=true\n"
+                                "StartupWMClass=vtm\n"
+                                "Actions=run-desktop;run-terminal;run-monitor;\n"
+                                "\n"
+                                "[Desktop Action run-desktop]\n"
+                                "Name=Run Desktop\n"
+                                "Exec=vtm\n"
+                                "\n"
+                                "[Desktop Action run-terminal]\n"
+                                "Name=Run Terminal\n"
+                                "Exec=vtm -r term\n"
+                                "\n"
+                                "[Desktop Action run-monitor]\n"
+                                "Name=Run Log Monitor\n"
+                                "Exec=vtm -q -r term vtm --monitor\n";
+                            auto vtm_svg_data = // Same as "../../../resources/images/vtm.svg"
+                                "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>"
+                                "<rect width='16' height='16' fill='#3a78ff'/>"
+                                "<rect x='16' y='16' width='16' height='16' fill='#3a78ff'/>"
+                                "</svg>";
+                            auto [vtm_desktop_file, vtm_svg_file] = xdg_integration_files();
+                            fs::create_directories(vtm_desktop_file.parent_path(), code);
+                            fs::create_directories(vtm_svg_file.parent_path(), code);
+                            auto desktop_stream = std::ofstream{ vtm_desktop_file, std::ios::out | std::ios::trunc };
+                            auto svg_stream     = std::ofstream{ vtm_svg_file    , std::ios::out | std::ios::trunc };
+                            if (desktop_stream && svg_stream)
+                            {
+                                desktop_stream << vtm_desktop_data;
+                                svg_stream     << vtm_svg_data;
+                                desktop_stream.close();
+                                svg_stream.close();
+                                fs::permissions(vtm_desktop_file, fs::perms::owner_read | fs::perms::owner_write | fs::perms::group_read | fs::perms::others_read, code);
+                                fs::permissions(vtm_svg_file,     fs::perms::owner_read | fs::perms::owner_write | fs::perms::group_read | fs::perms::others_read, code);
+                                log("The following files have been created:",
+                                    "\n    ", vtm_desktop_file.string(),
+                                    "\n    ", vtm_svg_file.string());
+                            }
+                            else
+                            {
+                                if (!svg_stream) log("Failed to open '%file%' for writing: %%", vtm_svg_file.string(), os::error());
+                                if (!desktop_stream) log("Failed to open '%file%' for writing: %%", vtm_desktop_file.string(), os::error());
+                            }
+                        #endif
                     #endif
                 }
                 else log("Failed to copy process image (%file%) to '%path%'.", file.string(), dest.string());
@@ -5206,21 +5284,27 @@ namespace netxs::os
                 }
                 auto count = 0;
                 initialize();
-                auto access = enabled ? 0666 : 0660;
+                auto access = os::fs::perms::owner_read
+                            | os::fs::perms::owner_write
+                            | os::fs::perms::group_read
+                            | os::fs::perms::group_write; // 0660
+                if (enabled) access |= os::fs::perms::others_read | os::fs::perms::others_write; // 0666
                 lixx::li->enumerate_active_devices([&](auto device)
                 {
                     if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
                         count++;
+                        auto code = std::error_code{};
                         auto& dev_path = device->ud_device.devpath;
                         auto& dev_name = device->ud_device.devname;
-                        if (-1 != ::chmod(dev_path.data(), access))
+                        os::fs::permissions(dev_path, access, code);
+                        if (!code)
                         {
-                            log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, dev_name);
+                            log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>((si32)access), dev_path, dev_name);
                         }
                         else
                         {
-                            log("    Failed to set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, dev_name);
+                            log("    Failed to set access bits %access% for '%%' (%%)", utf::to_oct<4>((si32)access), dev_path, dev_name);
                         }
                     }
                     return true;

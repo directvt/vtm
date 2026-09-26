@@ -90,3 +90,18 @@ sudo xargs rm < bin/install_manifest.txt
 - Wait for the CMake generation and dependencies initialization to complete (this may take several minutes).
 - Select your target build configuration (e.g., `1.Win-x64-Debug` or `PROD-Win-x64`) from the top toolbar configuration dropdown.
 - Open the `Build` menu and click `Build All`.
+
+### Runtime Installer
+
+If you prefer to perform a system-wide installation to the default path `/usr/local/`, you can use the built-in runtime installer:
+
+- Installation:
+  ```bash
+  sudo ./vtm --install
+  ```
+- Deinstallation:
+  ```bash
+  sudo vtm --uninstall
+  ```
+
+Note: On Windows, installation using the runtime installer additionally creates a system service that allows the Desktop Server to run in Session 0 via `vtm --session0`. This enables shared desktop connections via SSH.
