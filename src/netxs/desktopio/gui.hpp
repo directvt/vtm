@@ -5456,21 +5456,6 @@ namespace netxs::gui
                                                           .biCompression = BI_RGB }};
                     if (auto hbm = ::CreateDIBSection((HDC)s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
-                        //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
-                        //if (!zeroize) // Crop.
-                        //{
-                        //    auto d = new_data.data();
-                        //    auto s = s.data.data();
-                        //    auto w = std::min(s.prev.size.x, s.area.size.x) * sizeof(argb);
-                        //    auto h = std::min(s.prev.size.y, s.area.size.y);
-                        //    while (h--)
-                        //    {
-                        //        std::memcpy(d, s, w);
-                        //        d += s.area.size.x;
-                        //        s += s.prev.size.x;
-                        //    }
-                        //}
-                        //data = new_data;
                         ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
                         zeroize = faux;
                         s.prev.size = s.area.size;
@@ -7924,44 +7909,6 @@ namespace netxs::gui
                             log(ansi::err("%%Failed to allocate MIT-SHM buffer of %% bytes", prompt::x11, new_shm_buffer_len));
                         }
                     }
-                    //if (!zeroize && s.prev && s.area) // In-place raster transfer within the current buffer.
-                    //{
-                    //    auto old_w = s.prev.size.x;
-                    //    auto old_h = s.prev.size.y;
-                    //    auto new_w = s.area.size.x;
-                    //    auto new_h = s.area.size.y;
-                    //    auto base_ptr = (argb*)(session.shm_buffer.ptr + s.shm_offset);
-                    //    auto crop_w = std::min(old_w, new_w);
-                    //    auto crop_h = std::min(old_h, new_h);
-                    //    if (new_w > old_w) // The width has increased. Copy from bottom to top.
-                    //    {
-                    //        auto y = crop_h;
-                    //        while (y--)
-                    //        {
-                    //            auto src_row = base_ptr + y * old_w;
-                    //            auto dst_row = base_ptr + y * new_w;
-                    //            std::memmove(dst_row, src_row, crop_w * sizeof(argb));
-                    //            if (new_w > crop_w) // Zero out the remaining pixels.
-                    //            {
-                    //                std::memset((void*)(dst_row + crop_w), 0, (new_w - crop_w) * sizeof(argb));
-                    //            }
-                    //        }
-                    //    }
-                    //    else // The width has decreased. Copy from top to bottom.
-                    //    {
-                    //        for (auto y = 0; y < crop_h; ++y)
-                    //        {
-                    //            auto src_row = base_ptr + y * old_w;
-                    //            auto dst_row = base_ptr + y * new_w;
-                    //            std::memmove(dst_row, src_row, crop_w * sizeof(argb));
-                    //        }
-                    //    }
-                    //    if (new_h > crop_h) // Zero out the remaining lines.
-                    //    {
-                    //        auto tail_ptr = base_ptr + crop_h * new_w;
-                    //        std::memset((void*)tail_ptr, 0, (new_h - crop_h) * new_w * sizeof(argb));
-                    //    }
-                    //}
                     s.prev.size = s.area.size;
                     auto bitmap_span = std::span<argb>{ (argb*)(session.shm_buffer.ptr + s.shm_offset), required_pixels };
                     s.data = bits{ bitmap_span, s.area };
