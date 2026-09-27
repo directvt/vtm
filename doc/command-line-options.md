@@ -13,7 +13,7 @@ vtm -i | -u | -a [mode] | -v | -?
 <script relay via piped redirection> | vtm [ -p <id> ]
 ```
 
-> Without options, vtm runs Desktop Client, running an additional instance with Desktop Server in background if it is not running.
+> Without options, vtm runs both Desktop Server and Desktop Client.
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
@@ -28,8 +28,8 @@ Option                  | Description
 `-name`, `--name <inst>`| Specify a custom WM_CLASS instance name. For X11/Xwayland only.
 `-a`, `--mouse [mode]`  | Set/reset persistent access to mouse devices for all users on Linux platform (excluding Android).<br>Run `sudo vtm --mouse 0` to reset access.<br>Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
-`-x`, `--script <cmds>` | Specify script commands to be run by the desktop when ready.
-`-c`, `--config <file>` | Specify a settings file to load or plain XML data to merge.
+`-x`, `--script <cmds>` | Specify script commands to execute.
+`-c`, `--config <file>` | Specify a settings file to load or plain XML data to overlay.
 `-p`, `--pin <id>`      | Specify the desktop id to pin to.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in the background.

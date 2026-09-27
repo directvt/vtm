@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    Without options, vtm runs Desktop Server and Desktop Client."
+                "\n    Without options, vtm runs both Desktop Server and Desktop Client."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
                 "\n                         Run 'sudo vtm --mouse 0' to reset access."
                 #endif
                 "\n    -q, --quiet          Disable logging."
-                "\n    -x, --script <cmds>  Specify script commands."
+                "\n    -x, --script <cmds>  Specify script commands to execute."
                 "\n    -c, --config <file>  Specify a settings file to load or plain XML data to overlay."
                 "\n    -p, --pin <id>       Specify the desktop id to pin to."
                 "\n    -s, --server         Run Desktop Server."
