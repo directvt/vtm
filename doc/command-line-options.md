@@ -24,31 +24,31 @@ Option                  | Description
 `-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.<br>Elevated privileges required.
 `-u`, `--uninstall`     | Perform system-wide uninstallation.<br>Elevated privileges required.
-`-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
+`-0`, `--session0`      | Use Session 0 to run Desktop Server in the background. For Windows only.
 `-name`, `--name <inst>`| Specify a custom WM_CLASS instance name. For X11/Xwayland only.
 `-a`, `--mouse [mode]`  | Set/reset persistent access to mouse devices for all users on Linux platform (excluding Android).<br>Run `sudo vtm --mouse 0` to reset access.<br>Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specify script commands to be run by the desktop when ready.
-`-c`, `--config <file>` | Specify a settings file to load or plain xml-data to merge.
+`-c`, `--config <file>` | Specify a settings file to load or plain XML data to merge.
 `-p`, `--pin <id>`      | Specify the desktop id to pin to.
 `-s`, `--server`        | Run Desktop Server.
-`-d`, `--daemon`        | Run Desktop Server in background.
+`-d`, `--daemon`        | Run Desktop Server in the background.
 `-m`, `--monitor`       | Run Log Monitor.
 `-r`, `--`, `--run`     | Run a desktop applet standalone.
 `<type>`                | Desktop applet type to run.
 `<args...>`             | Arguments for the desktop applet.
-`--env <var=val>`       | Set the environment variable.
+`--env <var=val>`       | Set an environment variable.
 `--cwd <path>`          | Set the current working directory.
 `--fonts [v[erbose]]`   | Print available fonts (with horizontal scrolling).
 
 #### Inline configuration
 
-The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
+The plain XML data could be specified in place of `<file>` in `--config <file>` option:
 - `command-line`:
   ```cmd
   vtm -c "<config><terminal><scrollback size=1000000/></terminal></config>" -r term
   ```
-  or (using compact syntax)
+  or using the compact syntax:
 - `command-line`:
   ```cmd
   vtm -c "<config/terminal/scrollback size=1000000/>" -r term

@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
                                             #endif
                 "\n    -u, --uninstall      Perform system-wide uninstallation."
                 #if defined(_WIN32)
-                "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
+                "\n    -0, --session0       Use Session 0 to run Desktop Server in the background."
                 #endif
                 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
                 "\n    -name, --name <inst> Specify a custom WM_CLASS instance name."
@@ -195,15 +195,15 @@ int main(int argc, char* argv[])
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specify script commands."
-                "\n    -c, --config <file>  Specify a settings file to load or plain xml-data to overlay."
+                "\n    -c, --config <file>  Specify a settings file to load or plain XML data to overlay."
                 "\n    -p, --pin <id>       Specify the desktop id to pin to."
                 "\n    -s, --server         Run Desktop Server."
-                "\n    -d, --daemon         Run Desktop Server in background."
+                "\n    -d, --daemon         Run Desktop Server in the background."
                 "\n    -m, --monitor        Run Log Monitor."
                 "\n    -r, --, --run        Run a desktop applet standalone."
                 "\n    <type>               Desktop applet type to run."
                 "\n    <args...>            Arguments for the desktop applet."
-                "\n    --env <var=val>      Set the environment variable."
+                "\n    --env <var=val>      Set an environment variable."
                 "\n    --cwd <path>         Set the current working directory."
                 "\n    --fonts [v[erbose]]  Print available fonts (with horizontal scrolling)."
                 "\n"
@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
                 "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
                 "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
                 "\n"
-                "\n    Plain xml-data can be specified in place of <file> in the '--config <file>' option,"
+                "\n    Plain XML data can be specified in place of <file> in the '--config <file>' option,"
                 "\n    as well as in the $VTM_CONFIG environment variable:"
                 "\n"
                 "\n      vtm -c \"<config><terminal><scrollback size=1000000/></terminal></config>\" -r term"
