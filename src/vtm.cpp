@@ -142,6 +142,12 @@ int main(int argc, char* argv[])
             return ok;
         }
         #endif
+        #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
+        else if (getopt.match("-name", "--name"))
+        {
+            x11::wm_inst_name = xml::take_or(getopt.next(), ""s);
+        }
+        #endif
         else if (getopt.match("-?", "-h", "--help"))
         {
             os::dtvt::initialize();
@@ -173,21 +179,24 @@ int main(int argc, char* argv[])
                 "\n    -t, --tui            Force TUI mode."
                 "\n    -g, --gui            Force GUI mode."
                 "\n    -i, --install        Perform system-wide installation."
-                #if defined(_WIN32)
-                " Allow Desktop Server to run in Session 0."
-                #endif
+                                            #if defined(_WIN32)
+                                            " Allow Desktop Server to run in Session 0."
+                                            #endif
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
                 #if defined(_WIN32)
                 "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
+                #endif
+                #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
+                "\n    -name, --name <inst> Specify a custom WM_CLASS instance name."
                 #endif
                 #if defined(__linux__) && !defined(__ANDROID__)
                 "\n    -a, --mouse [mode]   Set/reset persistent access to mouse devices for all users."
                 "\n                         Run 'sudo vtm --mouse 0' to reset access."
                 #endif
                 "\n    -q, --quiet          Disable logging."
-                "\n    -x, --script <cmds>  Specifies script commands."
-                "\n    -c, --config <file>  Specifies a settings file to load or plain xml-data to overlay."
-                "\n    -p, --pin <id>       Specifies the desktop id it will be pinned to."
+                "\n    -x, --script <cmds>  Specify script commands."
+                "\n    -c, --config <file>  Specify a settings file to load or plain xml-data to overlay."
+                "\n    -p, --pin <id>       Specify the desktop id it will be pinned to."
                 "\n    -s, --server         Run Desktop Server."
                 "\n    -d, --daemon         Run Desktop Server in background."
                 "\n    -m, --monitor        Run Log Monitor."

@@ -6,6 +6,7 @@
 namespace netxs::x11
 {
     static constexpr auto recv_packet_size = 32;
+    static auto wm_inst_name = "vtm"s; //todo unify (app::vtm::id)
 
     using fd_t = os::fd_t;
 
@@ -2496,7 +2497,7 @@ namespace netxs::x11
                                                            .window_id    = new_window_id });
                 if (override_redirect == 0) // Wm master layer only.
                 {
-                    auto wm_class_data = "vtm\0vtm\0"sv; // "instance_name\0class_name\0". Bind to the taskbar icon in .desktop-file: StartupWMClass=vtm.
+                    auto wm_class_data = x11::wm_inst_name +"\0vtm\0"s; // "instance_name\0class_name\0". Bind to the taskbar icon in .desktop-file: StartupWMClass=vtm.
                     sendrq<x11::req::change_property>({ .window_id = new_window_id,
                                                         .property  = atom_wm_class,
                                                         .type      = atom_string,
