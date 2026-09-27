@@ -23,22 +23,22 @@ Option                  | Description
 `-t`, `--tui`           | Force TUI mode.
 `-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.<br>Elevated privileges required.
-`-u`, `--uninstall`     | Perform system-wide deinstallation.<br>Elevated privileges required.
+`-u`, `--uninstall`     | Perform system-wide uninstallation.<br>Elevated privileges required.
 `-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
 `-name`, `--name <inst>`| Specify a custom WM_CLASS instance name. For X11/Xwayland only.
 `-a`, `--mouse [mode]`  | Set/reset persistent access to mouse devices for all users on Linux platform (excluding Android).<br>Run `sudo vtm --mouse 0` to reset access.<br>Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specify script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specify a settings file to load or plain xml-data to merge.
-`-p`, `--pin <id>`      | Specify the desktop id it will be pinned to.
+`-p`, `--pin <id>`      | Specify the desktop id to pin to.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
 `-m`, `--monitor`       | Run Log Monitor.
-`-r`, `--`, `--run`     | Run desktop applet standalone.
-`<type>`                | Desktop applet to run.
-`<args...>`             | Desktop applet arguments.
-`--env <var=val>`       | Set environment variable.
-`--cwd <path>`          | Set current working directory.
+`-r`, `--`, `--run`     | Run a desktop applet standalone.
+`<type>`                | Desktop applet type to run.
+`<args...>`             | Arguments for the desktop applet.
+`--env <var=val>`       | Set the environment variable.
+`--cwd <path>`          | Set the current working directory.
 `--fonts [v[erbose]]`   | Print available fonts (with horizontal scrolling).
 
 #### Inline configuration
@@ -70,12 +70,12 @@ To reset permanent access, use the command:
 
 Applet                     | Type | Arguments
 ---------------------------|------|------------------------------------------
-Teletype Console (default) | vtty | CUI application with arguments to run
-Terminal Console           | term | CUI application with arguments to run
-DirectVT Gateway           | dtvt | DirectVT-aware application to run
+Teletype Console (default) | vtty | CUI application to run, along with its arguments
+Terminal Console           | term | CUI application to run, along with its arguments
+DirectVT Gateway           | dtvt | DirectVT-capable application to run
 DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT I/O
 
-The following commands have a short form:
+The following commands support short forms:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
