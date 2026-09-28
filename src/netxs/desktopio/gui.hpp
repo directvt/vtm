@@ -77,9 +77,10 @@ namespace netxs::gui
 
         arch  hdc; // layer: Layer bitmap handle.
         arch hWnd; // layer: Hosting OS window handle.
-        rect prev; // layer: Last presented layer area.
-        rect area; // layer: Current layer area.
-        bits data; // layer: Layer bitmap.
+        rect effective_area; // layer: Layer's current area (most actual).
+        rect allocated_area; // layer: The last allocated area for the layer (actual->allocated->presented).
+        rect presented_area; // layer: The last rect with which the layer was presented.
+        bits data; // layer: Layer bitmap (allocated_area).
         regs sync; // layer: Dirty region list.
         bool live; // layer: Should the layer be presented.
         tset klok; // layer: Active timer list.
@@ -93,7 +94,6 @@ namespace netxs::gui
             arch  bg_hWnd = {}; // OR=1 background layer.
             ui32  shm_offset = {}; // Offset in bytes.
             ui32  shm_pixel_limit{}; // Buffer pixel limit in pixels (argb).
-            twod  prev_size; // Layer size for allocated bitmap.
             bool  prev_live = {};
             bool  windowsized = {};
             ui16  seq_num = 0xFFFF; // X11 request sequence number for layer output tracking.
@@ -114,18 +114,17 @@ namespace netxs::gui
         layer()
             :  hdc{},
               hWnd{},
-              prev{ .coor = dot_mx },
-              area{ .size = dot_11 },
+              effective_area{ .size = dot_11 },
+              allocated_area{ .coor = dot_mx },
+              presented_area{ .coor = dot_mx },
               live{ faux }
         { }
         void hide() { live = faux; }
         void show() { live = true; }
-        auto resized() { return area.size != prev.size; }
+        auto resized() { return effective_area.size != allocated_area.size; }
         void wipe()
         {
-            assert(!resized());
-            //todo ?should we use prev to be safe
-            std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
+            std::memset((void*)data.data(), 0, (sz_t)data.size().x * data.size().y * sizeof(argb));
         }
         template<bool Forced = faux>
         void strike(rect r)
@@ -3206,18 +3205,18 @@ namespace netxs::gui
                         if (len_x > width)
                         {
                             auto dirty = rect{{ 0, origin.y }, { width, end_y - origin.y }};
-                            dirty.coor += owner.blinky.area.coor;
+                            dirty.coor += owner.blinky.allocated_area.coor;
                             owner.master.strike(dirty);
                         }
                         else
                         {
                             auto dirty = rect{ origin, { origin.x < end_x ? len_x : width - origin.x, owner.cellsz.y }};
-                            dirty.coor += owner.blinky.area.coor;
+                            dirty.coor += owner.blinky.allocated_area.coor;
                             owner.master.strike(dirty);
                             if (origin.x >= end_x)
                             {
                                 auto remain = rect{{ 0, end_y - owner.cellsz.y }, { end_x, owner.cellsz.y }};
-                                remain.coor += owner.blinky.area.coor;
+                                remain.coor += owner.blinky.allocated_area.coor;
                                 owner.master.strike(remain);
                             }
                         }
@@ -3566,7 +3565,7 @@ namespace netxs::gui
         //virtual void layer_delete(layer& s) = 0;
         virtual void layers_move() = 0;
         virtual void layers_present() = 0;
-        virtual bits layer_get_bits(layer& s, bool zeroize = faux) = 0;
+        virtual void layer_sync_bits(layer& s, rect area, bool zeroize = faux) = 0;
         virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
@@ -3680,16 +3679,16 @@ namespace netxs::gui
         }
         void sync_pixel_layout()
         {
-            grip_l = rect{{ 0                            , gripsz.y }, { gripsz.x, master.area.size.y - gripsz.y * 2}};
-            grip_r = rect{{ master.area.size.x - gripsz.x, gripsz.y }, grip_l.size };
-            grip_t = rect{{ 0, 0                                    }, { master.area.size.x, gripsz.y }};
-            grip_b = rect{{ 0, master.area.size.y - gripsz.y        }, grip_t.size };
+            grip_l = rect{{ 0                            , gripsz.y }, { gripsz.x, master.effective_area.size.y - gripsz.y * 2}};
+            grip_r = rect{{ master.effective_area.size.x - gripsz.x, gripsz.y }, grip_l.size };
+            grip_t = rect{{ 0, 0                                    }, { master.effective_area.size.x, gripsz.y }};
+            grip_b = rect{{ 0, master.effective_area.size.y - gripsz.y        }, grip_t.size };
             auto header_height = h_grid.size().y * cellsz.y;
             auto footer_height = f_grid.size().y * cellsz.y;
-            header.area = blinky.area + dent{ 0, 0, header_height, -blinky.area.size.y } + shadow_dent;
-            header.area.coor.y -= shadow_dent.b;
-            footer.area = blinky.area + dent{ 0, 0, -blinky.area.size.y, footer_height } + shadow_dent;
-            footer.area.coor.y += shadow_dent.t;
+            header.effective_area = blinky.effective_area + dent{ 0, 0, header_height, -blinky.effective_area.size.y } + shadow_dent;
+            header.effective_area.coor.y -= shadow_dent.b;
+            footer.effective_area = blinky.effective_area + dent{ 0, 0, -blinky.effective_area.size.y, footer_height } + shadow_dent;
+            footer.effective_area.coor.y += shadow_dent.t;
         }
         void reset_blinky()
         {
@@ -3716,7 +3715,7 @@ namespace netxs::gui
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == winstate::maximized)
             {
-                auto over_sz = master.area.size % cellsz;
+                auto over_sz = master.effective_area.size % cellsz;
                 auto half_sz = over_sz / 2;
                 border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                 size_window();
@@ -3725,11 +3724,11 @@ namespace netxs::gui
             {
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 auto new_size = gridsz * cellsz + border;
-                auto old_size = master.area.size;
+                auto old_size = master.effective_area.size;
                 auto xy_delta = resize_center - resize_center * new_size / std::max(dot_11, old_size);
-                master.area.coor += xy_delta;
-                master.area.size = new_size;
-                blinky.area = master.area - border;
+                master.effective_area.coor += xy_delta;
+                master.effective_area.size = new_size;
+                blinky.effective_area = master.effective_area - border;
                 sync_pixel_layout();
             }
             netxs::set_flag<task::all>(reload);
@@ -3763,8 +3762,8 @@ namespace netxs::gui
                 auto& tooltip_page = *render_sptr;
                 auto margins = dent{ dot_11 }; // Shadow around tooltip.
                 page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::fuse, dot_mx, margins);
-                tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
-                tooltip_layer.area.size = tooltip_grid.size() * cellsz;
+                tooltip_layer.effective_area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
+                tooltip_layer.effective_area.size = tooltip_grid.size() * cellsz;
                 tooltip_layer.show();
             }
             else
@@ -3783,8 +3782,8 @@ namespace netxs::gui
         {
             for (auto& l : layers)
             {
-                auto& p = l.get();
-                p.area.coor += delta;
+                auto& s = l.get();
+                s.effective_area.coor += delta;
             }
             netxs::set_flag<task::moved>(reload);
         }
@@ -3804,12 +3803,12 @@ namespace netxs::gui
             if (new_state != winstate::minimized) reset_blinky(); // To avoid visual desync.
             if (!first_run) window_sync_taskbar(new_state); // Trigger WM_SETFOCUS on win32.
             fsmode = new_state;
-            if (old_state == winstate::normal) normsz = master.area;
+            if (old_state == winstate::normal) normsz = master.effective_area;
             if (fsmode == winstate::normal)
             {
                 for (auto p : { &master, &header, &footer }) p->show();
                 if (blinks.poll) blinky.show();
-                master.area = normsz;
+                master.effective_area = normsz;
                 if (auto celldt = (fp32)(normcs.y - cellsz.y))
                 {
                     auto grip_cell = gripsz / cellsz;
@@ -3824,14 +3823,14 @@ namespace netxs::gui
             {
                 for (auto& l : layers)
                 {
-                    auto& p = l.get();
-                    p.hide();
+                    auto& s = l.get();
+                    s.hide();
                 }
             }
             else if (fsmode == winstate::maximized)
             {
                 drop_grips();
-                master.area = window_get_fs_area(master.area - border);
+                master.effective_area = window_get_fs_area(master.effective_area - border);
                 header.hide();
                 footer.hide();
                 master.show();
@@ -3842,7 +3841,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    auto over_sz = master.area.size % cellsz;
+                    auto over_sz = master.effective_area.size % cellsz;
                     auto half_sz = over_sz / 2;
                     border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                     size_window();
@@ -3879,14 +3878,14 @@ namespace netxs::gui
             {
                 log("%%Set window to minimized state (implicit)", prompt::gui);
                 prev_window_state = std::exchange(fsmode, winstate::minimized);
-                if (prev_window_state == winstate::normal) normsz = master.area;
+                if (prev_window_state == winstate::normal) normsz = master.effective_area;
                 for (auto& l : layers)
                 {
-                    auto& p = l.get();
-                    p.hide();
+                    auto& s = l.get();
+                    s.hide();
                 }
             }
-            else if (auto delta = coor - master.area.coor)
+            else if (auto delta = coor - master.effective_area.coor)
             {
                 base::enqueue([&, delta](auto& /*boss*/) // Perform corrections.
                 {
@@ -3896,7 +3895,7 @@ namespace netxs::gui
         }
         void fit_to_displays(rect& layer_area, dent contour = {})
         {
-            auto fs_area = window_get_fs_area(master.area) + contour;
+            auto fs_area = window_get_fs_area(master.allocated_area) + contour;
             fs_area.size = std::max(dot_00, fs_area.size - layer_area.size);
             layer_area.coor = fs_area.clamp(layer_area.coor);
         }
@@ -3908,13 +3907,13 @@ namespace netxs::gui
             {
                 if (fsmode == winstate::maximized)
                 {
-                    auto fs_area = window_get_fs_area(master.area);
-                    unsync = fs_area != master.area;
+                    auto fs_area = window_get_fs_area(master.effective_area);
+                    unsync = fs_area != master.effective_area;
                 }
                 else if (fsmode == winstate::normal)
                 {
                     auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    unsync = !avail_area.trim(master.area);
+                    unsync = !avail_area.trim(master.effective_area);
                 }
                 else unsync = faux;
             }
@@ -3922,8 +3921,8 @@ namespace netxs::gui
             {
                 if (fsmode == winstate::maximized)
                 {
-                    auto fs_area = window_get_fs_area(master.area);
-                    if (fs_area != master.area)
+                    auto fs_area = window_get_fs_area(master.effective_area);
+                    if (fs_area != master.effective_area)
                     {
                         auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                         avail_area.size -= std::min(avail_area.size, normsz.size);
@@ -3934,9 +3933,9 @@ namespace netxs::gui
                 else if (fsmode == winstate::normal)
                 {
                     auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    if (!avail_area.trim(master.area))
+                    if (!avail_area.trim(master.effective_area))
                     {
-                        auto area = master.area;
+                        auto area = master.effective_area;
                         avail_area.size -= std::min(avail_area.size, area.size);
                         auto delta = avail_area.clamp(area.coor) - area.coor;
                         move_window(delta);
@@ -3947,8 +3946,9 @@ namespace netxs::gui
                 {
                     for (auto& l : layers)
                     {
-                        auto& p = l.get();
-                        p.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                        auto& s = l.get();
+                        s.allocated_area.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                        s.presented_area.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
                     }
                     netxs::set_flag<task::moved>(reload);
                 }
@@ -3967,12 +3967,12 @@ namespace netxs::gui
         void size_window(twod size_delta = {})
         {
             //todo revise
-            master.area.size += size_delta;
-            blinky.area = master.area - border;
-            gridsz = std::max(dot_11, blinky.area.size / cellsz);
+            master.effective_area.size += size_delta;
+            blinky.effective_area = master.effective_area - border;
+            gridsz = std::max(dot_11, blinky.effective_area.size / cellsz);
             auto sizechanged = stream.w.winsize != gridsz;
-            blinky.area.size = gridsz * cellsz;
-            master.area = blinky.area + border;
+            blinky.effective_area.size = gridsz * cellsz;
+            master.effective_area = blinky.effective_area + border;
             if (fsmode != winstate::maximized)
             {
                 page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast, { gridsz.x, dot_mx.y });
@@ -3990,7 +3990,7 @@ namespace netxs::gui
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = blinky.area;
+            auto old_client = blinky.effective_area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = new_gridsz * cellsz - old_client.size;
             if (size_delta)
@@ -4001,7 +4001,7 @@ namespace netxs::gui
         }
         dent warp_window(dent warp_delta)
         {
-            auto old_client = blinky.area;
+            auto old_client = blinky.effective_area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             auto size_delta = new_gridsz * cellsz - old_client.size;
@@ -4011,13 +4011,13 @@ namespace netxs::gui
                 size_window(size_delta);
                 move_window(coor_delta);
             }
-            return master.area - old_client;
+            return master.effective_area - old_client;
         }
         bool hit_grips()
         {
             if (fsmode == winstate::maximized || szgrip.zoomon) return faux;
-            auto inner_rect = blinky.area;
-            auto outer_rect = master.area;
+            auto inner_rect = blinky.effective_area;
+            auto outer_rect = master.effective_area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
             return hit;
         }
@@ -4027,7 +4027,7 @@ namespace netxs::gui
             static auto trans = argb::active_transparent;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
-            auto canvas = layer_get_bits(master);
+            auto canvas = master.data;
             canvas.move(dot_00);
             auto outer_rect = canvas.area();
             auto inner_rect = outer_rect - border;
@@ -4079,7 +4079,7 @@ namespace netxs::gui
             });
             if (reload != task::all)
             {
-                auto coor = master.area.coor;
+                auto coor = master.allocated_area.coor;
                 for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
                 {
                     //todo push diffs only
@@ -4151,8 +4151,8 @@ namespace netxs::gui
         // Note: Always do sync_blinky_mask() before calling fill_stripe.
         void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
         {
-            auto prime_canvas = layer_get_bits(master);
-            auto blink_canvas = layer_get_bits(blinky);
+            auto prime_canvas = master.data;
+            auto blink_canvas = blinky.data;
             auto origin = blink_canvas.coor();
             auto iter = blinks.mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
@@ -4185,7 +4185,8 @@ namespace netxs::gui
         }
         void draw_grid(layer& s, auto& facedata, bool apply_contour = true) //todo just output ui::core
         {
-            auto canvas = layer_get_bits(s, true);
+            s.wipe();
+            auto canvas = s.data;
             if (apply_contour)
             {
                 fill_grid(canvas, facedata, shadow_dent.corner());
@@ -4199,9 +4200,6 @@ namespace netxs::gui
             }
             s.strike<true>(canvas.area());
         }
-        void draw_header()  { draw_grid(header, h_grid); }
-        void draw_footer()  { draw_grid(footer, f_grid); }
-        void draw_tooltip() { draw_grid(tooltip_layer, tooltip_grid, faux); }
         void check_blinky()
         {
             auto changed = std::exchange(blinks.show, !!blinks.poll) != blinks.show;
@@ -4236,7 +4234,7 @@ namespace netxs::gui
                     auto offset = (si32)(iter - head);
                     auto origin = twod{ offset % gridsz.x, offset / gridsz.x } * cellsz;
                     fill_stripe(iter, iter + 1, origin, offset);
-                    auto dirty = rect{ origin + blinky.area.coor, cellsz };
+                    auto dirty = rect{ origin + blinky.allocated_area.coor, cellsz };
                     master.strike(dirty);
                     hit = true;
                 }
@@ -4294,8 +4292,19 @@ namespace netxs::gui
         void update_gui()
         {
             if (!reload || waitsz) return;
-            auto what = reload;
-            reload = {};
+            auto what = std::exchange(reload, 0);
+            //todo freeze the geometry under a mutex
+            auto master_area = master.effective_area;
+            auto header_area = header.effective_area;
+            auto footer_area = footer.effective_area;
+            auto blinky_area = blinky.effective_area;
+            auto tooltip_layer_area = tooltip_layer.effective_area;
+            layer_sync_bits(master, master_area);
+            layer_sync_bits(blinky, blinky_area, blinks.poll && what == task::all); // Manually zeroize blinking canvas.
+            layer_sync_bits(header, header_area);
+            layer_sync_bits(footer, footer_area);
+            layer_sync_bits(tooltip_layer, tooltip_layer_area);
+
                  if (what == task::moved) layers_move();
             else if (what)
             {
@@ -4305,11 +4314,7 @@ namespace netxs::gui
                     {
                         blinks.poll = 0;
                         blinks.mask.assign(gridsz.x * gridsz.y, 0);
-                        if(!blinky.resized()) // Manually zeroize blinking canvas if its size has not changed.
-                        {
-                            blinky.wipe();
-                        }
-                        blinky.strike<true>(blinky.area);
+                        blinky.strike<true>(blinky.allocated_area);
                     }
                     else // Keep blink mask size in sync.
                     {
@@ -4320,23 +4325,23 @@ namespace netxs::gui
                     fill_stripe(grid.begin(), grid.end());
                     if (fsmode == winstate::maximized)
                     {
-                        auto canvas = layer_get_bits(master);
+                        auto canvas = master.data;
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                     }
-                    master.strike<true>(master.area);
+                    master.strike<true>(master.allocated_area);
                     check_blinky();
                 }
                 if (fsmode == winstate::normal)
                 {
                     if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
-                    if (what & (task::sized | task::header)) draw_header();
-                    if (what & (task::sized | task::footer)) draw_footer();
+                    if (what & (task::sized | task::header)) draw_grid(header, h_grid);
+                    if (what & (task::sized | task::footer)) draw_grid(footer, f_grid);
                 }
                 if (what & task::tooltip && tooltip_layer.live)
                 {
                     auto contour = twod{ 0, cellsz.y / 2 };
-                    fit_to_displays(tooltip_layer.area, dent{ contour });
-                    draw_tooltip();
+                    fit_to_displays(tooltip_layer.allocated_area, dent{ contour });
+                    draw_grid(tooltip_layer, tooltip_grid, faux);
                 }
                 layers_present();
             }
@@ -4352,13 +4357,13 @@ namespace netxs::gui
                 if (!isbusy.exchange(true))
                 {
                     wheelfp = std::exchange(whlacc, 0.f);
-                    auto zoom = [&, wheelfp, center = mcoord - master.area.coor]
+                    auto zoom = [&, wheelfp, center = mcoord - master.effective_area.coor]
                     {
                         change_cell_size(faux, wheelfp, center);
                         sync_cellsz();
                         if (hit_grips())
                         {
-                            auto inner_rect = blinky.area;
+                            auto inner_rect = blinky.effective_area;
                             auto coord = mouse_get_pos();
                             szgrip.calc(inner_rect, coord, border, dent{}, cellsz);
                         }
@@ -4371,10 +4376,10 @@ namespace netxs::gui
         }
         void resize_by_grips(twod coord)
         {
-            auto inner_rect = blinky.area;
+            auto inner_rect = blinky.effective_area;
             auto zoom = ctrl_pressed();
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
-            auto old_client = blinky.area;
+            auto old_client = blinky.effective_area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = new_gridsz * cellsz - old_client.size;
             if (size_delta)
@@ -4436,7 +4441,7 @@ namespace netxs::gui
             auto coord = mouse_get_pos();
             auto mbttns = stream.m.buttons;
             mhover = true;
-            auto inner_rect = blinky.area;
+            auto inner_rect = blinky.effective_area;
             auto ingrip = hit_grips();
             if (moving && !mbttns) // Don't allow to move GUI window without mouse button pressed (race condition, left mouse button sticks randomly when dragging GUI window).
             {
@@ -4464,6 +4469,7 @@ namespace netxs::gui
                     base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
+                        sync_pixel_layout(); // Align grips and shadows.
                         update_gui(); // Update resize-grips if size is not changed.
                     });
                     return;
@@ -4518,7 +4524,7 @@ namespace netxs::gui
         void mouse_press(si32 button, bool pressed)
         {
             if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
-            auto inner_rect = blinky.area;
+            auto inner_rect = blinky.effective_area;
             auto coord = mouse_get_pos();
             mcoord = coord;
             stream.m.coordxy = (mcoord - fp2d{ inner_rect.coor }) / cellsz;
@@ -4528,7 +4534,7 @@ namespace netxs::gui
                 if constexpr (debug_foci) log("group focus pressed");
                 return;
             }
-            if (!mbttns && !master.area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            if (!mbttns && !master.effective_area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
                 if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
                 return;
@@ -4671,14 +4677,12 @@ namespace netxs::gui
             auto dir = args.size() ? netxs::any_get_or(args.front(), 0.f) : 0.f;
             change_cell_size(faux, dir);
             sync_cellsz();
-            update_gui();
         }
         void ResetCellHeight()
         {
             auto dy = origsz - cellsz.y;
-            change_cell_size(faux, (fp32)dy, master.area.size / 2);
+            change_cell_size(faux, (fp32)dy, master.allocated_area.size / 2);
             sync_cellsz();
-            update_gui();
         }
         void ToggleFullscreenMode()
         {
@@ -4938,9 +4942,7 @@ namespace netxs::gui
                     //todo implement
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
-                    case syscmd::close:  window_shutdown(); break;
-                    //case syscmd::update: update_gui(); break;
-                    //
+                    case syscmd::close:           window_shutdown();        break;
                     case syscmd::resetwheelaccum: ResetWheelAccumulator();  break;
                     case syscmd::tunecellheight:  IncreaseCellHeight(args); break;
                     case syscmd::resetcellheight: ResetCellHeight();        break;
@@ -4972,7 +4974,7 @@ namespace netxs::gui
             // We can't sync with the ui here. This causes a deadlock.
             //auto inputfield_request = base::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
             fields = inputfield_request.wait_for();
-            auto win_area = blinky.area;
+            auto win_area = blinky.effective_area;
             if (fields.empty()) fields.push_back(win_area);
             else for (auto& f : fields)
             {
@@ -4996,7 +4998,7 @@ namespace netxs::gui
             }
             else
             {
-                os::dtvt::gridsz = (master.area.size - border) / std::max(cellsz, dot_11);
+                os::dtvt::gridsz = (master.effective_area.size - border) / std::max(cellsz, dot_11);
                 os::dtvt::flagsz = true; // Notify app::shared::splice.
                 os::dtvt::flagsz.notify_all();
                 auto lock = bell::sync();
@@ -5071,7 +5073,7 @@ namespace netxs::gui
                     stream.footer.send(stream.intio, window_id, utf8);
                 };
 
-                normsz = master.area;
+                normsz = master.effective_area;
                 size_window(); // First resize.
                 set_state(config.win_state, true/*don't window_sync_taskbar*/);
                 update_gui();
@@ -5330,7 +5332,7 @@ namespace netxs::gui
             {
                 if (prc)
                 {
-                    auto r = owner.master.live ? owner.master.area : rect{}; // Reply an empty rect if window is hidden.
+                    auto r = owner.master.live ? owner.master.effective_area : rect{}; // Reply an empty rect if window is hidden.
                     //static auto random = true;
                     //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
@@ -5355,7 +5357,7 @@ namespace netxs::gui
                         {
                             auto head = field_list.begin();
                             auto tail = field_list.end();
-                            while (head != tail && !head->trim(owner.master.area)) ++head; // Drop all fields that outside client.
+                            while (head != tail && !head->trim(owner.master.effective_area)) ++head; // Drop all fields that outside client.
                             if (head != tail)
                             {
                                 r = field_list.front();
@@ -5363,7 +5365,7 @@ namespace netxs::gui
                                 while (head != tail)
                                 {
                                     auto f = *head++;
-                                    if (f.trim(owner.master.area))
+                                    if (f.trim(owner.master.effective_area))
                                     {
                                         log(" field: ", f);
                                         r.unitewith(f);
@@ -5441,16 +5443,17 @@ namespace netxs::gui
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
         }
 
-        bits layer_get_bits(layer& s, bool zeroize = faux)
+        void layer_sync_bits(layer& s, rect area, bool zeroize = faux)
         {
-            if (s.hdc && s.area)
+            if (s.hdc && area)
             {
-                if (s.resized())
+                s.allocated_area.coor = area.coor;
+                if (s.allocated_area.size(area.size))
                 {
                     auto ptr = (void*)nullptr;
                     auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
-                                                          .biWidth       = s.area.size.x,
-                                                          .biHeight      = -s.area.size.y,
+                                                          .biWidth       = s.allocated_area.size.x,
+                                                          .biHeight      = -s.allocated_area.size.y,
                                                           .biPlanes      = 1,
                                                           .biBitCount    = 32,
                                                           .biCompression = BI_RGB }};
@@ -5458,15 +5461,16 @@ namespace netxs::gui
                     {
                         ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
                         zeroize = faux;
-                        s.prev.size = s.area.size;
-                        s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
+                        s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.allocated_area.size.x * s.allocated_area.size.y }, s.allocated_area };
                     }
                     else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
                 }
+                else
+                {
+                    s.data.move(s.allocated_area.coor);
+                }
                 if (zeroize) s.wipe();
             }
-            s.data.move(s.area.coor);
-            return s.data;
         }
         void layer_delete(layer& s)
         {
@@ -5499,10 +5503,11 @@ namespace netxs::gui
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
             for (auto& l : layers)
             {
-                auto& p = l.get();
-                if (p.prev.coor(p.live ? p.area.coor : p.hidden))
+                auto& s = l.get();
+                auto target_coor = s.live ? s.allocated_area.coor : s.hidden;
+                if (s.presented_area.coor(target_coor))
                 {
-                    lock = ::DeferWindowPos(lock, (HWND)p.hWnd, 0, p.prev.coor.x, p.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    lock = ::DeferWindowPos(lock, (HWND)s.hWnd, 0, target_coor.x, target_coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                     if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
                 }
             }
@@ -5563,19 +5568,20 @@ namespace netxs::gui
         void layer_present(layer& s)
         {
             if (!s.hdc) return;
-            auto windowmoved = s.prev.coor(s.live ? s.area.coor : s.hidden);
+            auto windowmoved = s.presented_area.coor(s.live ? s.allocated_area.coor : s.hidden);
             if (s.sync.empty())
             {
                 if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
                 {
-                    ::SetWindowPos((HWND)s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                    ::SetWindowPos((HWND)s.hWnd, 0, s.presented_area.coor.x, s.presented_area.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
                 }
                 return;
             }
+            s.presented_area.size = s.allocated_area.size;
             auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto bitmap_coor = POINT{};
-            auto window_coor = POINT{ s.prev.coor.x, s.prev.coor.y };
-            auto bitmap_size = SIZE{ s.area.size.x, s.area.size.y };
+            auto window_coor = POINT{ s.presented_area.coor.x, s.presented_area.coor.y };
+            auto bitmap_size =  SIZE{ s.presented_area.size.x, s.presented_area.size.y };
             auto update_area = RECT{};
             auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
                                                         .pptDst   = windowmoved ? &window_coor : nullptr,
@@ -5599,9 +5605,9 @@ namespace netxs::gui
             for (auto r : s.sync)
             {
                 // Hilight changes
-                //auto c = layer_get_bits(s);
+                //auto c = s.data;
                 //netxs::misc::cage(c, r, dent{ dot_11 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
-                r.coor -= s.area.coor;
+                r.coor -= s.allocated_area.coor;
                 update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
                 update_proc();
                 update_info.pptDst = {};
@@ -6277,7 +6283,7 @@ namespace netxs::gui
         void mouse_catch_outside()
         {
             auto ctrl_click = ctrl_pressed()                        // Detect Ctrl+LeftClick
-                           && !master.area.hittest(mouse_get_pos()) // outside our window.
+                           && !master.effective_area.hittest(mouse_get_pos()) // outside our window.
                            && keybd_read_pressed(vkey::lbutton);    //
                            //&& (keybd_read_pressed(vkey::lbutton) || keybd_read_pressed(vkey::rbutton) || keybd_read_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
@@ -6358,8 +6364,8 @@ namespace netxs::gui
             auto mode = SW_SHOW;
             for (auto& l : layers)
             {
-                auto& p = l.get();
-                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA)); // Trigger WM_SETFOCUS on win32 if explorer.exe sets it visible.
+                auto& s = l.get();
+                ::ShowWindow((HWND)s.hWnd, std::exchange(mode, SW_SHOWNA)); // Trigger WM_SETFOCUS on win32 if explorer.exe sets it visible.
             }
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
@@ -6573,7 +6579,7 @@ namespace netxs::gui
             if (cell_size)
             {
                 grid_size /= cell_size;
-                s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+                s.effective_area = rect{ win_coord, grid_size * cell_size } + border_dent;
             }
             return true;
         }
@@ -6740,7 +6746,7 @@ namespace netxs::gui
         }
         void _wm_layer_present(text& batch_buffer, layer& s, std::optional<ui16>& seq_num_any)
         {
-            auto target_area = s.area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size });
+            auto target_area = s.allocated_area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size });
             if (s.live && target_area)
             {
                 if (std::exchange(s.prev_live, true) == faux)
@@ -6753,16 +6759,17 @@ namespace netxs::gui
                                                                                  .y      = (ui16)target_area.coor.y,
                                                                                  .width  = (ui16)target_area.size.x,
                                                                                  .height = (ui16)target_area.size.y });
+                //todo use dirty regions
                 auto r = target_area;
-                r.coor -= s.area.coor;
-                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
+                r.coor -= s.allocated_area.coor;
+                auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
                 seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
                     .drawable     = (ui32)s.wm_hWnd,
                     .gc_id        = (ui32)s.wm_hdc,
-                    .total_width  = (ui16)s.area.size.x,
-                    .total_height = (ui16)s.area.size.y,
+                    .total_width  = (ui16)s.allocated_area.size.x,
+                    .total_height = (ui16)s.allocated_area.size.y,
                     .src_x        = (ui16)r.coor.x,
                     .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
                     .src_width    = (ui16)r.size.x, // Dirty rect size.
@@ -6852,7 +6859,8 @@ namespace netxs::gui
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
-                        auto target_area = rect{ hidden_coor, s.live ? s.area.size : dot_11 };
+                        auto& cur_size = s.allocated_area.size;
+                        auto target_area = rect{ hidden_coor, s.live ? cur_size : dot_11 };
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
                                                     x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                          .y      = (ui16)target_area.coor.y,
@@ -6870,15 +6878,15 @@ namespace netxs::gui
                         //session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
                         if (s.live)
                         {
-                            auto r = rect{ dot_00, s.area.size };
-                            auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
+                            auto r = rect{ dot_00, cur_size };
+                            auto dirty_offset = s.shm_offset + r.coor.y * cur_size.x * sizeof(ui32);
                             seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                             {
                                 .major_opcode = session.shm_major_opcode,
                                 .drawable     = (ui32)s.fg_hWnd,
                                 .gc_id        = (ui32)s.fg_hdc,
-                                .total_width  = (ui16)s.area.size.x,
-                                .total_height = (ui16)s.area.size.y,
+                                .total_width  = (ui16)cur_size.x,
+                                .total_height = (ui16)cur_size.y,
                                 .src_x        = (ui16)r.coor.x,
                                 .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
                                 .src_width    = (ui16)r.size.x, // Dirty rect size.
@@ -6900,9 +6908,10 @@ namespace netxs::gui
                         s.prev_live = true; // Hint for wm layers.
                         if (s.live)
                         {
+                            s.presented_area = s.allocated_area;
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
-                                                        x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
-                                                                                             .y = (ui16)s.area.coor.y });
+                                                        x11::req::configure_window::payload{ .x = (ui16)s.presented_area.coor.x,
+                                                                                             .y = (ui16)s.presented_area.coor.y });
                         }
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd, },
                                                     x11::req::configure_window::payload{ .width  = 1,
@@ -7654,7 +7663,7 @@ namespace netxs::gui
             if (is_master)
             {
                 grid_size /= cell_size;
-                s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+                s.effective_area = rect{ win_coord, grid_size * cell_size } + border_dent;
             }
             session.create_window(master.fg_hWnd, s.fg_hWnd, s.fg_hdc, is_master, true);
             session.create_window(master.bg_hWnd, s.bg_hWnd, s.bg_hdc, is_master, true);
@@ -7667,8 +7676,8 @@ namespace netxs::gui
             for (auto& l : layers)
             {
                 auto& s = l.get();
-                auto target_coor = s.live ? s.area.coor : hidden_coor;
-                if (s.prev.coor(target_coor))
+                auto target_coor = s.live ? s.allocated_area.coor : hidden_coor;
+                if (s.presented_area.coor(target_coor))
                 {
                     session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
                                                   x11::req::configure_window::payload{ .x = (ui32)(si16)target_coor.x,
@@ -7684,17 +7693,21 @@ namespace netxs::gui
         }
         void layer_present(text& batch_buffer, layer& s, auto& seq_num_any)
         {
-            if (!s.data.data() || s.area.size.x <= 0 || s.area.size.y <= 0) return;
-            auto target_coor = s.live ? s.area.coor : hidden_coor;
-            auto windowmoved = s.prev.coor(target_coor);
-            s.windowsized = s.live && std::exchange(s.prev_size, s.area.size) != s.area.size;
+            auto& new_size = s.allocated_area.size;
+            auto& new_coor = s.allocated_area.coor;
+            auto& old_size = s.presented_area.size;
+            auto& old_coor = s.presented_area.coor;
+            if (!s.data.data() || new_size.x <= 0 || new_size.y <= 0) return;
+            auto target_coor = s.live ? new_coor : hidden_coor;
+            auto windowmoved = old_coor(target_coor);
+            s.windowsized = s.live && old_size(new_size);
             if (s.windowsized)
             {
                 session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.bg_hWnd, },
-                                              x11::req::configure_window::payload{ .width  = (ui16)s.area.size.x,
-                                                                                   .height = (ui16)s.area.size.y });
+                                              x11::req::configure_window::payload{ .width  = (ui16)new_size.x,
+                                                                                   .height = (ui16)new_size.y });
                 s.sync.clear();
-                s.sync.push_back(s.area);
+                s.sync.push_back(s.allocated_area);
                 s.swap_backing();
             }
             else if (windowmoved)
@@ -7706,21 +7719,21 @@ namespace netxs::gui
             auto seq_num = std::optional<ui16>{};
             for (auto r : s.sync)
             {
-                r.coor -= s.area.coor;
+                r.coor -= new_coor;
                 if (r.coor.x < 0 || r.coor.y < 0
-                 || r.coor.x + r.size.x > s.area.size.x
-                 || r.coor.y + r.size.y > s.area.size.y)
+                 || r.coor.x + r.size.x > new_size.x
+                 || r.coor.y + r.size.y > new_size.y)
                 {
                     continue;
                 }
-                auto dirty_offset = s.shm_offset + r.coor.y * s.area.size.x * sizeof(ui32);
+                auto dirty_offset = s.shm_offset + r.coor.y * new_size.x * sizeof(ui32);
                 seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
                     .major_opcode = session.shm_major_opcode,
                     .drawable     = (ui32)s.fg_hWnd,
                     .gc_id        = (ui32)s.fg_hdc,
-                    .total_width  = (ui16)s.area.size.x,
-                    .total_height = (ui16)s.area.size.y,
+                    .total_width  = (ui16)new_size.x,
+                    .total_height = (ui16)new_size.y,
                     .src_x        = (ui16)r.coor.x,
                     .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
                     .src_width    = (ui16)r.size.x, // Dirty rect size.
@@ -7809,8 +7822,8 @@ namespace netxs::gui
                                                                                              .height = 1 });
                             // Reveal the layer with new size.
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
-                                                        x11::req::configure_window::payload{ .x = (ui16)s.area.coor.x,
-                                                                                             .y = (ui16)s.area.coor.y });
+                                                        x11::req::configure_window::payload{ .x = (ui16)s.allocated_area.coor.x,
+                                                                                             .y = (ui16)s.allocated_area.coor.y });
                             // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
                             session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
                                                                                 .gc_id       = (ui32)s.bg_hdc });
@@ -7870,13 +7883,14 @@ namespace netxs::gui
                 timer_threads.erase(it); // jthread dtor auto calls request_stop() and join.
             }
         }
-        bits layer_get_bits(layer& s, bool zeroize = faux)
+        void layer_sync_bits(layer& s, rect area, bool zeroize = faux)
         {
-            if (s.area)
+            if (area)
             {
-                if (s.resized())
+                s.allocated_area.coor = area.coor;
+                if (s.allocated_area.size(area.size))
                 {
-                    auto required_pixels = std::max(1u, (ui32)(s.area.size.x * s.area.size.y));
+                    auto required_pixels = std::max(1u, (ui32)(s.allocated_area.size.x * s.allocated_area.size.y));
                     if (required_pixels > s.shm_pixel_limit) // Recalc new shm buffer limits.
                     {
                         auto ratio = (fp32)session.shm_buffer.len / s.shm_pixel_limit; // inc div by 4
@@ -7909,15 +7923,13 @@ namespace netxs::gui
                             log(ansi::err("%%Failed to allocate MIT-SHM buffer of %% bytes", prompt::x11, new_shm_buffer_len));
                         }
                     }
-                    s.prev.size = s.area.size;
                     auto bitmap_span = std::span<argb>{ (argb*)(session.shm_buffer.ptr + s.shm_offset), required_pixels };
-                    s.data = bits{ bitmap_span, s.area };
+                    s.data = bits{ bitmap_span, s.allocated_area };
                     zeroize = true;
                 }
                 if (zeroize) s.wipe();
             }
-            s.data.move(s.area.coor);
-            return s.data;
+            s.data.move(s.allocated_area.coor);
         }
         //todo this doesn't work in wslg
         //void layer_opacity(ui32 window_id, fp64 alpha)
@@ -7961,8 +7973,8 @@ namespace netxs::gui
             //todo revise: this changes only logic Z-order (mouse input only), but keep visible order intact
             //for (auto& l : layers)
             //{
-            //    auto& p = l.get();
-            //    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)p.fg_hWnd },
+            //    auto& s = l.get();
+            //    session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
             //                                  x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
             //}
             ////session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)(ui32)master.fg_hWnd },
@@ -7975,15 +7987,15 @@ namespace netxs::gui
             //    if (!s.live) continue;
             //    session.accumrq(batch_buffer, x11::req::unmap_window{ .window_id = (ui32)s.fg_hWnd });
             //    session.accumrq(batch_buffer, x11::req::map_window{ .window_id = (ui32)s.fg_hWnd });
-            //    auto r = rect{ dot_00, s.area.size };
+            //    auto r = rect{ dot_00, s.allocated_area.size };
             //    auto dirty_offset = s.shm_offset;
             //    auto seq_num = session.accumrq(batch_buffer, x11::req::shm::put_image
             //    {
             //        .major_opcode = session.shm_major_opcode,
             //        .drawable     = (ui32)s.fg_hWnd,
             //        .gc_id        = (ui32)s.fg_hdc,
-            //        .total_width  = (ui16)s.area.size.x,
-            //        .total_height = (ui16)s.area.size.y,
+            //        .total_width  = (ui16)s.allocated_area.size.x,
+            //        .total_height = (ui16)s.allocated_area.size.y,
             //        .src_x        = (ui16)r.coor.x,
             //        .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
             //        .src_width    = (ui16)r.size.x, // Dirty rect size.
@@ -8163,9 +8175,9 @@ namespace netxs::gui
                             session.set_x11_display_size(size);
                             hidden_coor = session.x11_display_size - dot_11;
                             if (fsmode == winstate::maximized) set_state(winstate::normal);
-                            if (!master.area.trim(rect{ dot_00, hidden_coor })) // Move window to the display center if out.
+                            if (!master.effective_area.trim(rect{ dot_00, hidden_coor })) // Move window to the display center if out.
                             {
-                                auto delta = hidden_coor / 2 - (master.area.coor + master.area.size / 2);
+                                auto delta = hidden_coor / 2 - (master.effective_area.coor + master.effective_area.size / 2);
                                 move_window(delta);
                             }
                             _update_hidden_layers_size_and_position();
@@ -8829,7 +8841,7 @@ namespace netxs::gui
         void layers_present() {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
         void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
-        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void layer_sync_bits(layer& /*s*/, rect /*area*/, bool /*zeroize*/ = faux) { return bits{}; }
         void window_sync_taskbar(si32 /*new_state*/) {}
         rect window_get_fs_area(rect window_area) { return window_area; }
         void window_send_command_impl(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
