@@ -7,6 +7,8 @@ namespace netxs::x11
 {
     static constexpr auto recv_packet_size = 32;
     static auto wm_inst_name = "vtm"s; //todo unify (app::vtm::id)
+    static constexpr auto fps = 60; // FPS //todo calc at startup
+    static constexpr auto vbi = std::chrono::microseconds(1s) / x11::fps; // V-blank interval (VBI)
 
     using fd_t = os::fd_t;
 
@@ -2027,6 +2029,10 @@ namespace netxs::x11
             shm_buffer.deallocate();
         }
 
+        void set_seq_num(ui16 seq_num)
+        {
+            received_replies[seq_num].store(true, std::memory_order_release);
+        }
         void sync_reply(ui16 sequence_number) const
         {
             while (received_replies[sequence_number].load(std::memory_order_acquire))
