@@ -8868,7 +8868,7 @@ namespace netxs::gui
         void layers_present() {}
         void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
         void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
-        void layer_sync_bits(layer& /*s*/, rect /*area*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void layer_sync_bits(layer& /*s*/, rect /*area*/, bool /*zeroize*/ = faux) {}
         void window_sync_taskbar(si32 /*new_state*/) {}
         rect window_get_fs_area(rect window_area) { return window_area; }
         void window_send_command_impl(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
