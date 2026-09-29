@@ -1094,10 +1094,10 @@ namespace netxs::directvt
                 : stream{ kind }
             { }
 
-            cell                           state; // bitmap: .
-            core                           image; // bitmap: .
-            ui16                           last_int_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
-            ui16                           last_ext_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
+            cell state; // bitmap: .
+            core image; // bitmap: .
+            ui16 last_int_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
+            ui16 last_ext_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
 
             enum : byte
             {

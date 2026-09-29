@@ -142,6 +142,12 @@ int main(int argc, char* argv[])
             return ok;
         }
         #endif
+        #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
+        else if (getopt.match("-name", "--name"))
+        {
+            x11::wm_inst_name = xml::take_or(getopt.next(), ""s);
+        }
+        #endif
         else if (getopt.match("-?", "-h", "--help"))
         {
             os::dtvt::initialize();
@@ -165,7 +171,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    Without options, vtm runs Desktop Server and Desktop Client."
+                "\n    Without options, vtm runs both Desktop Server and Desktop Client."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -173,48 +179,51 @@ int main(int argc, char* argv[])
                 "\n    -t, --tui            Force TUI mode."
                 "\n    -g, --gui            Force GUI mode."
                 "\n    -i, --install        Perform system-wide installation."
+                                            #if defined(_WIN32)
+                                            " Allow Desktop Server to run in Session 0."
+                                            #endif
+                "\n    -u, --uninstall      Perform system-wide uninstallation."
                 #if defined(_WIN32)
-                " Allow Desktop Server to run in Session 0."
+                "\n    -0, --session0       Use Session 0 to run Desktop Server in the background."
                 #endif
-                "\n    -u, --uninstall      Perform system-wide deinstallation."
-                #if defined(_WIN32)
-                "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
+                #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
+                "\n    -name, --name <inst> Specify a custom WM_CLASS instance name."
                 #endif
                 #if defined(__linux__) && !defined(__ANDROID__)
                 "\n    -a, --mouse [mode]   Set/reset persistent access to mouse devices for all users."
                 "\n                         Run 'sudo vtm --mouse 0' to reset access."
                 #endif
                 "\n    -q, --quiet          Disable logging."
-                "\n    -x, --script <cmds>  Specifies script commands."
-                "\n    -c, --config <file>  Specifies a settings file to load or plain xml-data to overlay."
-                "\n    -p, --pin <id>       Specifies the desktop id it will be pinned to."
+                "\n    -x, --script <cmds>  Specify script commands to execute."
+                "\n    -c, --config <file>  Specify a settings file to load or plain XML data to overlay."
+                "\n    -p, --pin <id>       Specify the desktop id to pin to."
                 "\n    -s, --server         Run Desktop Server."
-                "\n    -d, --daemon         Run Desktop Server in background."
+                "\n    -d, --daemon         Run Desktop Server in the background."
                 "\n    -m, --monitor        Run Log Monitor."
-                "\n    -r, --, --run        Run desktop applet standalone."
-                "\n    <type>               Desktop applet to run."
-                "\n    <args...>            Desktop applet arguments."
-                "\n    --env <var=val>      Set environment variable."
-                "\n    --cwd <path>         Set current working directory."
+                "\n    -r, --, --run        Run a desktop applet standalone."
+                "\n    <type>               Desktop applet type to run."
+                "\n    <args...>            Arguments for the desktop applet."
+                "\n    --env <var=val>      Set an environment variable."
+                "\n    --cwd <path>         Set the current working directory."
                 "\n    --fonts [v[erbose]]  Print available fonts (with horizontal scrolling)."
                 "\n"
                 "\n    Desktop applet             │ Type │ Arguments"
                 "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"
-                "\n    Teletype Console (default) │ vtty │ CUI application with arguments to run."
-                "\n    Terminal Console           │ term │ CUI application with arguments to run."
-                "\n    DirectVT Gateway           │ dtvt │ DirectVT-aware application to run."
+                "\n    Teletype Console (default) │ vtty │ CUI application to run, along with its arguments."
+                "\n    Terminal Console           │ term │ CUI application to run, along with its arguments."
+                "\n    DirectVT Gateway           │ dtvt │ DirectVT-capable application to run."
                 "\n    DirectVT Gateway with TTY  │ dtty │ CUI application to run, forwarding DirectVT I/O."
                 "\n"
-                "\n    The following commands have a short form:"
+                "\n    The following commands support short forms:"
                 "\n"
                 "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
                 "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
                 "\n"
-                "\n    Plain xml-data can be specified in place of <file> in the '--config <file>' option,"
+                "\n    Plain XML data can be specified in place of <file> in the '--config <file>' option,"
                 "\n    as well as in the $VTM_CONFIG environment variable:"
                 "\n"
                 "\n      vtm -c \"<config><terminal><scrollback size=1000000/></terminal></config>\" -r term"
-                "\n      or (using compact syntax)"
+                "\n      or using the compact syntax:"
                 "\n      vtm -c \"<config/terminal/scrollback size=1000000/>\" -r term"
                 "\n");
             return 0;

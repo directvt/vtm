@@ -64,7 +64,7 @@ To reset permanent access, use the command:
   sudo vtm --mouse 0
   ```
 
-#### Deinstallation
+#### Uninstallation
 
 ```bash
 # Reset permanent access for pointing devices if it was set
@@ -99,7 +99,7 @@ If you prefer to perform a system-wide installation to the default path `/usr/lo
   ```bash
   sudo ./vtm --install
   ```
-- Deinstallation:
+- Uninstallation:
   ```bash
   sudo vtm --uninstall
   ```
