@@ -5571,7 +5571,11 @@ namespace netxs::gui
         }
         void layer_present(layer& s)
         {
-            if (!s.hdc) return;
+            if (!s.hdc)
+            {
+                s.sync.clear();
+                return;
+            }
             auto windowmoved = s.presented_area.coor(s.live ? s.allocated_area.coor : s.hidden);
             if (s.sync.empty())
             {
@@ -6763,26 +6767,33 @@ namespace netxs::gui
                                                                                  .y      = (ui16)target_area.coor.y,
                                                                                  .width  = (ui16)target_area.size.x,
                                                                                  .height = (ui16)target_area.size.y });
-                //todo use dirty regions
-                auto r = target_area;
-                r.coor -= s.allocated_area.coor;
-                auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
-                seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
+                auto crop_offset = target_area.coor - s.allocated_area.coor;
+                for (auto r : s.sync)
                 {
-                    .major_opcode = session.shm_major_opcode,
-                    .drawable     = (ui32)s.wm_hWnd,
-                    .gc_id        = (ui32)s.wm_hdc,
-                    .total_width  = (ui16)s.allocated_area.size.x,
-                    .total_height = (ui16)s.allocated_area.size.y,
-                    .src_x        = (ui16)r.coor.x,
-                    .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
-                    .src_width    = (ui16)r.size.x, // Dirty rect size.
-                    .src_height   = (ui16)r.size.y, //
-                    .dst_x        = (si16)0,//r.coor.x, // Window dest coor.
-                    .dst_y        = (si16)0,//r.coor.y, //
-                    .shm_seg_id   = session.shm_buffer.xid,
-                    .offset       = (ui32)dirty_offset, // New data start.
-                });
+                    r.trimby(target_area);
+                    if (r)
+                    {
+                        r.coor -= s.allocated_area.coor;
+                        auto dest_coor = r.coor - crop_offset;
+                        auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
+                        seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
+                        {
+                            .major_opcode = session.shm_major_opcode,
+                            .drawable     = (ui32)s.wm_hWnd,
+                            .gc_id        = (ui32)s.wm_hdc,
+                            .total_width  = (ui16)s.allocated_area.size.x,
+                            .total_height = (ui16)s.allocated_area.size.y,
+                            .src_x        = (ui16)r.coor.x,
+                            .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+                            .src_width    = (ui16)r.size.x, // Dirty rect size.
+                            .src_height   = (ui16)r.size.y, //
+                            .dst_x        = (si16)dest_coor.x, // Window dest coor.
+                            .dst_y        = (si16)dest_coor.y, //
+                            .shm_seg_id   = session.shm_buffer.xid,
+                            .offset       = (ui32)dirty_offset, // New data start.
+                        });
+                    }
+                }
                 if (seq_num_any.has_value())
                 {
                     session.set_seq_num(seq_num_any.value());
@@ -6803,6 +6814,7 @@ namespace netxs::gui
                     session.set_mouse_input(batch_buffer, s.wm_hWnd, faux);
                 }
             }
+            s.sync.clear();
         }
         void _wait_next_vblank()
         {
@@ -6940,6 +6952,11 @@ namespace netxs::gui
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
+                        s.sync.clear();
+                        if (s.live)
+                        {
+                            s.sync.push_back(s.allocated_area); // Render whole window bitmap.
+                        }
                         _wm_layer_present(batch_buffer, s, seq_num_any);
                         // Hide ~~and unmap~~ or=1 layers.
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd }, // Hide layer before unmapping in order to avoid any destroying animation.
@@ -7708,7 +7725,11 @@ namespace netxs::gui
             auto& new_coor = s.allocated_area.coor;
             auto& old_size = s.presented_area.size;
             auto& old_coor = s.presented_area.coor;
-            if (!s.data.data() || new_size.x <= 0 || new_size.y <= 0) return;
+            if (!s.data.data() || new_size.x <= 0 || new_size.y <= 0)
+            {
+                s.sync.clear();
+                return;
+            }
             auto target_coor = s.live ? new_coor : hidden_coor;
             auto windowmoved = old_coor(target_coor);
             s.windowsized = s.live && old_size(new_size);
@@ -8283,7 +8304,42 @@ namespace netxs::gui
                     if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
                     if (e.window_id == session.root_window_id)
                     {
-                        if (session.atom_net_workarea && e.atom == session.atom_net_workarea)
+                        if (e.atom == session.atom_net_active_window && session.wl_present) // Workaround: Xwayland doesn't report focus events (to our main window) when clicking on taskbar. The focus is returned to the wrong layer from which it was taken. Setting the WM_TRANSIENT_FOR property makes no difference.
+                        {
+                            session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
+                                                                     .property    = session.atom_net_active_window,
+                                                                     .prop_type   = session.atom_window,
+                                                                     .long_length = 1 }, {},
+                            [&](auto& ev, view payload)
+                            {
+                                if (ev.type == x11::event::Error)
+                                {
+                                    if constexpr (debugmode) log("get_property error");
+                                    return;
+                                }
+                                payload.remove_prefix(sizeof(ev));
+                                auto reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                                if (reply.format == sizeof(ui32) * 8 && reply.prop_type == session.atom_window && reply.value_len > 0 && payload.size() >= 4)
+                                {
+                                    auto active_window = netxs::start_lifetime_as<ui32>(payload.data());
+                                    if constexpr (debugmode) log("%%  Got reply: refocus: active_window=0x%% seq=%%", prompt::x11, utf::to_hex(active_window), reply.sequence);
+                                    auto our_resource_id = (active_window & ~session.s.resource_id_mask) == session.s.resource_id_base;
+                                    auto focus_changed = is_foreground_window == !our_resource_id;
+                                    if (focus_changed)
+                                    {
+                                        auto focused = !!our_resource_id;
+                                        if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Focus changed: focused=%%", focused)));
+                                        if (focused && active_window != master.fg_hWnd
+                                                    && active_window != master.bg_hWnd
+                                                    && active_window != master.wm_hWnd) // Forward the input focus to our main window.
+                                        {
+                                            session.sendrq(x11::req::set_input_focus{ .window_id = (ui32)master.wm_hWnd });
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        else if (session.atom_net_workarea && e.atom == session.atom_net_workarea)
                         {
                             if constexpr (debugmode) log("Request atom_net_workarea value");
                             session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
@@ -8821,8 +8877,13 @@ namespace netxs::gui
                     auto focused = d.evtype == x11::req::xi2::event::FocusIn;
                     if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%% layout=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused, (si32)f.group.effective);
                     _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
-                    _toggle_foreground(focused);
-                    focus_event(focused);
+                    auto focus_changed = is_foreground_window == !focused;
+                    if (focus_changed)
+                    {
+                        if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Focus changed2: focused=%%", focused)));
+                        _toggle_foreground(focused);
+                        focus_event(focused);
+                    }
                 }
             }
             //if constexpr (debugmode) log("End ----------------------------------------");
