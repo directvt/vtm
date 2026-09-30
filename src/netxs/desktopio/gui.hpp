@@ -8283,7 +8283,42 @@ namespace netxs::gui
                     if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
                     if (e.window_id == session.root_window_id)
                     {
-                        if (session.atom_net_workarea && e.atom == session.atom_net_workarea)
+                        if (e.atom == session.atom_net_active_window && session.wl_present) // Workaround: Xwayland doesn't report focus events (to our main window) when clicking on taskbar. The focus is returned to the wrong layer from which it was taken. Setting the WM_TRANSIENT_FOR property makes no difference.
+                        {
+                            session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
+                                                                     .property    = session.atom_net_active_window,
+                                                                     .prop_type   = session.atom_window,
+                                                                     .long_length = 1 }, {},
+                            [&](auto& ev, view payload)
+                            {
+                                if (ev.type == x11::event::Error)
+                                {
+                                    if constexpr (debugmode) log("get_property error");
+                                    return;
+                                }
+                                payload.remove_prefix(sizeof(ev));
+                                auto reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                                if (reply.format == sizeof(ui32) * 8 && reply.prop_type == session.atom_window && reply.value_len > 0 && payload.size() >= 4)
+                                {
+                                    auto active_window = netxs::start_lifetime_as<ui32>(payload.data());
+                                    if constexpr (debugmode) log("%%  Got reply: refocus: active_window=0x%% seq=%%", prompt::x11, utf::to_hex(active_window), reply.sequence);
+                                    auto our_resource_id = (active_window & ~session.s.resource_id_mask) == session.s.resource_id_base;
+                                    auto focus_changed = is_foreground_window == !our_resource_id;
+                                    if (focus_changed)
+                                    {
+                                        auto focused = !!our_resource_id;
+                                        if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Focus changed: focused=%%", focused)));
+                                        if (focused && active_window != master.fg_hWnd
+                                                    && active_window != master.bg_hWnd
+                                                    && active_window != master.wm_hWnd) // Forward the input focus to our main window.
+                                        {
+                                            session.sendrq(x11::req::set_input_focus{ .window_id = (ui32)master.wm_hWnd });
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        else if (session.atom_net_workarea && e.atom == session.atom_net_workarea)
                         {
                             if constexpr (debugmode) log("Request atom_net_workarea value");
                             session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
@@ -8821,8 +8856,13 @@ namespace netxs::gui
                     auto focused = d.evtype == x11::req::xi2::event::FocusIn;
                     if constexpr (debugmode) log("%%Focus: sourceid=%% '%%' mods=0x%% leds=0x%% focused=%% layout=%%", prompt::x11, f.sourceid, session.input_devices[f.sourceid].name, utf::to_hex(f.mods.effective), utf::to_hex(f.mods.locked), (si32)focused, (si32)f.group.effective);
                     _set_keyboard_led_state(f.mods.effective); // Sync CapsLock/NumLock/ScrollLock.
-                    _toggle_foreground(focused);
-                    focus_event(focused);
+                    auto focus_changed = is_foreground_window == !focused;
+                    if (focus_changed)
+                    {
+                        if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Focus changed2: focused=%%", focused)));
+                        _toggle_foreground(focused);
+                        focus_event(focused);
+                    }
                 }
             }
             //if constexpr (debugmode) log("End ----------------------------------------");
