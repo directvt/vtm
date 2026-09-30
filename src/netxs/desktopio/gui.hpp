@@ -5571,7 +5571,11 @@ namespace netxs::gui
         }
         void layer_present(layer& s)
         {
-            if (!s.hdc) return;
+            if (!s.hdc)
+            {
+                s.sync.clear();
+                return;
+            }
             auto windowmoved = s.presented_area.coor(s.live ? s.allocated_area.coor : s.hidden);
             if (s.sync.empty())
             {
@@ -6763,26 +6767,33 @@ namespace netxs::gui
                                                                                  .y      = (ui16)target_area.coor.y,
                                                                                  .width  = (ui16)target_area.size.x,
                                                                                  .height = (ui16)target_area.size.y });
-                //todo use dirty regions
-                auto r = target_area;
-                r.coor -= s.allocated_area.coor;
-                auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
-                seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
+                auto crop_offset = target_area.coor - s.allocated_area.coor;
+                for (auto r : s.sync)
                 {
-                    .major_opcode = session.shm_major_opcode,
-                    .drawable     = (ui32)s.wm_hWnd,
-                    .gc_id        = (ui32)s.wm_hdc,
-                    .total_width  = (ui16)s.allocated_area.size.x,
-                    .total_height = (ui16)s.allocated_area.size.y,
-                    .src_x        = (ui16)r.coor.x,
-                    .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
-                    .src_width    = (ui16)r.size.x, // Dirty rect size.
-                    .src_height   = (ui16)r.size.y, //
-                    .dst_x        = (si16)0,//r.coor.x, // Window dest coor.
-                    .dst_y        = (si16)0,//r.coor.y, //
-                    .shm_seg_id   = session.shm_buffer.xid,
-                    .offset       = (ui32)dirty_offset, // New data start.
-                });
+                    r.trimby(target_area);
+                    if (r)
+                    {
+                        r.coor -= s.allocated_area.coor;
+                        auto dest_coor = r.coor - crop_offset;
+                        auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
+                        seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
+                        {
+                            .major_opcode = session.shm_major_opcode,
+                            .drawable     = (ui32)s.wm_hWnd,
+                            .gc_id        = (ui32)s.wm_hdc,
+                            .total_width  = (ui16)s.allocated_area.size.x,
+                            .total_height = (ui16)s.allocated_area.size.y,
+                            .src_x        = (ui16)r.coor.x,
+                            .src_y        = (ui16)0,        // Use 0, because dirty_offset already points to the required line Y.
+                            .src_width    = (ui16)r.size.x, // Dirty rect size.
+                            .src_height   = (ui16)r.size.y, //
+                            .dst_x        = (si16)dest_coor.x, // Window dest coor.
+                            .dst_y        = (si16)dest_coor.y, //
+                            .shm_seg_id   = session.shm_buffer.xid,
+                            .offset       = (ui32)dirty_offset, // New data start.
+                        });
+                    }
+                }
                 if (seq_num_any.has_value())
                 {
                     session.set_seq_num(seq_num_any.value());
@@ -6803,6 +6814,7 @@ namespace netxs::gui
                     session.set_mouse_input(batch_buffer, s.wm_hWnd, faux);
                 }
             }
+            s.sync.clear();
         }
         void _wait_next_vblank()
         {
@@ -6940,6 +6952,11 @@ namespace netxs::gui
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
+                        s.sync.clear();
+                        if (s.live)
+                        {
+                            s.sync.push_back(s.allocated_area); // Render whole window bitmap.
+                        }
                         _wm_layer_present(batch_buffer, s, seq_num_any);
                         // Hide ~~and unmap~~ or=1 layers.
                         session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd }, // Hide layer before unmapping in order to avoid any destroying animation.
@@ -7708,7 +7725,11 @@ namespace netxs::gui
             auto& new_coor = s.allocated_area.coor;
             auto& old_size = s.presented_area.size;
             auto& old_coor = s.presented_area.coor;
-            if (!s.data.data() || new_size.x <= 0 || new_size.y <= 0) return;
+            if (!s.data.data() || new_size.x <= 0 || new_size.y <= 0)
+            {
+                s.sync.clear();
+                return;
+            }
             auto target_coor = s.live ? new_coor : hidden_coor;
             auto windowmoved = old_coor(target_coor);
             s.windowsized = s.live && old_size(new_size);
