@@ -1880,6 +1880,7 @@ namespace netxs::os
 
     namespace io
     {
+        static auto stdout_mutex = std::mutex{};
         template<class Size_t>
         auto recv(fd_t fd, char* buffer, Size_t size)
         {
@@ -1945,6 +1946,7 @@ namespace netxs::os
         }
         auto send(qiew buffer)
         {
+            auto lock = std::lock_guard{ io::stdout_mutex };
             return io::send(os::stdout_fd, buffer);
         }
         template<class ...Args>
@@ -2638,7 +2640,7 @@ namespace netxs::os
                 {
                     yield.clipbuf(size, utf8, form);
                 }
-                io::send(os::stdout_fd, yield);
+                io::send(yield);
                 success = true;
 
                 #if defined(__ANDROID__)
@@ -2950,6 +2952,7 @@ namespace netxs::os
             #else
 
                 auto lock = netxs::logger::globals();
+                auto stdout_lock = std::lock_guard{ os::io::stdout_mutex };
                 auto crop = ::fork();
                 if (!crop)
                 {
@@ -3486,6 +3489,7 @@ namespace netxs::os
             sock handle; // ipc::stdcon: IO descriptor.
             text buffer; // ipc::stdcon: Receive buffer.
             flag inread; // ipc::stdcon: Reading is incomplete.
+            std::mutex mutex; // ipc::stdcon: Mutex for atomic multithreaded sending.
 
             stdcon()
                 : pipe{ faux },
@@ -3523,6 +3527,7 @@ namespace netxs::os
             virtual bool send(view buff) override
             {
                 pipe::isbusy = faux; // io::send blocks until the send is complete.
+                auto lock = std::lock_guard{ mutex };
                 return io::send(handle.w, buff);
             }
             qiew recv_all(char* buff, size_t size)
@@ -4337,7 +4342,7 @@ namespace netxs::os
                         ::cfmakeraw(&raw_mode);
                         ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
                         os::vgafont();
-                        io::send(os::stdout_fd, ansi::save_title());
+                        io::send(ansi::save_title());
                     }
                     else os::fail("Check you are using the proper tty device");
 
@@ -4354,7 +4359,7 @@ namespace netxs::os
                         ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
                     #else
                         ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
-                        io::send(os::stdout_fd, ansi::load_title());
+                        io::send(ansi::load_title());
                     #endif
                 };
                 std::atexit(repair);
@@ -4434,7 +4439,7 @@ namespace netxs::os
                     if (os::stdin_fd != os::invalid_fd && os::stdout_fd != os::invalid_fd)
                     {
                         auto lock = netxs::generics::waitable{};
-                        io::send(os::stdout_fd, "\x1b[?u\x1b[c"sv); // Send "\e[?u\e[c" request. KKP + DA1.
+                        io::send("\x1b[?u\x1b[c"sv); // Send "\e[?u\e[c" request. KKP + DA1.
                         auto reading_thread = std::thread{ [&]
                         {
                             auto buffer = std::array<char, os::pipebuf>{};
@@ -4657,7 +4662,7 @@ namespace netxs::os
                             ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                             ::dup2(fds->e, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                             fds.reset();
-                            auto iofx = [](auto& data){ io::send(os::stdout_fd, data); };
+                            auto iofx = [](auto& data){ io::send(data); };
                             if (cfg.cwd.size())
                             {
                                 auto err = std::error_code{};
@@ -5175,7 +5180,7 @@ namespace netxs::os
         }
         auto logger()
         {
-            static auto dtvt_output = [](auto& data){ io::send(os::stdout_fd, data); };
+            static auto dtvt_output = [](auto& data){ io::send(data); };
             return netxs::logger::attach([](qiew utf8)
             {
                 if (utf8.empty()) return;
@@ -6861,7 +6866,7 @@ namespace netxs::os
                 inpmode &=~nt::console::inmode::quickedit;
                 ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode()", os::unexpected);
 
-                io::send(os::stdout_fd, ansi::altbuf(true).cursor(faux).bpmode(true)); // Windows 10 console compatibility (turning scrollback off, cursor not hidden by WinAPI).
+                io::send(ansi::altbuf(true).cursor(faux).bpmode(true)); // Windows 10 console compatibility (turning scrollback off, cursor not hidden by WinAPI).
                 auto palette = CONSOLE_SCREEN_BUFFER_INFOEX{ .cbSize = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX), .wAttributes = {} };
                 ok(::GetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::GetConsoleScreenBufferInfoEx()", os::unexpected);
 
@@ -6881,7 +6886,7 @@ namespace netxs::os
             #else
                 auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16).kkp_on(dtvt::vtmode & ui::console::vt_KKP);
                 auto vtend = ansi::kkp_off(dtvt::vtmode & ui::console::vt_KKP).scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
-                io::send(os::stdout_fd, vtrun);
+                io::send(vtrun);
             #endif
 
             auto& intio = *dtvt::client;
@@ -6930,7 +6935,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
                 if (os::signals::leave) return; // Don't restore closing console. (deadlock on Windows 8).
-                io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
+                io::send(ansi::altbuf(faux).cursor(true).bpmode(faux));
                 if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
                     auto count = DWORD{};
@@ -6938,7 +6943,7 @@ namespace netxs::os
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else
-                io::send(os::stdout_fd, vtend);
+                io::send(vtend);
             #endif
 
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
