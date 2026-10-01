@@ -2133,6 +2133,7 @@ namespace netxs::gui
                 static constexpr auto badsvg = R"==(<svg viewBox="0 0 1000 1000">
                                                         <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
                                                     </svg>)=="sv;
+                //log("Broken svg data: ", utf::debase437(view{ svg_data.data(), svg_data.size() })); // Log corrupted document.
                 auto black = utf::replace_all(badsvg, "currentColor", "#000000");
                 document_black = lunasvg::Document::loadFromData(black.data(), black.size());
                 auto trans = utf::replace_all(badsvg, "currentColor", "transparent");
@@ -4472,7 +4473,7 @@ namespace netxs::gui
                     base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
-                        sync_pixel_layout(); // Align grips and shadows.
+                        //sync_pixel_layout(); //todo that won't fix it if the system itself shifted our layers // Align grips and shadows.
                         update_gui(); // Update resize-grips if size is not changed.
                     });
                     return;

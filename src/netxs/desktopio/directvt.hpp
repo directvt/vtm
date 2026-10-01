@@ -1311,7 +1311,7 @@ namespace netxs::directvt
                         auto upto = iter + count;
                         if (upto > tail)
                         {
-                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
+                            log("%%bitmap: Corrupted data, subtype: %%", prompt::dtvt, (si32)what);
                             break;
                         }
                         std::fill(iter, upto, mark);
@@ -1324,7 +1324,7 @@ namespace netxs::directvt
                         auto dest = head + offset;
                         if (dest >= tail)
                         {
-                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
+                            log("%%bitmap: Corrupted data, subtype: %%", prompt::dtvt, (si32)what);
                             break;
                         }
                         if constexpr (!std::is_same_v<P, noop>)
@@ -1336,7 +1336,7 @@ namespace netxs::directvt
                     }
                     else // Unknown subtype.
                     {
-                        log(prompt::dtvt, "bitmap: ", "Unknown data, subtype: ", what);
+                        log("%%bitmap: Unknown data subtype: %%", prompt::dtvt, (si32)what);
                         break;
                     }
                 }

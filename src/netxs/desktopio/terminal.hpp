@@ -9101,11 +9101,21 @@ namespace netxs::ui
             base::signal(tier::release, terminal::events::reset);
             reset_pockets();
             target = &normal;
-            invbit = faux;
-            decckm = faux;
             bpmode = faux;
             altscr = defcfg.def_alt_on;
             normal.brush.reset();
+            follow[axis::Y] = true;
+            _decset(25); // Cursor on.
+            _decrst(1); // Cursor keys ANSI mode.
+            _decrst(5); // Disable inverted rendering (DECSCNM).
+            _decrst(1000); // Disable mouse buttons reporting mode.
+            _decrst(1002); // Disable mouse buttons and drags reporting mode.
+            _decrst(1003); // Disable all mouse events reporting mode.
+            _decrst(1004); // Disable focus tracking.
+            _decrst(1005); // Disable UTF-8 mouse reporting protocol.
+            _decrst(1006); // Disable SGR mouse reporting protocol (set X11 mode).
+            _decrst(10060); // Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
+            _decrst(1016); // Disable mouse reporting in pixels.
             ipccon.reset();
         }
         // term: Set terminal parameters. (DECSET).
