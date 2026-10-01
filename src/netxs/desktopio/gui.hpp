@@ -4472,7 +4472,7 @@ namespace netxs::gui
                     base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
-                        sync_pixel_layout(); // Align grips and shadows.
+                        //sync_pixel_layout(); //todo that won't fix it if the system itself shifted our layers // Align grips and shadows.
                         update_gui(); // Update resize-grips if size is not changed.
                     });
                     return;
