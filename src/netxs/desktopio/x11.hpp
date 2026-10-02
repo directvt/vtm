@@ -2641,7 +2641,6 @@ namespace netxs::x11
         }
         auto get_props()
         {
-            auto ok = true;
             if (atom_net_workarea)
             {
                 sendrq<x11::req::get_property>({ .window_id   = root_window_id,
@@ -2663,9 +2662,12 @@ namespace netxs::x11
                     workarea = rect{{ x, y }, { w, h }};
                     if constexpr (debugmode) log("%%Received property for atom='_NET_WORKAREA' value=", prompt::x11, workarea);
                 }
-                else ok = faux;
+                else
+                {
+                    if constexpr (debugmode) log("%%Failed to get the '_NET_WORKAREA' property", prompt::x11);
+                }
             }
-            return ok;
+            return true;
         }
         auto get_atom_name(ui32 atom)
         {
