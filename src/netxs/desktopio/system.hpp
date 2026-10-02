@@ -1937,27 +1937,19 @@ namespace netxs::os
         template<class Span>
         auto recv(fd_t fd, Span& buffer)
         {
-            return io::recv(fd, buffer.data(), buffer.size());
+            assert(sizeof(*buffer.data()) == sizeof(char));
+            return io::recv(fd, (char*)buffer.data(), buffer.size());
         }
         template<class View>
         auto send(fd_t fd, View&& buffer)
         {
-            return io::send(fd, buffer.data(), buffer.size());
+            assert(sizeof(*buffer.data()) == sizeof(char));
+            return io::send(fd, (char const*)buffer.data(), buffer.size());
         }
         auto send(qiew buffer)
         {
             auto lock = std::lock_guard{ io::stdout_mutex };
-            return io::send(os::stdout_fd, buffer);
-        }
-        template<class ...Args>
-        auto recv(sock& handle, Args&&... args)
-        {
-            return io::recv(handle.r, std::forward<Args>(args)...);
-        }
-        template<class ...Args>
-        auto send(sock& handle, Args&&... args)
-        {
-            return io::send(handle.w, std::forward<Args>(args)...);
+            return io::send(os::stdout_fd, buffer.data(), buffer.size());
         }
 
         namespace
@@ -3537,7 +3529,7 @@ namespace netxs::os
                 inread.exchange(true);
                 while (pipe::active && rest) // The read call can be interrupted by io::abort().
                 {
-                    auto crop = io::recv(handle, dest, rest); // The read call can be interrupted by the write side when their read call is interrupted.
+                    auto crop = io::recv(handle.r, dest, rest); // The read call can be interrupted by the write side when their read call is interrupted.
                     rest -= crop.size();
                     dest += crop.size();
                 }
@@ -3551,7 +3543,7 @@ namespace netxs::os
                 inread.exchange(true);
                 if (pipe::active) // The read call can be interrupted by io::abort().
                 {
-                    result = io::recv(handle, buff, size); // The read call can be interrupted by the write side when their read call is interrupted.
+                    result = io::recv(handle.r, buff, size); // The read call can be interrupted by the write side when their read call is interrupted.
                 }
                 inread.exchange(faux);
                 return result;
