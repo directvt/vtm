@@ -2023,6 +2023,8 @@ namespace netxs::x11
 
         std::array<flag, 65536> received_replies;
 
+        text batch_buffer;
+
         session_t() = default;
         ~session_t()
         {
@@ -2141,6 +2143,17 @@ namespace netxs::x11
                 buffer += view{ (char*)&request, sizeof(request) };
             }
             return sync_sequence_counter;
+        }
+        void send_batch(auto accum_proc)
+        {
+            auto lock = std::lock_guard{ mutex };
+            accum_proc(batch_buffer);
+            if (batch_buffer.size())
+            {
+                x11connection->send(batch_buffer);
+                if constexpr (debugmode) log("%% layer_move_all: Batched layout update sent to X-server (size=%% bytes)", prompt::x11, batch_buffer.size());
+                batch_buffer.clear();
+            }
         }
         auto parse_reply(x11::event::any& ev, text& read_buffer)
         {
@@ -2444,7 +2457,7 @@ namespace netxs::x11
                                               .window_id = new_window_id,
                                               .parent_id = root_window_id,
                                               .visual_id = argb_visual32_id },
-                                            x11::req::create_window::payload{ //.background_pixel = 0x00'000000u,
+                                            x11::req::create_window::payload{ .background_pixel = 0x00'000000u,
                                                                               .border_pixel = 0x00'000000u, // Mandatory: Own 32-bit ARGB border pixel value.
                                                                               .backing_store = x11::req::create_window::payload::Always,
                                                                               //.bit_gravity = x11::req::create_window::BitGravityStatic,//BitGravityForget,//BitGravityNorthWest,
