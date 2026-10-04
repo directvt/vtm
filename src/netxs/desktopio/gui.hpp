@@ -8188,6 +8188,7 @@ namespace netxs::gui
                 assert(read_buffer.size() == x11::recv_packet_size);
                 auto ev = netxs::start_lifetime_as<x11::event::any>(read_buffer.data());
                 auto type = ev.type & 0x7F;
+                auto synthetic = ev.type & 0x80;
                 if constexpr (debugmode) if (type != x11::event::GenericEvent) log("%%seq=%% event=%% (%%)", prompt::x11, ev.sequence, session.event_str(type), type);
                 //if constexpr (debugmode)
                 //{
@@ -8242,17 +8243,20 @@ namespace netxs::gui
                             else if (s.live && ex.count == 0)
                             {
                                 auto lock_ui = bell::sync();
-                                auto visible_area = s.presented_area;
-                                //todo update dirty_region only
-                                // auto visible_area = ...;
-                                auto seq_num_any = std::optional<ui16>{};
-                                session.send_batch([&](auto& batch_buffer) // Render the entire window raster.
+                                if (s.unfocused_area.size > dot_11)
                                 {
-                                    _blit_wm_layer(batch_buffer, s, visible_area, seq_num_any);
-                                });
-                                if (seq_num_any.has_value())
-                                {
-                                    session.sync_reply(seq_num_any.value(), x11::vbi);
+                                    auto visible_area = s.unfocused_area;
+                                    //todo update dirty_region only
+                                    // auto visible_area = ...;
+                                    auto seq_num_any = std::optional<ui16>{};
+                                    session.send_batch([&](auto& batch_buffer) // Render the entire window raster.
+                                    {
+                                        _blit_wm_layer(batch_buffer, s, visible_area, seq_num_any);
+                                    });
+                                    if (seq_num_any.has_value())
+                                    {
+                                        session.sync_reply(seq_num_any.value(), x11::vbi);
+                                    }
                                 }
                             }
                             break;
@@ -8264,7 +8268,7 @@ namespace netxs::gui
                 {
                     auto cn = netxs::start_lifetime_as<x11::event::configure_notify>(read_buffer.data());
                     auto new_area = rect{{ cn.x, cn.y }, { cn.width, cn.height }};
-                    if constexpr (debugmode) log("Window reconfigured: window_id=%% event_window_id=%% area=%%", utf::to_hex(cn.window_id), utf::to_hex(cn.event_window_id), new_area);
+                    if constexpr (debugmode) log("Window reconfigured: window_id=%% event_window_id=%% area=%% or=%% synth=%%", utf::to_hex(cn.window_id), utf::to_hex(cn.event_window_id), new_area, (si32)cn.override_redirect, (si32)synthetic);
                     if (cn.window_id == session.root_window_id)
                     {
                         if (session.x11_display_size != new_area.size)
@@ -8289,13 +8293,16 @@ namespace netxs::gui
                     }
                     else // Update wm-layers.
                     {
-                        //check_window(twod{ cn.x, cn.y }); // Window move/resize.
                         for (auto& l : layers)
                         {
                             auto& s = l.get();
                             if (cn.window_id == s.wm_hWnd)
                             {
                                 auto lock_ui = bell::sync();
+                                if (!synthetic/*case without reparenting*/ && new_area.size == s.allocated_area.size && new_area.coor != s.allocated_area.coor && new_area.coor == dot_00) // Filter fake notifications (on pure X11).
+                                {
+                                    break;
+                                }
                                 if (new_area.size != s.unfocused_area.size)
                                 {
                                     session.send_batch([&](auto& batch_buffer) // Render the entire window raster.

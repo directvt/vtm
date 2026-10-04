@@ -1689,7 +1689,7 @@ namespace netxs::x11
             byte type;
             byte pad;
             ui16 sequence;
-            ui32 event_window_id;
+            ui32 event_window_id; // Who sent the event.
             ui32 window_id;
             ui32 above_sibling;
             si16 x;
