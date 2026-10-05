@@ -3828,6 +3828,7 @@ namespace netxs::gui
                     auto& s = l.get();
                     s.hide();
                 }
+                netxs::set_flag<task::moved>(reload); // Trigger to hide (X11).
             }
             else if (fsmode == winstate::maximized)
             {
@@ -9002,6 +9003,7 @@ namespace netxs::gui
                     if (focus_changed)
                     {
                         if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Focus changed2: focused=%%", focused)));
+                        if (focused) restore_if_minimized();
                         _toggle_foreground(focused);
                         focus_event(focused);
                     }

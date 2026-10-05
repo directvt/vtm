@@ -1934,6 +1934,7 @@ namespace netxs::x11
         ui32                                  atom_wm_normal_hints = 0;
         ui32                                  atom_wm_size_hints = 0;
         ui32                                  atom_wm_class = 0;
+        ui32                                  atom_wm_change_state = 0; // WM_CHANGE_STATE
 
         ui32                                  atom_motif_wm_hints = 0; // Disable decoractions.
         ui32                                  atom_net_wm_icon = 0; // _NET_WM_ICON
@@ -2646,6 +2647,7 @@ namespace netxs::x11
             atom_net_workarea           = get_atom_id("_NET_WORKAREA",    faux);
             atom_wm_protocols           = get_atom_id("WM_PROTOCOLS",            true);
             atom_wm_delete_window       = get_atom_id("WM_DELETE_WINDOW",        true);
+            atom_wm_change_state        = get_atom_id("WM_CHANGE_STATE",         true);
             atom_net_active_window      = get_atom_id("_NET_ACTIVE_WINDOW",      true);
             atom_net_number_of_desktops = get_atom_id("_NET_NUMBER_OF_DESKTOPS", true);
             atom_net_current_desktop    = get_atom_id("_NET_CURRENT_DESKTOP",    true);
