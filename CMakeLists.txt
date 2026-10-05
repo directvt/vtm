@@ -27,7 +27,7 @@ if(NOT WIN32 AND "$ENV{LINUX_CXX_FLAGS}" STREQUAL "") # If CMakeSettings.json is
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -pthread")
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(vtm PRIVATE -fconstexpr-steps=100000000)
+    target_compile_options(vtm PRIVATE -fconstexpr-steps=100000000 -fexperimental-library)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_options(vtm PRIVATE /constexpr:steps10000000 /EHsc /bigobj /utf-8 /Zc:preprocessor)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")

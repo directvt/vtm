@@ -1689,7 +1689,7 @@ namespace netxs::x11
             byte type;
             byte pad;
             ui16 sequence;
-            ui32 event_window_id;
+            ui32 event_window_id; // Who sent the event.
             ui32 window_id;
             ui32 above_sibling;
             si16 x;
@@ -1934,6 +1934,7 @@ namespace netxs::x11
         ui32                                  atom_wm_normal_hints = 0;
         ui32                                  atom_wm_size_hints = 0;
         ui32                                  atom_wm_class = 0;
+        ui32                                  atom_wm_change_state = 0; // WM_CHANGE_STATE
 
         ui32                                  atom_motif_wm_hints = 0; // Disable decoractions.
         ui32                                  atom_net_wm_icon = 0; // _NET_WM_ICON
@@ -2022,6 +2023,8 @@ namespace netxs::x11
         bool wl_present{};
 
         std::array<flag, 65536> received_replies;
+
+        text batch_buffer;
 
         session_t() = default;
         ~session_t()
@@ -2141,6 +2144,17 @@ namespace netxs::x11
                 buffer += view{ (char*)&request, sizeof(request) };
             }
             return sync_sequence_counter;
+        }
+        void send_batch(auto accum_proc)
+        {
+            auto lock = std::lock_guard{ mutex };
+            accum_proc(batch_buffer);
+            if (batch_buffer.size())
+            {
+                x11connection->send(batch_buffer);
+                if constexpr (debugmode) log("%% layer_move_all: Batched layout update sent to X-server (size=%% bytes)", prompt::x11, batch_buffer.size());
+                batch_buffer.clear();
+            }
         }
         auto parse_reply(x11::event::any& ev, text& read_buffer)
         {
@@ -2444,7 +2458,7 @@ namespace netxs::x11
                                               .window_id = new_window_id,
                                               .parent_id = root_window_id,
                                               .visual_id = argb_visual32_id },
-                                            x11::req::create_window::payload{ //.background_pixel = 0x00'000000u,
+                                            x11::req::create_window::payload{ .background_pixel = 0x00'000000u,
                                                                               .border_pixel = 0x00'000000u, // Mandatory: Own 32-bit ARGB border pixel value.
                                                                               .backing_store = x11::req::create_window::payload::Always,
                                                                               //.bit_gravity = x11::req::create_window::BitGravityStatic,//BitGravityForget,//BitGravityNorthWest,
@@ -2633,6 +2647,7 @@ namespace netxs::x11
             atom_net_workarea           = get_atom_id("_NET_WORKAREA",    faux);
             atom_wm_protocols           = get_atom_id("WM_PROTOCOLS",            true);
             atom_wm_delete_window       = get_atom_id("WM_DELETE_WINDOW",        true);
+            atom_wm_change_state        = get_atom_id("WM_CHANGE_STATE",         true);
             atom_net_active_window      = get_atom_id("_NET_ACTIVE_WINDOW",      true);
             atom_net_number_of_desktops = get_atom_id("_NET_NUMBER_OF_DESKTOPS", true);
             atom_net_current_desktop    = get_atom_id("_NET_CURRENT_DESKTOP",    true);
