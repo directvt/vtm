@@ -3828,7 +3828,6 @@ namespace netxs::gui
                     auto& s = l.get();
                     s.hide();
                 }
-                netxs::set_flag<task::moved>(reload); // Trigger to hide (X11).
             }
             else if (fsmode == winstate::maximized)
             {
@@ -6706,7 +6705,8 @@ namespace netxs::gui
         std::unordered_map<ui32, std::jthread> timer_threads; // window: Timer threads.
         std::mutex                             timer_mutex;   // window: Timer mutex.
 
-        si32  wm_resized_count{}; // window: Number of requests executed to modify the geometry of wm-layers.
+        si32 wm_resized_count{}; // window: Number of requests executed to modify the geometry of wm-layers.
+        ui32 last_x11_timestamp{}; // window: The last user input timestamp.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -8022,7 +8022,27 @@ namespace netxs::gui
         //                                            opacity_value);
         //    if constexpr (debugmode) log("%% Window 0x%% opacity set to %%", prompt::x11, utf::to_hex(window_id), alpha);
         //}
-        void window_sync_taskbar(si32 /*new_state*/) {}
+        void window_sync_taskbar(si32 new_state)
+        {
+            if (new_state == winstate::minimized)
+            {
+                netxs::set_flag<task::moved>(reload); // Trigger to hide (X11).
+                //todo Drop input focus.
+                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
+                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
+                //                                                    .originator_id  = (ui32)master.wm_hWnd,
+                //                                                    .message_type   = session.atom_net_active_window,
+                //                                                    .serial         = (ui16)0,
+                //                                                    .command        = (ui32)1,                    // data[0]: 1: Generic application request.
+                //                                                    .lParam         = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
+                //                                                    .data32         = { (ui32)master.wm_hWnd }}); // data[2]: Our window id.
+                //if constexpr (debugmode) log("Drop input focus. seq_num=%%", seq_num);
+            }
+            else
+            {
+                //
+            }
+        }
         rect window_get_fs_area(rect /*window_area*/)
         {
             //todo multi-monitor setup
@@ -8687,6 +8707,7 @@ namespace netxs::gui
         {
             //if constexpr (debugmode) log("Beg ----------------------------------------");//, "Packet in hex:\n", utf::buffer_to_hex(packet, true));
             auto d = netxs::start_lifetime_as<x11::req::xi2::event::base>(packet.data());
+            last_x11_timestamp = d.time;
             auto device_id = d.deviceid;
             auto is_master = session.input_devices[d.deviceid].is_master;
             //if constexpr (debugmode) log("XInput2: %% evtype=%% deviceid=%% '%%' is_master=%%", x11::req::xi2::event::names[d.evtype], d.evtype, d.deviceid, session.input_devices[d.deviceid].name, is_master);
