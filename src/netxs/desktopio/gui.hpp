@@ -6758,13 +6758,12 @@ namespace netxs::gui
         }
         void _blit_wm_layer(text& batch_buffer, layer& s, rect visible_area, std::optional<ui16>& seq_num_any)
         {
-            if (auto target_area = s.allocated_area.trim(visible_area))
+            if (auto target_area = s.allocated_area.trim(visible_area).trim(s.unfocused_area))
             {
                 // Render content.
                 auto r = target_area;
-                auto crop_offset = target_area.coor - s.allocated_area.coor;
+                auto dest_coor = r.coor - s.unfocused_area.coor;
                 r.coor -= s.allocated_area.coor;
-                auto dest_coor = r.coor - crop_offset;
                 auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
                 seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
                 {
@@ -6792,6 +6791,10 @@ namespace netxs::gui
                 // Leave it transparent.
             }
         }
+        auto _session_workarea()
+        {
+            return session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size };
+        }
         void _wm_layer_present(text& batch_buffer, layer& s, std::optional<ui16>& seq_num_any)
         {
             if (s.unfocused_area.size == dot_00) return; // Don't touch uninitialized wm layers.
@@ -6799,7 +6802,7 @@ namespace netxs::gui
             auto window_resized = std::exchange(s.presented_area.size, s.live ? s.allocated_area.size : dot_11) != s.presented_area.size;
             if (window_moved || window_resized) // Request wm-layer resize. And go to wait for ConfigureNotify.
             {
-                auto target_area = s.presented_area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size });
+                auto target_area = s.presented_area.trim(_session_workarea());
                 session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.wm_hWnd },
                                             x11::req::configure_window::payload{ .x      = (ui16)target_area.coor.x,
                                                                                  .y      = (ui16)target_area.coor.y,
@@ -6808,16 +6811,15 @@ namespace netxs::gui
             }
             else if (s.unfocused_area.size > dot_11 && s.live) // Update wm-layer in place.
             {
-                if (auto target_area = s.unfocused_area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size }))
+                if (auto target_area = s.unfocused_area.trim(_session_workarea()))
                 {
-                    auto crop_offset = target_area.coor - s.allocated_area.coor;
                     for (auto r : s.sync)
                     {
                         r.trimby(target_area);
                         if (r)
                         {
+                            auto dest_coor = r.coor - s.unfocused_area.coor;
                             r.coor -= s.allocated_area.coor;
-                            auto dest_coor = r.coor - crop_offset;
                             auto dirty_offset = s.shm_offset + r.coor.y * s.allocated_area.size.x * sizeof(ui32);
                             seq_num_any = session.accumrq(batch_buffer, x11::req::shm::put_image
                             {
@@ -7011,7 +7013,7 @@ namespace netxs::gui
                         {
                             auto& s = l.get();
                             s.presented_area = rect{ s.allocated_area.coor, s.live ? s.allocated_area.size : dot_11};
-                            auto target_area = s.presented_area.trim(session.workarea ? session.workarea : rect{ dot_00, session.x11_display_size });
+                            auto target_area = s.presented_area.trim(_session_workarea());
                             if (!s.live || !target_area) // Hide fg-layer immediately.
                             {
                                 _hide_fg_layer(batch_buffer, s);
@@ -8188,7 +8190,7 @@ namespace netxs::gui
                 assert(read_buffer.size() == x11::recv_packet_size);
                 auto ev = netxs::start_lifetime_as<x11::event::any>(read_buffer.data());
                 auto type = ev.type & 0x7F;
-                auto synthetic = ev.type & 0x80;
+                auto synthetic = !!(ev.type & 0x80);
                 if constexpr (debugmode) if (type != x11::event::GenericEvent) log("%%seq=%% event=%% (%%)", prompt::x11, ev.sequence, session.event_str(type), type);
                 //if constexpr (debugmode)
                 //{
@@ -8299,11 +8301,14 @@ namespace netxs::gui
                             if (cn.window_id == s.wm_hWnd)
                             {
                                 auto lock_ui = bell::sync();
-                                if (!synthetic/*case without reparenting*/ && new_area.size == s.allocated_area.size && new_area.coor != s.allocated_area.coor && new_area.coor == dot_00) // Filter fake notifications (on pure X11).
+                                auto visible_coor = s.allocated_area.trim(_session_workarea()).coor;
+                                if (!synthetic/*case without reparenting*/ && new_area.coor != visible_coor && new_area.coor == dot_00) // Filter fake notifications (on pure X11).
                                 {
                                     break;
                                 }
-                                if (new_area.size != s.unfocused_area.size)
+                                auto resized = new_area.size != s.unfocused_area.size;
+                                s.unfocused_area = new_area;
+                                if (resized)
                                 {
                                     session.send_batch([&](auto& batch_buffer) // Render the entire window raster.
                                     {
@@ -8342,7 +8347,6 @@ namespace netxs::gui
                                     --wm_resized_count;
                                     //log("ConfigureNotify: --wm_resized_count=%% new_area=%% s.id=0x%%", wm_resized_count, new_area, utf::to_hex(cn.window_id));
                                 }
-                                s.unfocused_area = new_area;
                                 break;
                             }
                         }
