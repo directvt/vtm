@@ -198,7 +198,7 @@ R"==(
                 <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->
             </names>
         </colors>
-        <border=0/>  <!-- Terminal window left and right padding (border width). -->
+        <border=1/>  <!-- Terminal window left and right padding (border width). -->
         <tablen=8/>  <!-- Tab stop length. -->
         <menu item*>
             <autohide=/Menu/Defaults/autohide/>
