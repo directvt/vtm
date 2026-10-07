@@ -72,7 +72,7 @@ cmake . -B bin -DCMAKE_CXX_FLAGS="-static -static-libstdc++"
 
 cmake --build bin
 
-# Remove all debug symbols. It reduces vtm size from 27Mb -> 11Mb.
+# Remove all debug symbols. It reduces vtm size.
 strip -s bin/vtm
 ```
 
