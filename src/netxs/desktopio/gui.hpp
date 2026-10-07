@@ -8033,76 +8033,10 @@ namespace netxs::gui
                                                      .originator_id  = (ui32)master.wm_hWnd,
                                                      .message_type   = session.atom_wm_change_state,
                                                      .serial         = 3u }); // 3: IconicState
-
-                log("last_x11_timestamp=%%", last_x11_timestamp);
-                //doesnt' work (removes from taskbar)
-                //session.sendrq(x11::req::unmap_window{ .window_id = (ui32)master.wm_hWnd });
-                //doesnt' work (keep our window)
-                //session.sendrq(x11::req::set_input_focus{ .window_id = 0, .time = last_x11_timestamp });
-                //doesnt' work (keep our window)
-                //session.sendrq(x11::req::set_input_focus{ .window_id = session.root_window_id, .time = last_x11_timestamp });
-                //doesnt' work
-                //session.sendrq(x11::req::set_input_focus{ .revert_to = 0, .window_id = 0, .time = last_x11_timestamp });
-                //doesnt' work
-                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
-                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
-                //                                                    .originator_id  = (ui32)master.wm_hWnd,
-                //                                                    .message_type   = session.atom_net_active_window,
-                //                                                    .serial         = (ui32)1,                    // data[0]: 1: Generic application request.
-                //                                                    .command        = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
-                //                                                    .lParam         = (ui32)master.wm_hWnd,       // data[2]: Our window id.
-                //                                                    .data32         = {} });
-                //doesnt' work
-                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
-                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
-                //                                                    .originator_id  = (ui32)master.wm_hWnd,
-                //                                                    .message_type   = session.atom_net_active_window,
-                //                                                    .serial         = (ui32)0,                    // data[0]:.
-                //                                                    .command        = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
-                //                                                    .lParam         = (ui32)0,                     // data[2]:.
-                //                                                    .data32         = {} });
-                //doesnt' work
-                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
-                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
-                //                                                    .originator_id  = (ui32)0, // 0: Drop focus.
-                //                                                    .message_type   = session.atom_net_active_window,
-                //                                                    .serial         = (ui32)1,                    // data[0]: 1: App request.
-                //                                                    .command        = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
-                //                                                    .lParam         = (ui32)master.wm_hWnd,       // data[2]: Request originator.
-                //                                                    .data32         = {} });
-                //doesnt' work
-                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
-                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
-                //                                                    .originator_id  = (ui32)master.wm_hWnd,
-                //                                                    .message_type   = session.atom_net_active_window,
-                //                                                    .serial         = (ui32)2,                    // data[0]: 2: Pager request.
-                //                                                    .command        = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
-                //                                                    .lParam         = (ui32)0,       // data[2]: 0: focus target.
-                //                                                    .data32         = {} });
-                //doesnt' work
-                //session.sendrq(x11::req::set_input_focus{ .window_id = 1, .time = last_x11_timestamp });
-                //doesnt' work
-                //session.sendrq(x11::req::set_input_focus{
-                //    .revert_to = 1, // RevertToRoot
-                //    .window_id = 1, // PointerRoot
-                //    .time      = 0  // CurrentTime
-                //});
-                //session.sendrq(x11::req::get_input_focus{}, {}, [&](auto& ev, view payload) mutable
-                //{
-                //    if (ev.type != x11::event::Error)
-                //    {
-                //        auto m = netxs::start_lifetime_as<x11::req::get_input_focus::reply>(payload.data());
-                //        log("get_input_focus reply: focused_window_id=0x%% revertTo=%%", utf::to_hex(m.focused_window_id), (si32)m.revertTo);
-                //    }
-                //});
-                //log("wm_hWnd=%% fg_hWnd=%% bg_hWnd=%%", utf::to_hex(master.wm_hWnd), utf::to_hex(master.fg_hWnd), utf::to_hex(master.bg_hWnd));
-                //doesnt' work
-                //session.sendrq(x11::req::set_input_focus{ .window_id = 0, .time = mouse_press_last_x11_timestamp });
-                //if constexpr (debugmode) log("Drop input focus. seq_num=%%", seq_num);
             }
             else
             {
-                //
+                //todo ?should we restore itself?
             }
         }
         rect window_get_fs_area(rect /*window_area*/)
