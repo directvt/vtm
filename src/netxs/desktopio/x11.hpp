@@ -361,11 +361,11 @@ namespace netxs::x11
             // Payload header:
             ui32 originator_id;   // Originator window id.
             ui32 message_type;    // Atom message id (a-la WIN32_WM_USER).
-            ui32 serial      = 0; // Serial number to sync replay. =Protocols atom for WM_PROTOCOLS.
-            ui32 command     = 0; // User data.
-            ui32 lParam      = 0; // User data: =data_length if command==cmd_w_data.
+            ui32 serial      = 0; // data[0]: Serial number to sync replay. =Protocols atom for WM_PROTOCOLS.
+            ui32 command     = 0; // data[1]: User data.
+            ui32 lParam      = 0; // data[2]: User data: =data_length if command==cmd_w_data.
             // User data start:
-            ui32 data32[2] = {};  // User data.
+            ui32 data32[2] = {};  // data[3,4]: User data.
             struct chunk // Subsequent chunk. Chunk count = data_length <= 4*2 ? 0 : (data_length-4*2 + 6*4-1) / 6*4.
             {
                 byte type;      // 33: ClientMessage. (or 35: GenericEvent?)
@@ -1940,6 +1940,7 @@ namespace netxs::x11
         ui32                                  atom_net_wm_icon = 0; // _NET_WM_ICON
         ui32                                  atom_net_wm_name = 0;
         ui32                                  atom_net_wm_state_skip_taskbar = 0; // Hide from the taskbar.
+        //ui32                                  atom_net_wm_state_hidden = 0; // _NET_WM_STATE_HIDDEN
         ui32                                  atom_net_wm_state = 0;              //
         //ui32                                  atom_net_wm_window_opacity = 0; // _NET_WM_WINDOW_OPACITY (doesn't work in wslg)
         ui32                                  atom_net_wm_window_type = 0;
@@ -2621,6 +2622,7 @@ namespace netxs::x11
             atom_net_wm_icon                 = get_atom_id("_NET_WM_ICON", true);
             atom_net_wm_state                = get_atom_id("_NET_WM_STATE", true);
             atom_net_wm_state_skip_taskbar   = get_atom_id("_NET_WM_STATE_SKIP_TASKBAR", true);
+            //atom_net_wm_state_hidden         = get_atom_id("_NET_WM_STATE_HIDDEN", true);
             atom_net_wm_window_type          = get_atom_id("_NET_WM_WINDOW_TYPE", true);
             atom_net_wm_window_type_utility  = get_atom_id("_NET_WM_WINDOW_TYPE_UTILITY", true);
             //atom_net_wm_window_type_normal   = get_atom_id("_NET_WM_WINDOW_TYPE_NORMAL", true);
