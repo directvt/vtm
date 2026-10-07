@@ -907,7 +907,8 @@ namespace netxs::app::vtm
                         gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token, (recalc))
                         {
                             viewport_area = viewport;
-                            recalc(viewport);
+                            viewport_area.coor += gear.owner.base::coor();
+                            recalc(viewport_area);
                         };
                         gear.owner.LISTEN(tier::release, e2::form::size::restore, p, maximize_token)
                         {

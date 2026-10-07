@@ -8026,21 +8026,17 @@ namespace netxs::gui
         {
             if (new_state == winstate::minimized)
             {
-                netxs::set_flag<task::moved>(reload); // Trigger to hide (X11).
-                //todo Drop input focus.
-                //auto seq_num = session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
-                //                                                    .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
-                //                                                    .originator_id  = (ui32)master.wm_hWnd,
-                //                                                    .message_type   = session.atom_net_active_window,
-                //                                                    .serial         = (ui16)0,
-                //                                                    .command        = (ui32)1,                    // data[0]: 1: Generic application request.
-                //                                                    .lParam         = (ui32)last_x11_timestamp,   // data[1]: Timestamp of the last user input.
-                //                                                    .data32         = { (ui32)master.wm_hWnd }}); // data[2]: Our window id.
-                //if constexpr (debugmode) log("Drop input focus. seq_num=%%", seq_num);
+                netxs::set_flag<task::moved>(reload); // Trigger to hide (case without wm).
+                // Drop input focus (request to minimize to taskbar).
+                session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
+                                                     .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
+                                                     .originator_id  = (ui32)master.wm_hWnd,
+                                                     .message_type   = session.atom_wm_change_state,
+                                                     .serial         = 3u }); // 3: IconicState
             }
             else
             {
-                //
+                //todo ?should we restore itself?
             }
         }
         rect window_get_fs_area(rect /*window_area*/)
