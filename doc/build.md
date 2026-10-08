@@ -52,6 +52,30 @@ vtm
 > cmake --install bin
 > ```
 
+#### Static Executable
+
+Compiling into a static binary allowing you to copy it between hosts running the same platform without any dependencies.
+
+```
+git clone https://github.com/directvt/vtm.git
+cd vtm
+
+# If you need to recompile for some reason, delete the CMake cache first:
+#rm -rf bin/CMakeFiles
+#rm bin/CMakeCache.txt
+
+# In case of using Clang
+#cmake . -B bin -DCMAKE_CXX_FLAGS="-static"
+
+# In case of using GCC
+cmake . -B bin -DCMAKE_CXX_FLAGS="-static -static-libstdc++"
+
+cmake --build bin
+
+# Remove all debug symbols. It reduces vtm size.
+strip -s bin/vtm
+```
+
 #### Linux VGA Console Integration (Linux in-kernel console)
 
 In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to mouse/pointing devices. By default, only privileged users and users of the `input` group have access. To grant all users permanent access to all pointing devices, use the command:
