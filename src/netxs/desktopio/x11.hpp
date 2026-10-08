@@ -931,9 +931,9 @@ namespace netxs::x11
                     ui16 sourceid;
                     byte mode;   // Normal, Grab, Ungrab.
                     byte detail; // Ancestor, Virtual, Inferior, Nonlinear, NonlinearVirtual, Pointer, PointerRoot, None.
-                    ui32 root;
-                    ui32 event;
-                    ui32 child;
+                    ui32 root_window_id;
+                    ui32 event_window_id;
+                    ui32 child_window_id;
                     fx16 root_x;
                     fx16 root_y;
                     fx16 event_x;
@@ -1684,6 +1684,26 @@ namespace netxs::x11
         //    byte override_redirect; // 0:..., 1:...
         //    byte pad2[19];
         //};
+        struct unmap_notify // Type 18 (window unmap notify).
+        {
+            byte type;
+            byte pad;
+            ui16 sequence;
+            ui32 event_window_id;
+            ui32 window_id;
+            byte from_configure;
+            byte pad2[3];
+        };
+        struct map_notify // Type 19 (window map notify).
+        {
+            byte type;
+            byte pad;
+            ui16 sequence;
+            ui32 event_window_id;
+            ui32 window_id;
+            byte override;
+            byte pad2[3];
+        };
         struct configure_notify // Type 22 (configure notify) a-la WM_SIZE/WM_MOVE.
         {
             byte type;
@@ -2153,7 +2173,6 @@ namespace netxs::x11
             if (batch_buffer.size())
             {
                 x11connection->send(batch_buffer);
-                if constexpr (debugmode) log("%% layer_move_all: Batched layout update sent to X-server (size=%% bytes)", prompt::x11, batch_buffer.size());
                 batch_buffer.clear();
             }
         }
@@ -2511,7 +2530,7 @@ namespace netxs::x11
                 //                                    .property  = atom_wm_hints,
                 //                                    .type      = atom_wm_hints },
                 //                                x11::icccm::wm_hints{ .flags = x11::icccm::InputHint, .input = 1 });
-                // Init XPresent event subscription.
+                // Init XPresent event subscription (for msc).
                 auto new_event_id = new_resource_id();
                 sendrq<x11::req::xpresent::select_input>({ .major_opcode = xpresent_major_opcode,
                                                            .event_id     = new_event_id,
