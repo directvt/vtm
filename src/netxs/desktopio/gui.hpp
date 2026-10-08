@@ -6915,6 +6915,13 @@ namespace netxs::gui
         {
             return fsmode != winstate::minimized && (is_focused_window || ontop_state);
         }
+        void _trigger_to_update_alwaysontop(text& batch_buffer, layer& s) // Trigger for reordering the system-wide windows with enabled AlwaysOnTop, if any exist.
+        {
+            session.accumrq(batch_buffer, x11::req::change_property{ .window_id = session.root_window_id,
+                                                                     .property  = session.atom_vtm_always_on_top,
+                                                                     .type      = session.atom_window },
+                                                            (ui32)s.wm_hWnd);
+        }
         void _toggle_foreground()
         {
             auto seq_num_any = std::optional<ui16>{};
@@ -6972,6 +6979,7 @@ namespace netxs::gui
                                                                                              .y = (ui16)s.presented_area.coor.y });
                         }
                     }
+                    _trigger_to_update_alwaysontop(batch_buffer, master);
                     if (seq_num_any.has_value())
                     {
                         session.set_seq_num(seq_num_any.value());
@@ -8072,13 +8080,20 @@ namespace netxs::gui
             //}
         }
         void window_make_exposed() {}
-        void window_make_topmost(bool s)
+        void window_make_topmost(bool state)
         {
             auto old_fg_state = _is_foreground_window();
-            ontop_state = s;
+            ontop_state = state;
             if (old_fg_state != _is_foreground_window())
             {
                 _toggle_foreground();
+            }
+            else if (!state && _is_foreground_window()) // Trigger system-wide z-reordering if AlwaysOnTop is off.
+            {
+                session.send_batch([&](auto& batch_buffer)
+                {
+                    _trigger_to_update_alwaysontop(batch_buffer, master);
+                });
             }
         }
         void _update_hidden_layers_size_and_position()
@@ -8386,6 +8401,41 @@ namespace netxs::gui
                     if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
                     if (e.window_id == session.root_window_id)
                     {
+                        if (ontop_state && _is_foreground_window() && e.atom == session.atom_vtm_always_on_top) // Update OnTop z-order if AlwaysOnTop enabled.
+                        {
+                            if constexpr (debugmode) log(ansi::clr(tint::greenlt, utf::fprint("  Try to set OnTop z-order")));
+                            session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
+                                                                     .property    = session.atom_vtm_always_on_top,
+                                                                     .prop_type   = session.atom_window,
+                                                                     .long_length = 1 }, {},
+                            [&](auto& ev, view payload)
+                            {
+                                if (ev.type == x11::event::Error)
+                                {
+                                    if constexpr (debugmode) log("get_property error");
+                                    return;
+                                }
+                                payload.remove_prefix(sizeof(ev));
+                                auto reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                                if (reply.format == sizeof(ui32) * 8 && reply.prop_type == session.atom_window && reply.value_len > 0 && payload.size() >= 4)
+                                {
+                                    auto ontop_window_id = netxs::start_lifetime_as<ui32>(payload.data());
+                                    if (ontop_window_id != master.wm_hWnd) // Do nothing if our window triggers the event.
+                                    {
+                                        auto lock_ui = bell::sync();
+                                        session.send_batch([&](auto& batch_buffer)
+                                        {
+                                            for (auto& l : layers)
+                                            {
+                                                auto& s = l.get();
+                                                session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd },
+                                                            x11::req::configure_window::payload{ .stack_mode = x11::req::configure_window::Above });
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        }
                         if (e.atom == session.atom_net_active_window && session.wl_present) // Workaround: Xwayland doesn't report focus events (to our main window) when clicking on taskbar. The focus is returned to the wrong layer from which it was taken. Setting the WM_TRANSIENT_FOR property makes no difference.
                         {
                             session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
