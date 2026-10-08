@@ -1948,6 +1948,7 @@ namespace netxs::x11
 
         //ui32                                  atom_my_ping = 0; // _MY_PING
         ui32                                  atom_vtmx = 0; // VTMX  WIN32: WM_USER
+        ui32                                  atom_vtm_always_on_top = 0; // VTM_ALWAYS_ON_TOP
 
         ui32                                  atom_wm_hints = 35; // WM_HINTS
         ui32                                  atom_wm_transient_for = 68; // WM_TRANSIENT_FOR
@@ -2654,6 +2655,7 @@ namespace netxs::x11
             //atom_net_wm_bypass_compositor    = get_atom_id("_NET_WM_BYPASS_COMPOSITOR", true);
             atom_utf8_string                 = get_atom_id("UTF8_STRING", true);
             atom_vtmx                        = get_atom_id("VTMX", true);
+            atom_vtm_always_on_top           = get_atom_id("VTM_ALWAYS_ON_TOP", true);
 
             // Server related.
             atom_atom                   = get_atom_id("ATOM",             faux);
