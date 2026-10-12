@@ -73,12 +73,12 @@ namespace netxs::x11
         if constexpr (is_string || is_vector)
         {
             yield += view{ (char const*)data.data(), data_bytes };
-            yield.append(-data_bytes & 3, '\0');
         }
         else
         {
             yield += view{ (char*)&data, data_bytes };
         }
+        yield.append(-data_bytes & 3, '\0');
     }
 
     #pragma pack(push, 1)
@@ -354,7 +354,7 @@ namespace netxs::x11
                 byte pad;
                 ui16 sequence;
                 ui32 time;
-                ui32 requestor_window_id; // sync_msg_window_id
+                ui32 requester_window_id; // sync_msg_window_id
                 ui32 selection_id;        // atom_clipboard
                 ui32 target_id;           // atom_utf8_string
                 ui32 property_id;         // atom_vtm_clipboard (if 0(none) - request rejected).
@@ -363,7 +363,7 @@ namespace netxs::x11
             byte opcode = 24;
             byte pad    = 0;
             ui16 length = 6;
-            ui32 requestor_window_id; // sync_msg_window_id
+            ui32 requester_window_id; // sync_msg_window_id
             ui32 selection_id;        // atom_clipboard
             ui32 target_id;           // atom_utf8_string
             ui32 property_id;         // Our side clipboard buffer id: atom_vtm_clipboard
@@ -1773,7 +1773,7 @@ namespace netxs::x11
             ui16 sequence;
             ui32 time;
             ui32 owner_window_id;     // Clipboard owner window id (wm_hWnd).
-            ui32 requestor_window_id; // Remote window id.
+            ui32 requester_window_id; // Remote window id.
             ui32 selection_id;        // Atom "CLIPBOARD".
             ui32 target_id;           // Required clipboard format (atom UTF8_STRING/TARGETS).
             ui32 property_id;         // Destination property id of remote window.
@@ -1881,7 +1881,7 @@ namespace netxs::x11
             ui32 resource_id_mask;            // 4 ui32 buffer[8..11]  = resource_id_mask
             ui32 motion_buffer_size;          // 4 ui32 buffer[12..15] = motion_buffer_size
             ui16 vendor_length;               // 2 ui16 buffer[16..17] = vendor_length
-            ui16 maximum_request_length;      // 2 ui16 buffer[18..19] = maximum_request_length
+            ui16 maximum_request_length;      // 2 ui16 buffer[18..19] = maximum_request_length in quads
             byte number_of_screens;           // 1 byte buffer[20]     = number_of_screens in roots
             byte number_of_formats;           // 1 byte buffer[21]     = number_of_formats in pixmap_formats
             byte image_byte_order;            // 1 byte buffer[22]     = 0: LSBFirst, 1: MSBFirst
@@ -2030,6 +2030,7 @@ namespace netxs::x11
         ui32                                  atom_window = 0;
 
         ui32                                  atom_clipboard = 0;
+        ui32                                  atom_incr = 0;            // "INCR"
         ui32                                  atom_targets = 0;         // Request format list.
         ui32                                  atom_timestamp = 0;       // "TIMESTAMP"
         ui32                                  atom_multiple = 0;        // "MULTIPLE" Request multiple formats.
@@ -2113,6 +2114,10 @@ namespace netxs::x11
             shm_buffer.deallocate();
         }
 
+        auto max_chunk_bytes()
+        {
+            return (size_t)s.maximum_request_length * sizeof(ui32) - 64;
+        }
         void set_seq_num(ui16 seq_num)
         {
             received_replies[seq_num].store(true, std::memory_order_release);
@@ -2326,7 +2331,7 @@ namespace netxs::x11
                 "\n          motion_buffer_size: ",   s.motion_buffer_size,
                 "\n               vendor_length: ",   s.vendor_length,
                 "\n                      vendor: '",  utf::debase<faux, faux>(vendor_str), '\'',
-                "\n      maximum_request_length: ",   s.maximum_request_length,
+                "\n  max_request_length (quads): ",   s.maximum_request_length,
                 "\n           number_of_screens: ",   (si32)s.number_of_screens,
                 "\n           number_of_formats: ",   (si32)s.number_of_formats,
                 "\n            image_byte_order: ",   (si32)s.image_byte_order,
@@ -2549,6 +2554,7 @@ namespace netxs::x11
                                                                               .event_mask = 0u
                                                                                           | (override_redirect ? 0 : x11::event::mask::Exposure) // KDE doesn't redraw our layers in background.
                                                                                           | x11::event::mask::StructureNotify // For ConfigureNotify events.
+                                                                                          | x11::event::mask::PropertyChange // For PropertyNotify events (clipboard).
                                                                                           ,
                                                                               .colormap_id = argb_colormap_id }); // Mandatory: own colormap.
             // Mark our windows.
@@ -2714,6 +2720,7 @@ namespace netxs::x11
             //atom_net_wm_sync_request         = get_atom_id("_NET_WM_SYNC_REQUEST", true);
             //atom_net_wm_sync_request_counter = get_atom_id("_NET_WM_SYNC_REQUEST_COUNTER", true);
             //atom_net_wm_bypass_compositor    = get_atom_id("_NET_WM_BYPASS_COMPOSITOR", true);
+            atom_incr                        = get_atom_id("INCR", true);
             atom_utf8_string                 = get_atom_id("UTF8_STRING", true);
             atom_timestamp                   = get_atom_id("TIMESTAMP", true);
             atom_multiple                    = get_atom_id("MULTIPLE", true);
@@ -2937,7 +2944,7 @@ namespace netxs::x11
             clipdata.hash = datetime::now();
             // Request format list (TARGETS).
             if constexpr (debugmode) log(ansi::clr(yellowlt, "Requesting clipboard format list"));
-            auto seq_num = syncrq(sync_buffer, x11::req::convert_selection{ .requestor_window_id = sync_msg_window_id,
+            auto seq_num = syncrq(sync_buffer, x11::req::convert_selection{ .requester_window_id = sync_msg_window_id,
                                                                             .selection_id        = atom_clipboard,
                                                                             .target_id           = atom_targets, // TARGETS
                                                                             .property_id         = atom_vtm_clipboard,
@@ -2953,7 +2960,7 @@ namespace netxs::x11
                     auto sn = netxs::start_lifetime_as<x11::req::convert_selection::selection_notify>(ev);
                     if (sn.property_id != 0)
                     {
-                        if constexpr (debugmode) log(ansi::clr(greenlt, "Try to get format list"));
+                        if constexpr (debugmode) log(ansi::clr(greenlt, "Try to get clipboard format list"));
                         _sync_get_window_property(sync_msg_window_id, sn.property_id, atom_atom/*atom list*/, true, available_formats);
                         if constexpr (debugmode)
                         {
@@ -2972,7 +2979,7 @@ namespace netxs::x11
             auto has_utf8 = std::find(available_formats.begin(), available_formats.end(), atom_utf8_string) != available_formats.end();
             auto target_to_request = has_utf8 ? atom_utf8_string : atom_string;
             // Request clipboard data.
-            seq_num = syncrq(sync_buffer, x11::req::convert_selection{ .requestor_window_id = sync_msg_window_id,
+            seq_num = syncrq(sync_buffer, x11::req::convert_selection{ .requester_window_id = sync_msg_window_id,
                                                                        .selection_id        = atom_clipboard,
                                                                        .target_id           = target_to_request,
                                                                        .property_id         = atom_vtm_clipboard,
@@ -2986,9 +2993,9 @@ namespace netxs::x11
                 {
                     sync_buffer.clear();
                     auto sn = netxs::start_lifetime_as<x11::req::convert_selection::selection_notify>(ev);
-                    if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("Received clipboard reply: seq=%% property_id=0x%%(%%) requestor_window_id=0x%% selection_id=0x%%(%%) target_id=0x%%(%%)",
+                    if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("Received clipboard reply: seq=%% property_id=0x%%(%%) requester_window_id=0x%% selection_id=0x%%(%%) target_id=0x%%(%%)",
                         sn.sequence, utf::to_hex(sn.property_id), _get_atom_name(sn.property_id),
-                                     utf::to_hex(sn.requestor_window_id),
+                                     utf::to_hex(sn.requester_window_id),
                                      utf::to_hex(sn.selection_id), _get_atom_name(sn.selection_id),
                                      utf::to_hex(sn.target_id), _get_atom_name(sn.target_id))));
                     if (sn.property_id != 0)

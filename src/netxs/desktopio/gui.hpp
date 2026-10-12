@@ -6684,6 +6684,15 @@ namespace netxs::gui
             si32                       latin_key_count{};
             bool is_latin() { return latin_key_count > 'Z' - 'A'; }
         };
+        struct incr_transfer_t
+        {
+            size_t current_pos{};  // Current offset in bytes.
+            text   text_data;      // Local copy.
+            ui32   requester_id{}; // Peer window id.
+            ui32   property_id{};  // Peer property id.
+            ui32   target_id{};    // Data format id (UTF8_STRING/STRING).
+            ui32   time{};         // Copy time stamp.
+        };
 
         using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
@@ -6717,6 +6726,7 @@ namespace netxs::gui
         ui32 last_x11_timestamp{}; // window: The last user input timestamp.
 
         input::clipdata clipdata{}; // window: X11 clipboard buffer.
+        std::list<incr_transfer_t> incr_transfer; // window: Current INCR transfers.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -7568,15 +7578,20 @@ namespace netxs::gui
 
         void clipboard_set(input::clipdata& new_clipdata)
         {
-            clipdata = new_clipdata;
-            session.sendrq(x11::req::set_selection_owner{ .owner_id     = (ui32)master.wm_hWnd,
-                                                          .selection_id = session.atom_clipboard,
-                                                          .time         = last_x11_timestamp });
+            session.send_batch([&](auto& batch_buffer)
+            {
+                clipdata = new_clipdata; // Assign under the session.mutex.
+                session.accumrq(batch_buffer, x11::req::set_selection_owner{ .owner_id     = (ui32)master.wm_hWnd,
+                                                                             .selection_id = session.atom_clipboard,
+                                                                             .time         = last_x11_timestamp });
+            });
         }
-        void clipboard_get(input::clipdata& clipdata)
+        void clipboard_get(input::clipdata& empty_clipdata)
         {
-            session.get_clipboard(clipdata);
-            clipdata.set();
+            session.get_clipboard(empty_clipdata);
+            empty_clipdata.set();
+            auto lock = std::lock_guard{ session.mutex };
+            clipdata = empty_clipdata; // Assign under the session.mutex.
         }
         bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
@@ -8422,7 +8437,7 @@ namespace netxs::gui
                         goto break_break;
                     }
                 }
-                else if (type == x11::event::PropertyNotify) // Tracking refocus.
+                else if (type == x11::event::PropertyNotify) // Tracking global refocus and remote clipboard INCR.
                 {
                     auto e = netxs::start_lifetime_as<x11::event::property_notify>(read_buffer.data());
                     if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
@@ -8535,6 +8550,50 @@ namespace netxs::gui
                             _keybd_load_layouts();
                         }
                     }
+                    if (incr_transfer.size())
+                    {
+                        auto iter = std::find_if(incr_transfer.begin(), incr_transfer.end(), [&](auto& peer)
+                        {
+                            return peer.requester_id == e.window_id
+                                && peer.property_id  == e.atom
+                                && e.state == 1/*deleted*/;
+                        });
+                        if (iter != incr_transfer.end())
+                        {
+                            auto chunk_size = session.max_chunk_bytes();
+                            auto& transfer = *iter;
+                            auto remains = transfer.text_data.size() - transfer.current_pos;
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" INCR transfer: remains=%%", remains)));
+                            if (remains > 0)
+                            {
+                                auto send_now = std::min(chunk_size, remains);
+                                auto chunk_view = view{ &transfer.text_data[transfer.current_pos], send_now };
+                                session.send_batch([&](auto& batch_buffer)
+                                {
+                                    session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
+                                                                                             .property  = transfer.property_id,
+                                                                                             .type      = transfer.target_id,
+                                                                                             .format    = 8 },
+                                                                                        chunk_view);
+                                });
+                                transfer.current_pos += send_now;
+                            }
+                            else // Finalize transfer.
+                            {
+                                session.send_batch([&](auto& batch_buffer)
+                                {
+                                    session.accumrq(batch_buffer, x11::req::change_window_attrs{ .window_id = transfer.requester_id }, // Stop tracking property delete on remote window.
+                                        x11::req::change_window_attrs::payload{ .event_mask = 0 });
+                                    session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
+                                                                                             .property  = transfer.property_id,
+                                                                                             .type      = transfer.target_id,
+                                                                                             .format    = 8 },
+                                                                                        view{});
+                                });
+                                incr_transfer.erase(iter);
+                            }
+                        }
+                    }
                     continue; // Skip sys_command(syscmd::update).
                 }
                 else if (type == x11::event::GenericEvent)
@@ -8605,41 +8664,95 @@ namespace netxs::gui
                         read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
                     }
                 }
+                else if (type == x11::event::SelectionClear)
+                {
+                    // Clipboard is invalidated (someone takes ownership).
+                }
                 else if (type == x11::event::SelectionRequest)
                 {
                     auto sr = netxs::start_lifetime_as<x11::event::selection_request>(read_buffer.data());
                     session.send_batch([&](auto& batch_buffer)
                     {
+                        auto data_format = (byte)32; // 32-bit.
+                        auto destination_id = sr.requester_window_id;
                         if (sr.target_id == session.atom_targets) // Supported clipboard formats requested (TARGETS, UTF8_STRING).
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "clipboard formats requested"));
                             auto targets = std::to_array({ session.atom_targets,
                                                            session.atom_utf8_string,
                                                            session.atom_string });
-                            session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requestor_window_id,
+                            session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                      .property  = sr.property_id,
                                                                                      .type      = session.atom_atom },
                                                                                     targets);
                         }
+                        else if (sr.target_id == session.atom_multiple) // Send multiple clipboard data forms.
+                        {
+                            //todo
+                            if constexpr (debugmode) log(ansi::err("not implemented: Requested multiple clipboard data forms"));
+                            sr.target_id = 0;
+                        }
                         else if (sr.target_id == session.atom_utf8_string || sr.target_id == session.atom_string) // Send clipboard text data.
                         {
-                            //todo use INCR for large utf8 blocks
-                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested. data sent: '%%'", utf::debase437(clipdata.utf8))));
-                            session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requestor_window_id,
-                                                                                     .property  = sr.property_id,
-                                                                                     .type      = sr.target_id,
-                                                                                     .format    = 8 }, // 8-bit text.
-                                                                                    clipdata.utf8);
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata.utf8.size())));
+                            if (clipdata.utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), 20ul)))));
+                                session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
+                                                                                         .property  = sr.property_id,
+                                                                                         .type      = sr.target_id,
+                                                                                         .format    = 8 }, // 8-bit text.
+                                                                                        clipdata.utf8);
+                            }
+                            else // Activate INCR.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  activate INCR with peer=%%", utf::to_hex_0x(sr.requester_window_id))));
+                                auto iter = std::find_if(incr_transfer.begin(), incr_transfer.end(), [&](auto& peer)
+                                {
+                                    return peer.requester_id == sr.requester_window_id
+                                        && peer.property_id  == sr.property_id;
+                                });
+                                //if (iter != incr_transfer.end()) // Abort incomplete transfer.
+                                //{
+                                //    session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = sr.requester_window_id,
+                                //                                                        .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                //                                                        .originator_id  = iter->time,                  // - time
+                                //                                                        .message_type   = iter->requester_id,          // - requester
+                                //                                                        .serial         = sr.selection_id,             // - selection
+                                //                                                        .command        = iter->target_id,             // - target
+                                //                                                        .lParam         = iter->property_id });        // - property
+                                //}
+                                //else // Add a new peer.
+                                if (iter == incr_transfer.end())
+                                {
+                                    iter = incr_transfer.emplace(iter);
+                                }
+                                iter->text_data    = clipdata.utf8; // Make a copy under the session.mutex (session.send_batch).
+                                iter->requester_id = sr.requester_window_id;
+                                iter->property_id  = sr.property_id;
+                                iter->target_id    = sr.target_id;
+                                iter->time         = sr.time;
+                                session.accumrq(batch_buffer, x11::req::change_window_attrs{ .window_id = sr.requester_window_id }, // Track property delete on remote window.
+                                    x11::req::change_window_attrs::payload{ .event_mask = x11::event::mask::PropertyChange });
+                                data_format            = 0;                 // Change to AnyFormat.
+                                sr.target_id           = session.atom_incr; // Change to INCR.
+                                session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
+                                                                                         .property  = sr.property_id,
+                                                                                         .type      = sr.target_id }, // "INCR"
+                                                                                    netxs::saturate_cast<ui32>(clipdata.utf8.size()));
+                            }
                         }
                         // Notify remote window.
-                        session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = sr.requestor_window_id,
+                        session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = destination_id,
                                                                             .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                                                            .format         = data_format,
                                                                             .originator_id  = sr.time,                     // - time
-                                                                            .message_type   = sr.requestor_window_id,      // - requestor
+                                                                            .message_type   = sr.requester_window_id,      // - requester
                                                                             .serial         = sr.selection_id,             // - selection
                                                                             .command        = sr.target_id,                // - target
                                                                             .lParam         = sr.property_id });           // - property
                     });
+                    continue;
                 }
                 //else if (type == session.xkb_first_event && is_focused_window) // XKB Notify.
                 //{
