@@ -2202,18 +2202,18 @@ namespace netxs::directvt
             void recycle_cliprequest(auto& master, s11n::xs::clipdata& clipdata_lock, s11n::xs::clipdata_request& lock)
             {
                 auto& item = lock.thing;
-                auto& clipdata = clipdata_lock.thing;
-                if (clipdata.hash != item.hash)
+                auto& data = clipdata_lock.thing;
+                if (data.hash != item.hash)
                 {
-                    clipdata.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
                 }
                 else // Send without payload if hash the same.
                 {
-                    auto temp = std::move(clipdata.utf8);
-                    clipdata.set();
-                    clipdata.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
-                    clipdata.utf8 = std::move(temp);
-                    clipdata.set();
+                    auto temp = std::move(data.utf8);
+                    data.set();
+                    data.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.utf8 = std::move(temp);
+                    data.set();
                 }
             }
             // s11n: Wake up waiting objects.
