@@ -5646,9 +5646,9 @@ namespace netxs::gui
         }
         void window_set_title(view utf8)
         {
-            base::enqueue<faux>([&, utf8](auto& /*boss*/) // enqueue<faux> to avoid a deadlock when ::SetWindowTextW() calls ::SendMessage().
+            base::enqueue<faux>([&, title = utf::to_utf(utf8)](auto& /*boss*/) // enqueue<faux> to avoid a deadlock when ::SetWindowTextW() calls ::SendMessage().
             {
-                ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data());
+                ::SetWindowTextW((HWND)master.hWnd, title.data());
             });
         }
         bool keybd_test_pressed(si32 virtcod, si32 keycode = 0)
