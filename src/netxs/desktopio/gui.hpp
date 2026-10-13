@@ -6958,8 +6958,8 @@ namespace netxs::gui
                 {
                     // Configure mouse input.
                     //wm_hWnd will be set in event::Expose.
-                    session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
-                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                    //session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
+                    //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
@@ -7034,8 +7034,8 @@ namespace netxs::gui
                 session.send_batch([&](auto& batch_buffer) // Show wm-layers.
                 {
                     //wm_hWnd will be set in event::Expose.
-                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
-                    session.set_mouse_input(batch_buffer, master.fg_hWnd, faux);
+                    //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                    //session.set_mouse_input(batch_buffer, master.fg_hWnd, faux);
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
@@ -7915,8 +7915,8 @@ namespace netxs::gui
                 {
                     if (master.windowsized)
                     {
-                        session.set_mouse_input(batch_buffer, master.fg_hWnd, true);
-                        session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                        //session.set_mouse_input(batch_buffer, master.fg_hWnd, true);
+                        //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                     }
                     for (auto& l : layers)
                     {
@@ -8807,7 +8807,7 @@ namespace netxs::gui
             hidden_coor = session.x11_display_size - dot_11;
             session.send_batch([&](auto& batch_buffer)
             {
-                session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                 session.set_mouse_input(batch_buffer, master.wm_hWnd, faux);
                 for (auto& l : layers)
                 {

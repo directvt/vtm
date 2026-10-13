@@ -2638,7 +2638,7 @@ namespace netxs::x11
                                                     buffer);
                 }
             }
-            else
+            else // is sublayer
             {
                 //todo it doesn't work // Make the window output only.
                 //sendrq<x11::req::change_property>({ .window_id = new_window_id,
@@ -3099,7 +3099,7 @@ namespace netxs::x11
                                 }
                             }
                         }
-                        else //if (prop_info.type != atom_incr) // Small data block.
+                        else //if (prop_type != atom_incr) // Small data block.
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  Try to get small clipboard block...")));
                             _sync_get_window_property(sync_msg_window_id, sn.property_id/*atom_vtm_clipboard*/, sn.target_id/*atom_utf8_string*/, true, clipdata.utf8);
