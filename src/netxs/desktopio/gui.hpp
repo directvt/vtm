@@ -8440,7 +8440,17 @@ namespace netxs::gui
                 else if (type == x11::event::PropertyNotify) // Tracking global refocus and remote clipboard INCR.
                 {
                     auto e = netxs::start_lifetime_as<x11::event::property_notify>(read_buffer.data());
-                    if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
+                    if constexpr (debugmode)
+                    {
+                        if (e.window_id == session.sync_msg_window_id) // To avoid deadlock on session.sync_mutex in get_atom_name().
+                        {
+                            log("%%PropertyNotify atom=%% e.state='%%'(%%) e.window_id=%%", prompt::x11, e.atom, e.state ? "DELETED" : "NEW VALUE", (si32)e.state, utf::to_hex_0x(e.window_id));
+                        }
+                        else
+                        {
+                            log("%%PropertyNotify atom=%% (%%) e.state='%%'(%%) e.window_id=%%", prompt::x11, e.atom, session.get_atom_name(e.atom), e.state ? "DELETED" : "NEW VALUE", (si32)e.state, utf::to_hex_0x(e.window_id));
+                        }
+                    }
                     if (e.window_id == session.root_window_id)
                     {
                         if (ontop_state && _is_foreground_window() && e.atom == session.atom_vtm_always_on_top) // Update OnTop z-order if AlwaysOnTop enabled.
@@ -8554,11 +8564,16 @@ namespace netxs::gui
                     {
                         auto iter = std::find_if(incr_transfer.begin(), incr_transfer.end(), [&](auto& peer)
                         {
-                            return peer.requester_id == e.window_id
-                                && peer.property_id  == e.atom
-                                && e.state == 1/*deleted*/;
+                            if constexpr (debugmode) log("find_if: peer.requester_id=%%", utf::to_hex_0x(peer.requester_id));
+                            return e.window_id == peer.requester_id
+                                && e.atom      == peer.property_id
+                                && e.state     == 1/*deleted*/;
                         });
-                        if (iter != incr_transfer.end())
+                        if (iter == incr_transfer.end())
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" No peers found: ")));
+                        }
+                        else
                         {
                             auto chunk_size = session.max_chunk_bytes();
                             auto& transfer = *iter;
