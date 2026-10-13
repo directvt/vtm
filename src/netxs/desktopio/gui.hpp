@@ -5644,7 +5644,13 @@ namespace netxs::gui
                 layer_present(l);
             }
         }
-        void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
+        void window_set_title(view utf8)
+        {
+            base::enqueue<faux>([&, utf8](auto& /*boss*/) // enqueue<faux> to avoid a deadlock when ::SetWindowTextW() calls ::SendMessage().
+            {
+                ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data());
+            });
+        }
         bool keybd_test_pressed(si32 virtcod, si32 keycode = 0)
         {
             if (keycode == input::key::AltGr) return fake_ralt;
