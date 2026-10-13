@@ -8718,7 +8718,7 @@ namespace netxs::gui
                             if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata.utf8.size())));
                             if (clipdata.utf8.size() <= session.max_chunk_bytes()) // Send directly.
                             {
-                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), 20ul)))));
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), (size_t)20)))));
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
                                                                                          .type      = sr.target_id,
