@@ -8694,7 +8694,6 @@ namespace netxs::gui
                     auto sr = netxs::start_lifetime_as<x11::event::selection_request>(read_buffer.data());
                     session.send_batch([&](auto& batch_buffer)
                     {
-                        auto data_format = (byte)32; // 32-bit.
                         auto destination_id = sr.requester_window_id;
                         if (sr.target_id == session.atom_targets) // Supported clipboard formats requested (TARGETS, UTF8_STRING).
                         {
@@ -8755,18 +8754,15 @@ namespace netxs::gui
                                 iter->time         = sr.time;
                                 session.accumrq(batch_buffer, x11::req::change_window_attrs{ .window_id = sr.requester_window_id }, // Track property delete on remote window.
                                     x11::req::change_window_attrs::payload{ .event_mask = x11::event::mask::PropertyChange });
-                                data_format            = 0;                 // Change to AnyFormat.
-                                sr.target_id           = session.atom_incr; // Change to INCR.
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
-                                                                                         .type      = sr.target_id }, // "INCR"
+                                                                                         .type      = session.atom_incr }, // "INCR"
                                                                                     netxs::saturate_cast<ui32>(clipdata.utf8.size()));
                             }
                         }
                         // Notify remote window.
                         session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = destination_id,
                                                                             .event_type     = x11::event::SelectionNotify, // SelectionNotify:
-                                                                            .format         = data_format,
                                                                             .originator_id  = sr.time,                     // - time
                                                                             .message_type   = sr.requester_window_id,      // - requester
                                                                             .serial         = sr.selection_id,             // - selection

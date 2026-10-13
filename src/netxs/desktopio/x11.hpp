@@ -9,7 +9,7 @@ namespace netxs::x11
     static auto wm_inst_name = "vtm"s; //todo unify (app::vtm::id)
     static constexpr auto fps = 60; // FPS //todo calc at startup
     static constexpr auto vbi = std::chrono::microseconds(1s) / x11::fps; // V-blank interval (VBI)
-    static constexpr auto buffer_read_step = 4096u; // 16 KB in quads.
+    static constexpr auto buffer_read_step = 16384u - 8u; // ~64 KB in quads.
 
     using fd_t = os::fd_t;
 
@@ -2961,6 +2961,41 @@ namespace netxs::x11
             }
             return true;
         }
+        auto _sync_get_window_property_type(ui32 window_id, ui32 property_id)
+        {
+            auto prop_type = 0u;
+            sync_buffer.clear();
+            auto seq_num = syncrq(sync_buffer, x11::req::get_property{ .remove      = 0,
+                                                                       .window_id   = window_id,
+                                                                       .property    = property_id,
+                                                                       .prop_type   = 0, // AnyPropertyType
+                                                                       .long_length = 0 });
+            sync_x11connection->send(sync_buffer);
+            sync_buffer.clear();
+            auto ev = x11::event::any{};
+            while (sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
+            {
+                auto type = ev.type & 0x7f;
+                if (_filter_errors(ev) && (type == x11::event::Reply || type == x11::event::GenericEvent))
+                {
+                    if (ev.length)
+                    {
+                        sync_buffer.assign(ev.length * sizeof(ui32), '\0');
+                        sync_x11connection->recv_all(sync_buffer.data(), sync_buffer.size());
+                    }
+                    if (ev.sequence == seq_num)
+                    {
+                        auto prop_reply = netxs::start_lifetime_as<x11::req::get_property::reply>(ev);
+                        prop_type = prop_reply.prop_type;
+                        break;
+                    }
+                }
+                if (ev.sequence == seq_num) break;
+            }
+            sync_buffer.clear();
+            if constexpr (debugmode) log(ansi::clr(yellowlt, utf::fprint("prop_type=%% (%%)", _get_atom_name(prop_type), prop_type)));
+            return prop_type;
+        }
         void get_clipboard(input::clipdata& clipdata)
         {
             //todo check if we are the clipboard owner
@@ -3030,47 +3065,53 @@ namespace netxs::x11
                     {
                         if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  no clipboard data available")));
                     }
-                    else if(sn.target_id == atom_incr) // Huge data block. INCR requested.
+                    else
                     {
-                        // Read INCR property to preallocate recv buffer and remove it signaling to start INCR.
-                        auto minimal_buffer_size = 0u;
-                        _sync_get_window_property(sync_msg_window_id, sn.property_id, sn.target_id, true, minimal_buffer_size);
-                        if (minimal_buffer_size)
+                        auto prop_type = _sync_get_window_property_type(sync_msg_window_id, sn.property_id);
+                        if(prop_type == atom_incr) // Huge data block. INCR requested.
                         {
-                            clipdata.utf8.reserve(minimal_buffer_size);
-                        }
-                        if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint("clipboard data is large, INCR required, ~recv buffer size=%%", minimal_buffer_size)));
-                        auto ev_loop = x11::event::any{};
-                        while (sync_x11connection->recv_all((char*)&ev_loop, sizeof(ev_loop)).size() == sizeof(ev_loop))
-                        {
-                            auto type_loop = ev_loop.type & 0x7f;
-                            if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint(" recv: type=%% (%%)", event_str(type_loop), type_loop)));
-                            if (_sync_filter_unexpected(ev_loop) && type_loop == x11::event::PropertyNotify)
+                            // Read INCR property to preallocate recv buffer and remove it signaling to start INCR.
+                            auto minimal_buffer_size = 0u;
+                            _sync_get_window_property(sync_msg_window_id, sn.property_id, prop_type, true, minimal_buffer_size);
+                            if (minimal_buffer_size)
                             {
-                                auto pn = netxs::start_lifetime_as<x11::event::property_notify>(&ev_loop);
-                                if (pn.window_id == sync_msg_window_id && pn.atom == sn.property_id && pn.state == 0/*new value*/)
+                                clipdata.utf8.reserve(minimal_buffer_size);
+                            }
+                            if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint("clipboard data is large, INCR required, ~recv buffer size=%%", minimal_buffer_size)));
+                            auto ev_loop = x11::event::any{};
+                            while (sync_x11connection->recv_all((char*)&ev_loop, sizeof(ev_loop)).size() == sizeof(ev_loop))
+                            {
+                                auto type_loop = ev_loop.type & 0x7f;
+                                if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint(" recv: type=%% (%%)", event_str(type_loop), type_loop)));
+                                if (_sync_filter_unexpected(ev_loop) && type_loop == x11::event::PropertyNotify)
                                 {
-                                    auto initial_size = clipdata.utf8.size();
-                                    _sync_get_window_property(sync_msg_window_id, sn.property_id, 0, true, clipdata.utf8);
-                                    if (clipdata.utf8.size() == initial_size) // Finalize.
+                                    auto pn = netxs::start_lifetime_as<x11::event::property_notify>(&ev_loop);
+                                    if (pn.window_id == sync_msg_window_id && pn.atom == sn.property_id && pn.state == 0/*new value*/)
                                     {
-                                        break;
+                                        auto prev_size = clipdata.utf8.size();
+                                        if constexpr (debugmode) log("chunk prop type=%%", _sync_get_window_property_type(sync_msg_window_id, sn.property_id));
+                                        _sync_get_window_property(sync_msg_window_id, sn.property_id, sn.target_id, true, clipdata.utf8);
+                                        if (clipdata.utf8.size() == prev_size) // Finalize.
+                                        {
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    else //if (sn.target_id != atom_incr) // Small data block.
-                    {
-                        if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  Try to get small clipboard block...")));
-                        _sync_get_window_property(sync_msg_window_id, sn.property_id/*atom_vtm_clipboard*/, sn.target_id/*atom_utf8_string*/, true, clipdata.utf8);
-                        if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  got clipboard: '%%'", utf::debase437(clipdata.utf8))));
+                        else //if (prop_info.type != atom_incr) // Small data block.
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  Try to get small clipboard block...")));
+                            _sync_get_window_property(sync_msg_window_id, sn.property_id/*atom_vtm_clipboard*/, sn.target_id/*atom_utf8_string*/, true, clipdata.utf8);
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  got clipboard: '%%...'", utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), (size_t)40)))));
+                        }
                     }
                     break;
                 }
                 //if (ev.sequence == seq_num) break;
             }
             sync_buffer.clear();
+            if constexpr (debugmode) log(ansi::clr(yellowlt, "exit from get_clipboard"));
         }
         auto enable_detectable_autorepeat()
         {
