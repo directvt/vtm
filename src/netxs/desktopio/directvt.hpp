@@ -2199,21 +2199,21 @@ namespace netxs::directvt
                 }
             }
             // s11n: Recycle clipboard request.
-            void recycle_cliprequest(auto& master, s11n::xs::clipdata_request& lock)
+            void recycle_cliprequest(auto& master, s11n::xs::clipdata& clipdata_lock, s11n::xs::clipdata_request& lock)
             {
                 auto& item = lock.thing;
-                auto data = s11n::clipdata.freeze();
-                if (data.thing.hash != item.hash)
+                auto& data = clipdata_lock.thing;
+                if (data.hash != item.hash)
                 {
-                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
                 }
                 else // Send without payload if hash the same.
                 {
-                    auto temp = std::move(data.thing.utf8);
-                    data.thing.set();
-                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
-                    data.thing.utf8 = std::move(temp);
-                    data.thing.set();
+                    auto temp = std::move(data.utf8);
+                    data.set();
+                    data.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.utf8 = std::move(temp);
+                    data.set();
                 }
             }
             // s11n: Wake up waiting objects.

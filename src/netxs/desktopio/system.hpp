@@ -5142,7 +5142,8 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::clipdata_request lock)
                 {
-                    s11n::recycle_cliprequest(dtvt::client, lock);
+                    auto clipdata_lock = s11n::clipdata.freeze();
+                    s11n::recycle_cliprequest(dtvt::client, clipdata_lock, lock);
                 }
 
                 adapter()

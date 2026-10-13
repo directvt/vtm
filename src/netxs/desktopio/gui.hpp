@@ -3321,13 +3321,15 @@ namespace netxs::gui
                 auto& item = lock.thing;
                 if (item.form == mime::disabled) input::board::normalize(item);
                 else                             item.set();
-                os::clipboard::set(item);
+                owner.clipboard_set(item);
                 auto crop = utf::trunc(item.utf8, owner.gridsz.y / 2); // Trim preview before sending.
                 s11n::sysboard.send(intio, id_t{}, item.size, crop.str(), item.form);
             }
             void handle(s11n::xs::clipdata_request lock)
             {
-                s11n::recycle_cliprequest(intio, lock);
+                auto clipdata_lock = s11n::clipdata.freeze();
+                owner.clipboard_get(clipdata_lock.thing);
+                s11n::recycle_cliprequest(intio, clipdata_lock, lock);
             }
             //todo use xs::screenmode
             void handle(s11n::xs::fullscrn       /*lock*/)
@@ -3621,6 +3623,8 @@ namespace netxs::gui
         virtual void window_make_exposed() = 0;
         virtual void window_make_topmost(bool) = 0;
 
+        virtual void clipboard_set(input::clipdata& clipdata) = 0;
+        virtual void clipboard_get(input::clipdata& /*clipdata*/) {}
         virtual void sync_os_settings() = 0;
 
         void window_send_command(arch target, si32 command, arch lParam = {})
@@ -5449,6 +5453,10 @@ namespace netxs::gui
             if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
         }
 
+        void clipboard_set(input::clipdata& clipdata)
+        {
+            os::clipboard::set(clipdata);
+        }
         void layer_sync_bits(layer& s, rect area, bool zeroize = faux)
         {
             if (s.hdc && area)
@@ -5636,7 +5644,13 @@ namespace netxs::gui
                 layer_present(l);
             }
         }
-        void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
+        void window_set_title(view utf8)
+        {
+            base::enqueue<faux>([&, utf8](auto& /*boss*/) // enqueue<faux> to avoid a deadlock when ::SetWindowTextW() calls ::SendMessage().
+            {
+                ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data());
+            });
+        }
         bool keybd_test_pressed(si32 virtcod, si32 keycode = 0)
         {
             if (keycode == input::key::AltGr) return fake_ralt;
@@ -6676,6 +6690,15 @@ namespace netxs::gui
             si32                       latin_key_count{};
             bool is_latin() { return latin_key_count > 'Z' - 'A'; }
         };
+        struct incr_transfer_t
+        {
+            size_t current_pos{};  // Current offset in bytes.
+            text   text_data;      // Local copy.
+            ui32   requester_id{}; // Peer window id.
+            ui32   property_id{};  // Peer property id.
+            ui32   target_id{};    // Data format id (UTF8_STRING/STRING).
+            ui32   time{};         // Copy time stamp.
+        };
 
         using modifier_map_t = x11::req::xkb::get_map::reply::modifier_map;
 
@@ -6707,6 +6730,9 @@ namespace netxs::gui
 
         si32 wm_resized_count{}; // window: Number of requests executed to modify the geometry of wm-layers.
         ui32 last_x11_timestamp{}; // window: The last user input timestamp.
+
+        input::clipdata clipdata{}; // window: X11 clipboard buffer.
+        std::list<incr_transfer_t> incr_transfer; // window: Current INCR transfers.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -7075,6 +7101,7 @@ namespace netxs::gui
             {
                 if constexpr (debugmode) log("_post_command: seq=%% target_id=%% command=%%", session.sync_sequence_counter + (ui16)1, utf::to_hex(target_id), command);
                 session.syncrq(x11::req::send_event{ .destination_id = (ui32)target_id,
+                                                     .event_type     = x11::event::ClientMessage,
                                                      .originator_id  = 0,
                                                      .message_type   = session.atom_vtmx,
                                                      .command        = (ui32)command,
@@ -7091,6 +7118,7 @@ namespace netxs::gui
                 auto serial = session.sync_sequence_counter + (ui16)1;
                 if constexpr (debugmode) log("_send_command: seq=%%", session.sync_sequence_counter + (ui16)1);
                 session.syncrq(session.sync_buffer, x11::req::send_event{ .destination_id = (ui32)target_id,
+                                                                          .event_type     = x11::event::ClientMessage,
                                                                           .originator_id  = session.sync_msg_window_id,
                                                                           .message_type   = session.atom_vtmx,
                                                                           .serial         = (ui16)serial,
@@ -7554,6 +7582,23 @@ namespace netxs::gui
             }
         }
 
+        void clipboard_set(input::clipdata& new_clipdata)
+        {
+            session.send_batch([&](auto& batch_buffer)
+            {
+                clipdata = new_clipdata; // Assign under the session.mutex.
+                session.accumrq(batch_buffer, x11::req::set_selection_owner{ .owner_id     = (ui32)master.wm_hWnd,
+                                                                             .selection_id = session.atom_clipboard,
+                                                                             .time         = last_x11_timestamp });
+            });
+        }
+        void clipboard_get(input::clipdata& empty_clipdata)
+        {
+            session.get_clipboard(empty_clipdata);
+            empty_clipdata.set();
+            auto lock = std::lock_guard{ session.mutex };
+            clipdata = empty_clipdata; // Assign under the session.mutex.
+        }
         bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
             return keybd_test_pressed_ex(virtcod, key_all);
@@ -8010,6 +8055,7 @@ namespace netxs::gui
                 // Drop input focus (request to minimize to taskbar).
                 session.sendrq(x11::req::send_event{ .destination_id = session.root_window_id,
                                                      .event_mask     = 0x00180000, // SubstructureNotifyMask | SubstructureRedirectMask
+                                                     .event_type     = x11::event::ClientMessage,
                                                      .originator_id  = (ui32)master.wm_hWnd,
                                                      .message_type   = session.atom_wm_change_state,
                                                      .serial         = 3u }); // 3: IconicState
@@ -8121,6 +8167,7 @@ namespace netxs::gui
             if (!originator_id) return;
             if constexpr (debugmode) log("_reply_command: seq=%%", session.sync_sequence_counter + (ui16)1);
             session.syncrq(x11::req::send_event{ .destination_id = originator_id,
+                                                 .event_type     = x11::event::ClientMessage,
                                                  .originator_id  = 0,
                                                  .message_type   = session.atom_vtmx,
                                                  .serial         = serial,
@@ -8132,6 +8179,7 @@ namespace netxs::gui
             if (!originator_id) return;
             if constexpr (debugmode) log("_close_command: seq=%%", session.sync_sequence_counter + (ui16)1);
             session.sendrq(x11::req::send_event{ .destination_id = originator_id,
+                                                 .event_type     = x11::event::ClientMessage,
                                                  .originator_id  = 0,
                                                  .message_type   = session.atom_wm_protocols,
                                                  .serial         = session.atom_wm_delete_window });
@@ -8395,10 +8443,20 @@ namespace netxs::gui
                         goto break_break;
                     }
                 }
-                else if (type == x11::event::PropertyNotify) // Tracking refocus.
+                else if (type == x11::event::PropertyNotify) // Tracking global refocus and remote clipboard INCR.
                 {
                     auto e = netxs::start_lifetime_as<x11::event::property_notify>(read_buffer.data());
-                    if constexpr (debugmode) log("%%PropertyNotify atom=%% (%%)", prompt::x11, e.atom, session.get_atom_name(e.atom));
+                    if constexpr (debugmode)
+                    {
+                        if (e.window_id == session.sync_msg_window_id) // To avoid deadlock on session.sync_mutex in get_atom_name().
+                        {
+                            log("%%PropertyNotify atom=%% e.state='%%'(%%) e.window_id=%%", prompt::x11, e.atom, e.state ? "DELETED" : "NEW VALUE", (si32)e.state, utf::to_hex_0x(e.window_id));
+                        }
+                        else
+                        {
+                            log("%%PropertyNotify atom=%% (%%) e.state='%%'(%%) e.window_id=%%", prompt::x11, e.atom, session.get_atom_name(e.atom), e.state ? "DELETED" : "NEW VALUE", (si32)e.state, utf::to_hex_0x(e.window_id));
+                        }
+                    }
                     if (e.window_id == session.root_window_id)
                     {
                         if (ontop_state && _is_foreground_window() && e.atom == session.atom_vtm_always_on_top) // Update OnTop z-order if AlwaysOnTop enabled.
@@ -8475,9 +8533,9 @@ namespace netxs::gui
                         {
                             if constexpr (debugmode) log("Request atom_net_workarea value");
                             session.sendrq<x11::req::get_property>({ .window_id   = session.root_window_id,
-                                                                        .property    = session.atom_net_workarea,
-                                                                        .prop_type   = session.atom_cardinal,
-                                                                        .long_length = 4 }, {},
+                                                                     .property    = session.atom_net_workarea,
+                                                                     .prop_type   = session.atom_cardinal,
+                                                                     .long_length = 4 }, {},
                             [&](auto& ev, view payload)
                             {
                                 if (ev.type == x11::event::Error)
@@ -8506,6 +8564,55 @@ namespace netxs::gui
                         else if (e.atom == session.atom_xkb_rules_names) // The list of keyboard layouts has changed.
                         {
                             _keybd_load_layouts();
+                        }
+                    }
+                    if (incr_transfer.size())
+                    {
+                        auto iter = std::find_if(incr_transfer.begin(), incr_transfer.end(), [&](auto& peer)
+                        {
+                            if constexpr (debugmode) log("find_if: peer.requester_id=%%", utf::to_hex_0x(peer.requester_id));
+                            return e.window_id == peer.requester_id
+                                && e.atom      == peer.property_id
+                                && e.state     == 1/*deleted*/;
+                        });
+                        if (iter == incr_transfer.end())
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" No peers found: ")));
+                        }
+                        else
+                        {
+                            auto chunk_size = session.max_chunk_bytes();
+                            auto& transfer = *iter;
+                            auto remains = transfer.text_data.size() - transfer.current_pos;
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" INCR transfer: remains=%%", remains)));
+                            if (remains > 0)
+                            {
+                                auto send_now = std::min(chunk_size, remains);
+                                auto chunk_view = view{ &transfer.text_data[transfer.current_pos], send_now };
+                                session.send_batch([&](auto& batch_buffer)
+                                {
+                                    session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
+                                                                                             .property  = transfer.property_id,
+                                                                                             .type      = transfer.target_id,
+                                                                                             .format    = 8 },
+                                                                                        chunk_view);
+                                });
+                                transfer.current_pos += send_now;
+                            }
+                            else // Finalize transfer.
+                            {
+                                session.send_batch([&](auto& batch_buffer)
+                                {
+                                    session.accumrq(batch_buffer, x11::req::change_window_attrs{ .window_id = transfer.requester_id }, // Stop tracking property delete on remote window.
+                                        x11::req::change_window_attrs::payload{ .event_mask = 0 });
+                                    session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
+                                                                                             .property  = transfer.property_id,
+                                                                                             .type      = transfer.target_id,
+                                                                                             .format    = 8 },
+                                                                                        view{});
+                                });
+                                incr_transfer.erase(iter);
+                            }
                         }
                     }
                     continue; // Skip sys_command(syscmd::update).
@@ -8577,6 +8684,96 @@ namespace netxs::gui
                         }
                         read_buffer.resize(x11::recv_packet_size); // Restore classic read_buffer size.
                     }
+                }
+                else if (type == x11::event::SelectionClear)
+                {
+                    // Clipboard is invalidated (someone takes ownership).
+                }
+                else if (type == x11::event::SelectionRequest)
+                {
+                    auto sr = netxs::start_lifetime_as<x11::event::selection_request>(read_buffer.data());
+                    session.send_batch([&](auto& batch_buffer)
+                    {
+                        auto data_format = (byte)32; // 32-bit.
+                        auto destination_id = sr.requester_window_id;
+                        if (sr.target_id == session.atom_targets) // Supported clipboard formats requested (TARGETS, UTF8_STRING).
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, "clipboard formats requested"));
+                            auto targets = std::to_array({ session.atom_targets,
+                                                           session.atom_utf8_string,
+                                                           session.atom_string });
+                            session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
+                                                                                     .property  = sr.property_id,
+                                                                                     .type      = session.atom_atom },
+                                                                                    targets);
+                        }
+                        else if (sr.target_id == session.atom_multiple) // Send multiple clipboard data forms.
+                        {
+                            //todo
+                            if constexpr (debugmode) log(ansi::err("not implemented: Requested multiple clipboard data forms"));
+                            sr.target_id = 0;
+                        }
+                        else if (sr.target_id == session.atom_utf8_string || sr.target_id == session.atom_string) // Send clipboard text data.
+                        {
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata.utf8.size())));
+                            if (clipdata.utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), (size_t)20)))));
+                                session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
+                                                                                         .property  = sr.property_id,
+                                                                                         .type      = sr.target_id,
+                                                                                         .format    = 8 }, // 8-bit text.
+                                                                                        clipdata.utf8);
+                            }
+                            else // Activate INCR.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  activate INCR with peer=%%", utf::to_hex_0x(sr.requester_window_id))));
+                                auto iter = std::find_if(incr_transfer.begin(), incr_transfer.end(), [&](auto& peer)
+                                {
+                                    return peer.requester_id == sr.requester_window_id
+                                        && peer.property_id  == sr.property_id;
+                                });
+                                //if (iter != incr_transfer.end()) // Abort incomplete transfer.
+                                //{
+                                //    session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = sr.requester_window_id,
+                                //                                                        .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                //                                                        .originator_id  = iter->time,                  // - time
+                                //                                                        .message_type   = iter->requester_id,          // - requester
+                                //                                                        .serial         = sr.selection_id,             // - selection
+                                //                                                        .command        = iter->target_id,             // - target
+                                //                                                        .lParam         = iter->property_id });        // - property
+                                //}
+                                //else // Add a new peer.
+                                if (iter == incr_transfer.end())
+                                {
+                                    iter = incr_transfer.emplace(iter);
+                                }
+                                iter->text_data    = clipdata.utf8; // Make a copy under the session.mutex (session.send_batch).
+                                iter->requester_id = sr.requester_window_id;
+                                iter->property_id  = sr.property_id;
+                                iter->target_id    = sr.target_id;
+                                iter->time         = sr.time;
+                                session.accumrq(batch_buffer, x11::req::change_window_attrs{ .window_id = sr.requester_window_id }, // Track property delete on remote window.
+                                    x11::req::change_window_attrs::payload{ .event_mask = x11::event::mask::PropertyChange });
+                                data_format            = 0;                 // Change to AnyFormat.
+                                sr.target_id           = session.atom_incr; // Change to INCR.
+                                session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
+                                                                                         .property  = sr.property_id,
+                                                                                         .type      = sr.target_id }, // "INCR"
+                                                                                    netxs::saturate_cast<ui32>(clipdata.utf8.size()));
+                            }
+                        }
+                        // Notify remote window.
+                        session.accumrq(batch_buffer, x11::req::send_event{ .destination_id = destination_id,
+                                                                            .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                                                            .format         = data_format,
+                                                                            .originator_id  = sr.time,                     // - time
+                                                                            .message_type   = sr.requester_window_id,      // - requester
+                                                                            .serial         = sr.selection_id,             // - selection
+                                                                            .command        = sr.target_id,                // - target
+                                                                            .lParam         = sr.property_id });           // - property
+                    });
+                    continue;
                 }
                 //else if (type == session.xkb_first_event && is_focused_window) // XKB Notify.
                 //{
@@ -9050,6 +9247,7 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
+        void clipboard_set(input::clipdata& /*clipdata*/) {}
         bool keybd_test_pressed(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_pressed_ex(si32 /*virtcod*/, si32 /*keycode*/ = 0) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
