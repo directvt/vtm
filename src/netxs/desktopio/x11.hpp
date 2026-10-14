@@ -2660,10 +2660,7 @@ namespace netxs::x11
                                                         .property  = atom_wm_transient_for,
                                                         .type      = atom_window },
                                                     (ui32)master_window_id);
-                }
-                // Remove sub-layers from taskbar.
-                if (!override_redirect)
-                {
+                    // Remove sub-layers from taskbar.
                     accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                         .property  = atom_net_wm_state,
                                                         .type      = atom_atom },
