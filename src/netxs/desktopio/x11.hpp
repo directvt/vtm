@@ -685,6 +685,9 @@ namespace netxs::x11
         }
         namespace xfixes
         {
+            static constexpr auto ShapeBounding = 0; // Visible boundary (painting geometry).
+            static constexpr auto ShapeClip     = 1; // Visible clip.
+            static constexpr auto ShapeInput    = 2; // Input hit-test.
             struct query_version
             {
                 struct reply
@@ -710,7 +713,10 @@ namespace netxs::x11
                 ui16 length       = 4;
                 ui32 region_id;
                 // Payload (rectangle list)...
-                ui16 rect0[4] = {}; // Empty rect. ui16 x=0,y=0,w=300,h=200
+                si16 x = 0; // Empty rect.
+                si16 y = 0; //
+                ui16 w = 0; //
+                ui16 h = 0; //
             };
             struct destroy_region // XFixesDestroyRegion (Minor opcode 10).
             {
@@ -721,10 +727,6 @@ namespace netxs::x11
             };
             struct set_window_shape_region // XFixesSetWindowShapeRegion (Minor opcode 21).
             {
-                static constexpr auto ShapeBounding = 0; // Visible boundary (painting geometry).
-                static constexpr auto ShapeClip     = 1; // Visible clip.
-                static constexpr auto ShapeInput    = 2; // Input hit-test.
-
                 byte major_opcode;      // xfixes_major_opcode.
                 byte minor_opcode = 21; // 21: XFixesSetWindowShapeRegion
                 ui16 length       = 5;
@@ -2184,6 +2186,11 @@ namespace netxs::x11
             return sequence_counter;
         }
         template<class R, class V = qiew, class P = noop>
+        auto accum(text& batch_buffer, R request, V payload = {}, P callback = {}) // Syntax sugar for create_window.
+        {
+            accumrq(batch_buffer, request, payload, std::move(callback));
+        }
+        template<class R, class V = qiew, class P = noop>
         auto sendrq(R request = {}, V payload = {}, P callback = {}) // Note: callbacks must check reply errors on their side: ev.type == x11::event::Error.
         {
             auto lock = std::lock_guard{ mutex };
@@ -2537,17 +2544,11 @@ namespace netxs::x11
         {
             accumrq(batch_buffer, x11::req::xfixes::set_window_shape_region{ .major_opcode = xfixes_major_opcode,
                                                                              .window_id    = (ui32)window_id,
-                                                                             .region_id    = state ? 0 : empty_region_id }); // 0: enable mouse input, empty_region_id: disable mouse input.
+                                                                             .region_id    = state ? 0 : empty_region_id });
         }
-        void set_mouse_input(arch window_id, bool state) // Make sub-layer transparent for mouse.
+        auto create_window(text& b, arch master_window_id, ui32 new_window_id, ui32 new_gc_id, bool is_master, bool override_redirect)
         {
-            sendrq<x11::req::xfixes::set_window_shape_region>({ .major_opcode = xfixes_major_opcode,
-                                                                .window_id    = (ui32)window_id,
-                                                                .region_id    = state ? 0 : empty_region_id }); // 0: enable mouse input, empty_region_id: disable mouse input.
-        }
-        auto create_window(arch master_window_id, ui32 new_window_id, ui32 new_gc_id, bool is_master, bool override_redirect)
-        {
-            sendrq<x11::req::create_window>({ .depth     = 32,
+            accum(b, x11::req::create_window{ .depth     = 32,
                                               .window_id = new_window_id,
                                               .parent_id = root_window_id,
                                               .visual_id = argb_visual32_id },
@@ -2566,54 +2567,54 @@ namespace netxs::x11
                                                                                           ,
                                                                               .colormap_id = argb_colormap_id }); // Mandatory: own colormap.
             // Mark our windows.
-            sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+            accum(b, x11::req::change_property{ .window_id = (ui32)new_window_id,
                                                 .property  = atom_vtmx,
                                                 .type      = atom_cardinal }, 1);
             // Disable decorations.
             if (!override_redirect)
             {
-                sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                     .property  = atom_motif_wm_hints,
                                                     .type      = atom_motif_wm_hints },
                                                 x11::motif::hints{ .flags = x11::motif::Decorations, .decorations = 0 });
             }
             // Set WM_PROTOCOLS.
-            sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+            accum(b, x11::req::change_property{ .window_id = (ui32)new_window_id,
                                                 .property  = atom_wm_protocols,
                                                 .type      = atom_atom },
                                             std::to_array({ atom_wm_delete_window })); //std::to_array({ atom_net_wm_sync_request, atom_net_wm_ping }));
             // Set XSync counter.
-            //sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+            //accum(b, x11::req::change_property{ .window_id = (ui32)new_window_id,
             //                                    .property  = atom_net_wm_sync_request_counter,
             //                                    .type      = atom_cardinal },
             //                                xsync_counter_id);
             // Try to make it DPI-aware.
-            //sendrq<x11::req::change_property>({ .window_id = (ui32)new_window_id,
+            //accum(b, x11::req::change_property{ .window_id = (ui32)new_window_id,
             //                                    .property  = atom_net_wm_bypass_compositor, //_XWAYLAND_ALLOW_FRACTIONAL_SCALE
             //                                    .type      = atom_cardinal },
             //                                1);
             if (is_master)
             {
                 //todo it doesn't work // Set XSync fence.
-                //auto seq = sendrq<x11::req::xsync::create_fence>({ .major_opcode = xsync_major_opcode,
+                //accum(b, x11::req::xsync::create_fence{ .major_opcode = xsync_major_opcode,
                 //                                        .window_id    = (ui32)new_window_id,
                 //                                        .fence_id     = xsync_fence_id });
-                //if constexpr (debugmode) log("Attached fence_id: 0x%% to window_id=0x%% seq=%%", utf::to_hex(xsync_fence_id), utf::to_hex(new_window_id), seq);
+                //if constexpr (debugmode) log("Attached fence_id: 0x%% to window_id=0x%%", utf::to_hex(xsync_fence_id), utf::to_hex(new_window_id));
                 //todo it doesn't work // Make the window available for input focus.
-                //sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                //accum(b, x11::req::change_property{ .window_id = new_window_id,
                 //                                    .property  = atom_wm_hints,
                 //                                    .type      = atom_wm_hints },
                 //                                x11::icccm::wm_hints{ .flags = x11::icccm::InputHint, .input = 1 });
                 // Init XPresent event subscription (for msc).
                 auto new_event_id = new_resource_id();
-                sendrq<x11::req::xpresent::select_input>({ .major_opcode = xpresent_major_opcode,
+                accum(b, x11::req::xpresent::select_input{ .major_opcode = xpresent_major_opcode,
                                                            .event_id     = new_event_id,
                                                            .window_id    = new_window_id });
                 if (override_redirect == 0) // Wm master layer only.
                 {
                     if (x11::wm_inst_name.size() > 4096u) x11::wm_inst_name.resize(4096u); // change_property::length is ui16.
                     auto wm_class_data = x11::wm_inst_name + "\0vtm\0"s; // "instance_name\0class_name\0". Bind to the taskbar icon in .desktop-file: StartupWMClass=vtm.
-                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                    accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                         .property  = atom_wm_class,
                                                         .type      = atom_string,
                                                         .format    = sizeof(byte) * 8 }, // 8 bit.
@@ -2632,7 +2633,7 @@ namespace netxs::x11
                         *p++ = block ? 0xFF3A78FF : 0x00000000; // Blue.
                         //*p++ = block ? 0xFFFF783A : 0x00000000; // Red.
                     }
-                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                    accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                         .property  = atom_net_wm_icon,
                                                         .type      = atom_cardinal },
                                                     buffer);
@@ -2641,13 +2642,13 @@ namespace netxs::x11
             else // is sublayer
             {
                 //todo it doesn't work // Make the window output only.
-                //sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                //accum(b, x11::req::change_property{ .window_id = new_window_id,
                 //                                    .property  = atom_wm_hints,
                 //                                    .type      = atom_wm_hints },
                 //                                x11::icccm::wm_hints{ .flags = x11::icccm::InputHint, .input = 0 });
 
                 // Make the window output only.
-                sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                     .property  = atom_net_wm_window_type,
                                                     .type      = atom_atom },
                                                 atom_net_wm_window_type_utility);
@@ -2655,7 +2656,7 @@ namespace netxs::x11
                 {
                     //todo wslg (sometimes) places all transient windows inside the master if override_redirect=0
                     // Group sub-layers with master.
-                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                    accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                         .property  = atom_wm_transient_for,
                                                         .type      = atom_window },
                                                     (ui32)master_window_id);
@@ -2663,26 +2664,26 @@ namespace netxs::x11
                 // Remove sub-layers from taskbar.
                 if (!override_redirect)
                 {
-                    sendrq<x11::req::change_property>({ .window_id = new_window_id,
+                    accum(b, x11::req::change_property{ .window_id = new_window_id,
                                                         .property  = atom_net_wm_state,
                                                         .type      = atom_atom },
                                                     atom_net_wm_state_skip_taskbar);
                 }
                 // Make sub-layer transparent for mouse.
-                set_mouse_input(new_window_id, faux);
+                set_mouse_input(b, new_window_id, faux);
             }
 
             // Disable shadows.
-            //sendrq<x11::req::change_property>({ .window_id = new_window_id,
+            //accum(b, x11::req::change_property{ .window_id = new_window_id,
             //                                    .property  = atom_net_wm_window_type, // Atom "_NET_WM_WINDOW_TYPE".
             //                                    .type      = atom_atom },             // Atom XA_ATOM=4.
             //                                atom_net_wm_window_type_combo);
-            //sendrq<x11::req::change_property>({ .window_id = new_window_id,
+            //accum(b, x11::req::change_property{ .window_id = new_window_id,
             //                                    .property  = atom_compton_shadow,      // Atom "_COMPTON_SHADOW".
             //                                    .type      = atom_cardinal },          // Atom XA_CARDINAL=6.
             //                                0u); // 0: off, 1: on.
 
-            sendrq<x11::req::create_gc>({ .gc_id = new_gc_id, .drawable = new_window_id });
+            accum(b, x11::req::create_gc{ .gc_id = new_gc_id, .drawable = new_window_id });
 
             if constexpr (debugmode) log("create window: window_id=%% parent_id=%% depth=%% visual_id=0x%% colormap_id=0x%%",
                 utf::to_hex(new_window_id), utf::to_hex(root_window_id), 32, utf::to_hex(argb_visual32_id), utf::to_hex(argb_colormap_id));

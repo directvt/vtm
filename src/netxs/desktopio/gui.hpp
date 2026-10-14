@@ -6956,10 +6956,6 @@ namespace netxs::gui
             {
                 session.send_batch([&](auto& batch_buffer) // Update fg/bg-layers.
                 {
-                    // Configure mouse input.
-                    //wm_hWnd will be set in event::Expose.
-                    //session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
-                    //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
@@ -7005,6 +7001,10 @@ namespace netxs::gui
                                                                                              .y = (ui16)s.presented_area.coor.y });
                         }
                     }
+                    // Configure mouse input (GNOME/Mutter bug workaround: do it after all window transformation).
+                    //wm_hWnd will be set in event::Expose.
+                    session.set_mouse_input(batch_buffer, master.fg_hWnd, master.live);
+                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                     _trigger_to_update_alwaysontop(batch_buffer, master);
                     if (seq_num_any.has_value())
                     {
@@ -7033,9 +7033,6 @@ namespace netxs::gui
                 wm_resized_count = 0;
                 session.send_batch([&](auto& batch_buffer) // Show wm-layers.
                 {
-                    //wm_hWnd will be set in event::Expose.
-                    //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
-                    //session.set_mouse_input(batch_buffer, master.fg_hWnd, faux);
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
@@ -7055,6 +7052,9 @@ namespace netxs::gui
                                                                                          .width  = (ui16)target_area.size.x,
                                                                                          .height = (ui16)target_area.size.y });
                     }
+                    //wm_hWnd will be set in event::Expose.
+                    session.set_mouse_input(batch_buffer, master.bg_hWnd, faux); // GNOME/Mutter bug workaround: do it after all window transformation.
+                    session.set_mouse_input(batch_buffer, master.fg_hWnd, faux); //
                 });
             }
         }
@@ -7777,9 +7777,12 @@ namespace netxs::gui
                 grid_size /= cell_size;
                 s.effective_area = rect{ win_coord, grid_size * cell_size } + border_dent;
             }
-            session.create_window(master.fg_hWnd, s.fg_hWnd, s.fg_hdc, is_master, true);
-            session.create_window(master.bg_hWnd, s.bg_hWnd, s.bg_hdc, is_master, true);
-            session.create_window(master.wm_hWnd, s.wm_hWnd, s.wm_hdc, is_master, faux);
+            session.send_batch([&](auto& batch_buffer)
+            {
+                session.create_window(batch_buffer, master.fg_hWnd, s.fg_hWnd, s.fg_hdc, is_master, true);
+                session.create_window(batch_buffer, master.bg_hWnd, s.bg_hWnd, s.bg_hdc, is_master, true);
+                session.create_window(batch_buffer, master.wm_hWnd, s.wm_hWnd, s.wm_hdc, is_master, faux);
+            });
             return true;
         }
         void layers_move()
@@ -7913,11 +7916,6 @@ namespace netxs::gui
                 // Make visual swap.
                 session.send_batch([&](auto& batch_buffer)
                 {
-                    if (master.windowsized)
-                    {
-                        //session.set_mouse_input(batch_buffer, master.fg_hWnd, true);
-                        //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
-                    }
                     for (auto& l : layers)
                     {
                         auto& s = l.get();
@@ -7934,6 +7932,11 @@ namespace netxs::gui
                             session.accumrq(batch_buffer, x11::req::configure_window{ .window_id = (ui32)s.fg_hWnd, },
                                                         x11::req::configure_window::payload{ .x = (ui16)s.allocated_area.coor.x,
                                                                                              .y = (ui16)s.allocated_area.coor.y });
+                            if (s.fg_hWnd == master.fg_hWnd)
+                            {
+                                session.set_mouse_input(batch_buffer, master.fg_hWnd, true);
+                                session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                            }
                             // Put transparent pixel to the upper-left corner (the one visible window dot at hidden_coor).
                             session.accumrq(batch_buffer, x11::req::poly_point{ .drawable_id = (ui32)s.bg_hWnd,
                                                                                 .gc_id       = (ui32)s.bg_hdc });
@@ -8807,7 +8810,7 @@ namespace netxs::gui
             hidden_coor = session.x11_display_size - dot_11;
             session.send_batch([&](auto& batch_buffer)
             {
-                //session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
+                session.set_mouse_input(batch_buffer, master.bg_hWnd, faux);
                 session.set_mouse_input(batch_buffer, master.wm_hWnd, faux);
                 for (auto& l : layers)
                 {
