@@ -389,12 +389,12 @@ namespace netxs::gui
                 if ((!file_buff && !os::io::load_file(file_path, file_buff.buffer))
                     || FT_Err_Ok != ::FT_New_Memory_Face(fcache.ft_library.get(), file_buff.buffer.data(), (FT_Long)file_buff.buffer.size(), bare_face_ptr->face_index, &raw_face)) // Read a whole font/collection file (relatively slow, e.g. with 30Mb font files).
                 {
-                    log("%%Failed to load font family file '%family_name%' (style_id=%%): %filename%", prompt::gui, family_ref.family_name, font_style::str(style_id), utf8_path);
+                    log("%%Failed to load font style from family '%family_name%': style_id=%% file='%filename%'", prompt::gui, family_ref.family_name, font_style::str(style_id), utf8_path);
                     bare_face_ptr->valid = faux;
                 }
                 else
                 {
-                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), font_style::str(style_id));
+                    log("%%Loaded font style from family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), font_style::str(style_id));
                     // Apply axes.
                     if (bare_face_ptr->is_variable_font)
                     {
@@ -481,6 +481,15 @@ namespace netxs::gui
             {
                 load_face();
                 if (!isbase) recalc_metrics(cellsz, isbase);
+            }
+            font_face_t(fonts& fcache, font_family_t& family_rec, twod cellsz) // For synthetics only.
+                : fcache{ fcache },
+                  family_ref{ family_rec },
+                  fixed{ true }
+            {
+                //todo
+                load_synth_face(cellsz);
+                //recalc_metrics(cellsz, true);
             }
 
             void sort_faces()
@@ -618,6 +627,10 @@ namespace netxs::gui
                     }
                     ratio = facesize.x / facesize.y;
                 }
+            }
+            void load_synth_face(twod /*cellsz*/)
+            {
+                //todo
             }
             void get_common_widths(bool& proportional, ui32& normal_width, ui32& italic_width)
             {
@@ -1046,6 +1059,8 @@ namespace netxs::gui
                     family_rec.is_fixed = faux;
                 }
             }
+            //todo reinit synthetic_font.
+            //todo font_fallback.emplace_back(*this, synth_family, cellsize);
             for (auto& family_utf8 : family_names) // Sort faces in families.
             {
                 auto iter = font_map.find(family_utf8);
@@ -1075,6 +1090,7 @@ namespace netxs::gui
                 if (hit)
                 {
                     auto is_primary = font_fallback.empty();
+                    //todo auto is_primary = font_fallback.size() == 1; // Only synthetic glyphs are present.
                     font_fallback.emplace_back(*this, family_rec, cellsize, is_primary);
                     family_rec.is_sorted = true;
                 }
@@ -1094,6 +1110,8 @@ namespace netxs::gui
                     return font_fallback.back();
                 }
             }
+            //todo return font_fallback.back();
+            //todo drop: This never happens when synthetic glyphs are present.
             if (font_fallback.size())
             {
                 return font_fallback.back();
@@ -1251,7 +1269,7 @@ namespace netxs::gui
             log<faux>("\x1b_lua: terminal.LineWrapMode(wrap_mode)\x1b\\");
             log<faux>("\x1b_lua: terminal.CodePage(code_page)\x1b\\\n");
         }
-        void init_svg_fonts()
+        void init_fonts_for_svg_engine()
         {
             auto svg_fonts = std::to_array<std::pair<text, text>>({
             #if defined(_WIN32)
@@ -1277,6 +1295,7 @@ namespace netxs::gui
                 ::lunasvg_add_font_face_from_data(family.c_str(), true, faux, f_bold       .data(), f_bold       .size(), nullptr, nullptr);
                 ::lunasvg_add_font_face_from_data(family.c_str(), true, true, f_bold_italic.data(), f_bold_italic.size(), nullptr, nullptr);
             };
+            //todo auto& def_face = font_fallback.size() > 1 ? font_fallback[1] : font_fallback[0]/*synthetics only*/; // Register the fallback font (with empty family name).
             auto& def_face = font_fallback.front(); // Register the fallback font (with empty family name).
             register_svg_font(""s, def_face);
             svg_font_list.clear();
@@ -1298,6 +1317,7 @@ namespace netxs::gui
         shaper                                             font_shaper;   // fonts: Font shaper.
         std::map<text, font_family_t>                      font_map;      // fonts: Map of available font families sorted by family name.
         std::vector<std::reference_wrapper<font_family_t>> font_index;    // fonts: Index of available font families ordered by filestamp.
+        //todo font_family_t                                      synth_family;  // fonts: Synthetic glyphs.
         std::vector<font_face_t>                           font_fallback; // fonts: Fallback font list.
         std::vector<font_face_t>                           svg_font_list; // fonts: SVG library font list.
         utf::unordered_map<text, sptr<loaded_font_file_t>> loaded_files;  // fonts: Map of loaded font files by file paths (path <-> blob).
@@ -1325,6 +1345,7 @@ namespace netxs::gui
                 initialized = faux;
                 return;
             }
+            //todo init synth_family
             #if defined(_WIN32)
                 auto registered_fonts = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"sv;
                 auto filter = [](auto& item)
@@ -1632,6 +1653,11 @@ namespace netxs::gui
             });
             //log_fonts(faux);
             set_fonts(family_names, font_axes);
+            //todo
+            //set_cellsz(cell_height);
+            //init_fonts_for_svg_engine();
+            //return;
+            //todo drop:
             if (font_fallback.empty())
             {
                 auto single_codepoint = std::to_array<utfx>({ 'A' });
@@ -1641,7 +1667,7 @@ namespace netxs::gui
             if (initialized)
             {
                 set_cellsz(cell_height);
-                init_svg_fonts();
+                init_fonts_for_svg_engine();
             }
         }
     };
@@ -1654,6 +1680,7 @@ namespace netxs::gui
         {
             static constexpr auto _counter = 1 + __COUNTER__;
             static constexpr auto wavyunderline = __COUNTER__ - _counter;
+            //todo ???static constexpr auto block_element = __COUNTER__ - _counter;  // U+2580 - U+259F
         };
 
         using gmap = std::unordered_map<ui64, sprite>;
@@ -1842,9 +1869,8 @@ namespace netxs::gui
                 }
             }
         }
-        void generate_glyphs()
+        void generate_wavy_underline(sprite& m)
         {
-            // Generate wavy underline.
             auto block = fcache.wavyline;
             auto height = block.size.y;
             auto thick = fcache.underline.size.y;
@@ -1857,7 +1883,6 @@ namespace netxs::gui
             block.size.x = 1;
             block.size.y = thick;
             auto c = byte{ 255 }; // Opaque alpha texture.
-            auto& m = cgi_glyphs.emplace_back(buffer_pool);
             m.area = {{ 0, block.coor.y }, { width, height }};
             m.type = sprite::alpha;
             m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)));
@@ -1882,6 +1907,62 @@ namespace netxs::gui
                 }
                 block.coor.x += fract * 3;
             }
+        }
+        void generate_glyphs()
+        {
+            generate_wavy_underline(cgi_glyphs.emplace_back(buffer_pool));
+            //todo Block Elements
+            //auto c = (ui32)-1; // Opaque alpha texture (four 8-bit pixels: 255, 255, 255, 255).
+            //auto generate_synth_char = [&](auto draw_proc)
+            //{
+            //    auto& m = cgi_glyphs.emplace_back(buffer_pool);
+            //    m.type = sprite::alpha;
+            //    draw_proc(m);
+            //};
+            //generate_synth_char([&](sprite& m) // U+2580   ▀   Upper half block
+            //{
+            //    m.area = { dot_00, { cellsz.x, std::max(1, cellsz.y / 2) }};
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2581 = cgi_glyphs.emplace_back(buffer_pool); // U+2581   ▁   Lower one eighth block
+            //auto& u2582 = cgi_glyphs.emplace_back(buffer_pool); // U+2582   ▂   Lower one quarter block
+            //auto& u2583 = cgi_glyphs.emplace_back(buffer_pool); // U+2583   ▃   Lower three eighths block
+            //generate_synth_char([&](sprite& m) // U+2584   ▄   Lower half block
+            //{
+            //    m.area = {{ 0, cellsz.y / 2 }, { cellsz.x, std::max(1, cellsz.y - cellsz.y / 2) }};
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2585 = cgi_glyphs.emplace_back(buffer_pool); // U+2585   ▅   Lower five eighths block
+            //auto& u2586 = cgi_glyphs.emplace_back(buffer_pool); // U+2586   ▆   Lower three quarters block
+            //auto& u2587 = cgi_glyphs.emplace_back(buffer_pool); // U+2587   ▇   Lower seven eighths block
+            //generate_synth_char([&](sprite& m) // U+2588   █   Full block
+            //{
+            //    m.area = { dot_00, cellsz };
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2589 = cgi_glyphs.emplace_back(buffer_pool); // U+2589   ▉   Left seven eighths block
+            //auto& u258A = cgi_glyphs.emplace_back(buffer_pool); // U+258A   ▊   Left three quarters block
+            //auto& u258B = cgi_glyphs.emplace_back(buffer_pool); // U+258B   ▋   Left five eighths block
+            //auto& u258C = cgi_glyphs.emplace_back(buffer_pool); // U+258C   ▌   Left half block
+            //auto& u258D = cgi_glyphs.emplace_back(buffer_pool); // U+258D   ▍   Left three eighths block
+            //auto& u258E = cgi_glyphs.emplace_back(buffer_pool); // U+258E   ▎   Left one quarter block
+            //auto& u258F = cgi_glyphs.emplace_back(buffer_pool); // U+258F   ▏   Left one eighth block
+            //auto& u2590 = cgi_glyphs.emplace_back(buffer_pool); // U+2590   ▐   Right half block
+            //auto& u2591 = cgi_glyphs.emplace_back(buffer_pool); // U+2591   ░   Light shade
+            //auto& u2592 = cgi_glyphs.emplace_back(buffer_pool); // U+2592   ▒   Medium shade
+            //auto& u2593 = cgi_glyphs.emplace_back(buffer_pool); // U+2593   ▓   Dark shade
+            //auto& u2594 = cgi_glyphs.emplace_back(buffer_pool); // U+2594   ▔   Upper one eighth block
+            //auto& u2595 = cgi_glyphs.emplace_back(buffer_pool); // U+2595   ▕   Right one eighth block
+            //auto& u2596 = cgi_glyphs.emplace_back(buffer_pool); // U+2596   ▖   Quadrant lower left
+            //auto& u2597 = cgi_glyphs.emplace_back(buffer_pool); // U+2597   ▗   Quadrant lower right
+            //auto& u2598 = cgi_glyphs.emplace_back(buffer_pool); // U+2598   ▘   Quadrant upper left
+            //auto& u2599 = cgi_glyphs.emplace_back(buffer_pool); // U+2599   ▙   Quadrant upper left and lower left and lower right
+            //auto& u259A = cgi_glyphs.emplace_back(buffer_pool); // U+259A   ▚   Quadrant upper left and lower right
+            //auto& u259B = cgi_glyphs.emplace_back(buffer_pool); // U+259B   ▛   Quadrant upper left and upper right and lower left
+            //auto& u259C = cgi_glyphs.emplace_back(buffer_pool); // U+259C   ▜   Quadrant upper left and upper right and lower right
+            //auto& u259D = cgi_glyphs.emplace_back(buffer_pool); // U+259D   ▝   Quadrant upper right
+            //auto& u259E = cgi_glyphs.emplace_back(buffer_pool); // U+259E   ▞   Quadrant upper right and lower left
+            //auto& u259F = cgi_glyphs.emplace_back(buffer_pool); // U+259F   ▟   Quadrant upper right and lower left and lower right
         }
         void reset()
         {
