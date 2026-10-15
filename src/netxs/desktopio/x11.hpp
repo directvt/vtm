@@ -2049,6 +2049,7 @@ namespace netxs::x11
         ui32                                  atom_text_plain_utf8 = 0; // "text/plain;charset=utf-8"
         ui32                                  atom_text_html = 0;       // "text/html"
         ui32                                  atom_text_richtext = 0;   // "text/richtext"
+        ui32                                  atom_text_ansivt = 0;     // "text/ansdivt"
 
         ui32                                  atom_net_active_window = 0;
         ui32                                  atom_net_number_of_desktops = 0;
@@ -2735,6 +2736,7 @@ namespace netxs::x11
             atom_text_plain_utf8             = get_atom_id("text/plain;charset=utf-8", true);
             atom_text_html                   = get_atom_id("text/html", true);
             atom_text_richtext               = get_atom_id("text/richtext", true);
+            atom_text_ansivt                 = get_atom_id("text/ansivt", true);
 
             atom_vtmx                        = get_atom_id("VTMX", true);
             atom_vtm_always_on_top           = get_atom_id("VTM_ALWAYS_ON_TOP", true);
@@ -2994,11 +2996,11 @@ namespace netxs::x11
             if constexpr (debugmode) log(ansi::clr(yellowlt, utf::fprint("prop_type=%% (%%)", _get_atom_name(prop_type), prop_type)));
             return prop_type;
         }
-        void get_clipboard(input::clipdata& clipdata)
+        input::clipdata get_clipboard()
         {
             //todo check if we are the clipboard owner
             auto lock = std::lock_guard{ sync_mutex };
-            clipdata.utf8 = {};
+            auto clipdata = input::clipdata{};
             clipdata.form = mime::textonly;
             clipdata.hash = datetime::now();
             // Request format list (TARGETS).
@@ -3037,8 +3039,17 @@ namespace netxs::x11
                 }
                 //if (ev.sequence == seq_num) break;
             }
-            auto has_utf8 = std::find(available_formats.begin(), available_formats.end(), atom_utf8_string) != available_formats.end();
-            auto target_to_request = has_utf8 ? atom_utf8_string : atom_string;
+            auto target_to_request = [&]
+            {
+                auto find = [&](auto f_atom){ return std::find(available_formats.begin(), available_formats.end(), f_atom) != available_formats.end(); };
+                if (find(atom_text_ansivt)) { clipdata.form = mime::ansitext; return atom_text_ansivt; } // Our clipboard format.
+                if (find(atom_utf8_string    )) return atom_utf8_string;
+                if (find(atom_text_plain_utf8)) return atom_text_plain_utf8;
+                if (find(atom_text_plain     )) return atom_text_plain;
+                if (find(atom_string         )) return atom_string;
+                if (find(atom_text           )) return atom_text;
+                return atom_string;
+            }();
             // Request clipboard data.
             seq_num = syncrq(sync_buffer, x11::req::convert_selection{ .requester_window_id = sync_msg_window_id,
                                                                        .selection_id        = atom_clipboard,
@@ -3109,7 +3120,14 @@ namespace netxs::x11
                 //if (ev.sequence == seq_num) break;
             }
             sync_buffer.clear();
+            if (clipdata.form == mime::ansitext && clipdata.utf8.size()) // Update our format type.
+            {
+                clipdata.form = (si32)clipdata.utf8.back();
+                clipdata.utf8.pop_back();
+                if constexpr (debugmode) log(ansi::clr(cyanlt, "got our format block: ", (si32)clipdata.form));
+            }
             if constexpr (debugmode) log(ansi::clr(yellowlt, "exit from get_clipboard"));
+            return clipdata;
         }
         auto enable_detectable_autorepeat()
         {

@@ -6774,7 +6774,7 @@ namespace netxs::gui
         struct incr_transfer_t
         {
             size_t current_pos{};  // Current offset in bytes.
-            text   text_data;      // Local copy.
+            text   data;           // Clipboard temp copy.
             ui32   requester_id{}; // Peer window id.
             ui32   property_id{};  // Peer property id.
             ui32   target_id{};    // Data format id (UTF8_STRING/STRING).
@@ -6790,7 +6790,6 @@ namespace netxs::gui
         ui16                                 master_pointer_id{};    // window: Master mouse device id for mouse capturing/releasing.
         ui16                                 captured_pointer_id{};  // window: Lasted captured master mouse device id.
         bool                                 is_focused_window{};    // window: Master (wm) window has input focus.
-        //bool                                 ignore_first_run{};     // window: Flag to ignore the first MapNotify event.
         twod                                 hidden_coor;            // window: Safe coordinates where hidden windows can be moved.
         flag                                 block_mouse_movement{}; // window: Flag blocking mouse movement event processing (discarding).
         std::unordered_map<ui32, peer_state> recv_buffers;           // window: Buffers for receiving fragmented messages from neighboring windows (multifocus).
@@ -6812,8 +6811,8 @@ namespace netxs::gui
         si32 wm_resized_count{}; // window: Number of requests executed to modify the geometry of wm-layers.
         ui32 last_x11_timestamp{}; // window: The last user input timestamp.
 
-        input::clipdata clipdata{}; // window: X11 clipboard buffer.
-        std::list<incr_transfer_t> incr_transfer; // window: Current INCR transfers.
+        flag                       we_clipboard_owner{}; // window: We are the clipboard owner.
+        std::list<incr_transfer_t> incr_transfer;        // window: Current INCR transfers.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -7663,22 +7662,23 @@ namespace netxs::gui
             }
         }
 
-        void clipboard_set(input::clipdata& new_clipdata)
+        void clipboard_set(input::clipdata& /*new_clipdata*/)
         {
-            session.send_batch([&](auto& batch_buffer)
+            we_clipboard_owner = true;
+            session.send_batch([&](auto& batch_buffer) // Just notify we are the owner.
             {
-                clipdata = new_clipdata; // Assign under the session.mutex.
                 session.accumrq(batch_buffer, x11::req::set_selection_owner{ .owner_id     = (ui32)master.wm_hWnd,
                                                                              .selection_id = session.atom_clipboard,
                                                                              .time         = last_x11_timestamp });
             });
         }
-        void clipboard_get(input::clipdata& empty_clipdata)
+        void clipboard_get(input::clipdata& prev_clipdata)
         {
-            session.get_clipboard(empty_clipdata);
-            empty_clipdata.set();
-            auto lock = std::lock_guard{ session.mutex };
-            clipdata = empty_clipdata; // Assign under the session.mutex.
+            if (!we_clipboard_owner)
+            {
+                prev_clipdata = session.get_clipboard();
+                prev_clipdata.set();
+            }
         }
         bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
@@ -8309,17 +8309,6 @@ namespace netxs::gui
                 {
                     auto mn = netxs::start_lifetime_as<x11::event::map_notify>(read_buffer.data());
                     if constexpr (debugmode) log("Window mapped event_window_id=0x%% window_id=0x%% override=%%", utf::to_hex(mn.event_window_id), utf::to_hex(mn.window_id), (si32)mn.override);
-                    // It will be restored on focus.
-                    //if (mn.window_id == master.wm_hWnd)
-                    //{
-                    //    if (ignore_first_run)
-                    //    {
-                    //        if constexpr (debugmode) log(ansi::err("winstate::normal"));
-                    //        auto lock_ui = bell::sync();
-                    //        set_state(winstate::normal, true);
-                    //    }
-                    //    ignore_first_run = true;
-                    //}
                 }
                 else if (type == x11::event::UnmapNotify)
                 {
@@ -8667,12 +8656,12 @@ namespace netxs::gui
                         {
                             auto chunk_size = session.max_chunk_bytes();
                             auto& transfer = *iter;
-                            auto remains = transfer.text_data.size() - transfer.current_pos;
+                            auto remains = transfer.data.size() - transfer.current_pos;
                             if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" INCR transfer: remains=%%", remains)));
                             if (remains > 0)
                             {
                                 auto send_now = std::min(chunk_size, remains);
-                                auto chunk_view = view{ &transfer.text_data[transfer.current_pos], send_now };
+                                auto chunk_view = view{ &transfer.data[transfer.current_pos], send_now };
                                 session.send_batch([&](auto& batch_buffer)
                                 {
                                     session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
@@ -8772,19 +8761,51 @@ namespace netxs::gui
                 else if (type == x11::event::SelectionClear)
                 {
                     // Clipboard is invalidated (someone takes ownership).
+                    we_clipboard_owner = faux;
+                    if constexpr (debugmode) log(ansi::clr(greenlt, "someone takes clipboard ownership"));
                 }
                 else if (type == x11::event::SelectionRequest)
                 {
                     auto sr = netxs::start_lifetime_as<x11::event::selection_request>(read_buffer.data());
+                    if (!we_clipboard_owner)
+                    {
+                        if constexpr (debugmode) log(ansi::clr(greenlt, "unexpected clipboard request"));
+                        session.sendrq(x11::req::send_event{ .destination_id = sr.requester_window_id,
+                                                             .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                                             .originator_id  = sr.time,                     // - time
+                                                             .message_type   = sr.requester_window_id,      // - requester
+                                                             .serial         = sr.selection_id,             // - selection
+                                                             .command        = sr.target_id,                // - target
+                                                             .lParam         = 0 });                        // - property  0: None
+                        continue;
+                    }
+                    auto [clipdata_form, clipdata_utf8] = [&] // Make a safe copy.
+                    {
+                        auto lock = bell::sync();
+                        auto clipdata_lock = stream.s11n::clipdata.freeze();
+                        return sr.target_id == session.atom_targets ? std::pair{ clipdata_lock.thing.form, text{} }
+                                                                    : std::pair{ clipdata_lock.thing.form, clipdata_lock.thing.utf8 };
+                    }();
                     session.send_batch([&](auto& batch_buffer)
                     {
                         auto destination_id = sr.requester_window_id;
                         if (sr.target_id == session.atom_targets) // Supported clipboard formats requested (TARGETS, UTF8_STRING).
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "clipboard formats requested"));
-                            auto targets = std::to_array({ session.atom_targets,
+                            auto targets = std::vector({ session.atom_targets,
                                                            session.atom_utf8_string,
-                                                           session.atom_string });
+                                                           session.atom_string,
+                                                           session.atom_text,               // "TEXT" in current LC encoding. We support UTF-8 only.
+                                                           session.atom_text_plain,         // "text/plain"
+                                                           session.atom_text_plain_utf8 }); // "text/plain;charset=utf-8"
+                            if (clipdata_form == mime::ansitext
+                             || clipdata_form == mime::htmltext
+                             || clipdata_form == mime::richtext)
+                            {
+                                targets.push_back(session.atom_text_ansivt);   // "text/ansivt"
+                                targets.push_back(session.atom_text_html);     // "text/html"
+                                targets.push_back(session.atom_text_richtext); // "text/richtext"
+                            }
                             session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                      .property  = sr.property_id,
                                                                                      .type      = session.atom_atom },
@@ -8796,17 +8817,46 @@ namespace netxs::gui
                             if constexpr (debugmode) log(ansi::err("not implemented: Requested multiple clipboard data forms"));
                             sr.target_id = 0;
                         }
-                        else if (sr.target_id == session.atom_utf8_string || sr.target_id == session.atom_string) // Send clipboard text data.
+                        else
                         {
-                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata.utf8.size())));
-                            if (clipdata.utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            // Make a copy under the session.mutex (session.send_batch).
+                            if (sr.target_id == session.atom_text_html)// || (sr.target_id == session.atom_text_ansivt && clipdata_form == mime::htmltext)) // Gen HTML.
                             {
-                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), (size_t)20)))));
+                                auto post = page{ clipdata_utf8 };
+                                auto [html, code] = post.to_html();
+                                clipdata_utf8 = std::move(code);
+                            }
+                            else if (sr.target_id == session.atom_text_richtext)// || (sr.target_id == session.atom_text_ansivt && clipdata_form == mime::richtext)) // Gen RTF.
+                            {
+                                auto post = page{ clipdata_utf8 };
+                                clipdata_utf8 = post.to_rich();
+                            }
+                            else if (sr.target_id == session.atom_utf8_string // Copy plain text data.
+                                  || sr.target_id == session.atom_string
+                                  || sr.target_id == session.atom_text
+                                  || sr.target_id == session.atom_text_plain
+                                  || sr.target_id == session.atom_text_plain_utf8)
+                            {
+                                if (clipdata_form == mime::richtext
+                                 || clipdata_form == mime::htmltext) // Convert to plain text.
+                                {
+                                    auto post = page{ clipdata_utf8 };
+                                    clipdata_utf8 = post.to_utf8<faux>();
+                                }
+                            }
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata_utf8.size())));
+                            if (sr.target_id == session.atom_text_ansivt && clipdata_utf8.size()) // Mark our format.
+                            {
+                                clipdata_utf8.push_back((byte)clipdata_form);
+                            }
+                            if (clipdata_utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata_utf8.size(), utf::debase437(clipdata_utf8).substr(0, std::min(clipdata_utf8.size(), (size_t)20)))));
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
                                                                                          .type      = sr.target_id,
                                                                                          .format    = 8 }, // 8-bit text.
-                                                                                        clipdata.utf8);
+                                                                                        clipdata_utf8);
                             }
                             else // Activate INCR.
                             {
@@ -8831,7 +8881,7 @@ namespace netxs::gui
                                 {
                                     iter = incr_transfer.emplace(iter);
                                 }
-                                iter->text_data    = clipdata.utf8; // Make a copy under the session.mutex (session.send_batch).
+                                iter->data         = std::move(clipdata_utf8);
                                 iter->requester_id = sr.requester_window_id;
                                 iter->property_id  = sr.property_id;
                                 iter->target_id    = sr.target_id;
@@ -8841,7 +8891,7 @@ namespace netxs::gui
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
                                                                                          .type      = session.atom_incr }, // "INCR"
-                                                                                    netxs::saturate_cast<ui32>(clipdata.utf8.size()));
+                                                                                    netxs::saturate_cast<ui32>(iter->data.size()));
                             }
                         }
                         // Notify remote window.
