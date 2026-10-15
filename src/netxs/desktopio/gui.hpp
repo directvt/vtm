@@ -389,12 +389,12 @@ namespace netxs::gui
                 if ((!file_buff && !os::io::load_file(file_path, file_buff.buffer))
                     || FT_Err_Ok != ::FT_New_Memory_Face(fcache.ft_library.get(), file_buff.buffer.data(), (FT_Long)file_buff.buffer.size(), bare_face_ptr->face_index, &raw_face)) // Read a whole font/collection file (relatively slow, e.g. with 30Mb font files).
                 {
-                    log("%%Failed to load font family file '%family_name%' (style_id=%%): %filename%", prompt::gui, family_ref.family_name, font_style::str(style_id), utf8_path);
+                    log("%%Failed to load font style from family '%family_name%': style_id=%% file='%filename%'", prompt::gui, family_ref.family_name, font_style::str(style_id), utf8_path);
                     bare_face_ptr->valid = faux;
                 }
                 else
                 {
-                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), font_style::str(style_id));
+                    log("%%Loaded font style from family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), font_style::str(style_id));
                     // Apply axes.
                     if (bare_face_ptr->is_variable_font)
                     {
@@ -481,6 +481,15 @@ namespace netxs::gui
             {
                 load_face();
                 if (!isbase) recalc_metrics(cellsz, isbase);
+            }
+            font_face_t(fonts& fcache, font_family_t& family_rec, twod cellsz) // For synthetics only.
+                : fcache{ fcache },
+                  family_ref{ family_rec },
+                  fixed{ true }
+            {
+                //todo
+                load_synth_face(cellsz);
+                //recalc_metrics(cellsz, true);
             }
 
             void sort_faces()
@@ -618,6 +627,10 @@ namespace netxs::gui
                     }
                     ratio = facesize.x / facesize.y;
                 }
+            }
+            void load_synth_face(twod /*cellsz*/)
+            {
+                //todo
             }
             void get_common_widths(bool& proportional, ui32& normal_width, ui32& italic_width)
             {
@@ -1046,6 +1059,8 @@ namespace netxs::gui
                     family_rec.is_fixed = faux;
                 }
             }
+            //todo reinit synthetic_font.
+            //todo font_fallback.emplace_back(*this, synth_family, cellsize);
             for (auto& family_utf8 : family_names) // Sort faces in families.
             {
                 auto iter = font_map.find(family_utf8);
@@ -1075,6 +1090,7 @@ namespace netxs::gui
                 if (hit)
                 {
                     auto is_primary = font_fallback.empty();
+                    //todo auto is_primary = font_fallback.size() == 1; // Only synthetic glyphs are present.
                     font_fallback.emplace_back(*this, family_rec, cellsize, is_primary);
                     family_rec.is_sorted = true;
                 }
@@ -1094,6 +1110,8 @@ namespace netxs::gui
                     return font_fallback.back();
                 }
             }
+            //todo return font_fallback.back();
+            //todo drop: This never happens when synthetic glyphs are present.
             if (font_fallback.size())
             {
                 return font_fallback.back();
@@ -1251,7 +1269,7 @@ namespace netxs::gui
             log<faux>("\x1b_lua: terminal.LineWrapMode(wrap_mode)\x1b\\");
             log<faux>("\x1b_lua: terminal.CodePage(code_page)\x1b\\\n");
         }
-        void init_svg_fonts()
+        void init_fonts_for_svg_engine()
         {
             auto svg_fonts = std::to_array<std::pair<text, text>>({
             #if defined(_WIN32)
@@ -1277,6 +1295,7 @@ namespace netxs::gui
                 ::lunasvg_add_font_face_from_data(family.c_str(), true, faux, f_bold       .data(), f_bold       .size(), nullptr, nullptr);
                 ::lunasvg_add_font_face_from_data(family.c_str(), true, true, f_bold_italic.data(), f_bold_italic.size(), nullptr, nullptr);
             };
+            //todo auto& def_face = font_fallback.size() > 1 ? font_fallback[1] : font_fallback[0]/*synthetics only*/; // Register the fallback font (with empty family name).
             auto& def_face = font_fallback.front(); // Register the fallback font (with empty family name).
             register_svg_font(""s, def_face);
             svg_font_list.clear();
@@ -1298,6 +1317,7 @@ namespace netxs::gui
         shaper                                             font_shaper;   // fonts: Font shaper.
         std::map<text, font_family_t>                      font_map;      // fonts: Map of available font families sorted by family name.
         std::vector<std::reference_wrapper<font_family_t>> font_index;    // fonts: Index of available font families ordered by filestamp.
+        //todo font_family_t                                      synth_family;  // fonts: Synthetic glyphs.
         std::vector<font_face_t>                           font_fallback; // fonts: Fallback font list.
         std::vector<font_face_t>                           svg_font_list; // fonts: SVG library font list.
         utf::unordered_map<text, sptr<loaded_font_file_t>> loaded_files;  // fonts: Map of loaded font files by file paths (path <-> blob).
@@ -1325,6 +1345,7 @@ namespace netxs::gui
                 initialized = faux;
                 return;
             }
+            //todo init synth_family
             #if defined(_WIN32)
                 auto registered_fonts = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"sv;
                 auto filter = [](auto& item)
@@ -1632,6 +1653,11 @@ namespace netxs::gui
             });
             //log_fonts(faux);
             set_fonts(family_names, font_axes);
+            //todo
+            //set_cellsz(cell_height);
+            //init_fonts_for_svg_engine();
+            //return;
+            //todo drop:
             if (font_fallback.empty())
             {
                 auto single_codepoint = std::to_array<utfx>({ 'A' });
@@ -1641,7 +1667,7 @@ namespace netxs::gui
             if (initialized)
             {
                 set_cellsz(cell_height);
-                init_svg_fonts();
+                init_fonts_for_svg_engine();
             }
         }
     };
@@ -1654,6 +1680,7 @@ namespace netxs::gui
         {
             static constexpr auto _counter = 1 + __COUNTER__;
             static constexpr auto wavyunderline = __COUNTER__ - _counter;
+            //todo ???static constexpr auto block_element = __COUNTER__ - _counter;  // U+2580 - U+259F
         };
 
         using gmap = std::unordered_map<ui64, sprite>;
@@ -1842,9 +1869,8 @@ namespace netxs::gui
                 }
             }
         }
-        void generate_glyphs()
+        void generate_wavy_underline(sprite& m)
         {
-            // Generate wavy underline.
             auto block = fcache.wavyline;
             auto height = block.size.y;
             auto thick = fcache.underline.size.y;
@@ -1857,7 +1883,6 @@ namespace netxs::gui
             block.size.x = 1;
             block.size.y = thick;
             auto c = byte{ 255 }; // Opaque alpha texture.
-            auto& m = cgi_glyphs.emplace_back(buffer_pool);
             m.area = {{ 0, block.coor.y }, { width, height }};
             m.type = sprite::alpha;
             m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)));
@@ -1882,6 +1907,62 @@ namespace netxs::gui
                 }
                 block.coor.x += fract * 3;
             }
+        }
+        void generate_glyphs()
+        {
+            generate_wavy_underline(cgi_glyphs.emplace_back(buffer_pool));
+            //todo Block Elements
+            //auto c = (ui32)-1; // Opaque alpha texture (four 8-bit pixels: 255, 255, 255, 255).
+            //auto generate_synth_char = [&](auto draw_proc)
+            //{
+            //    auto& m = cgi_glyphs.emplace_back(buffer_pool);
+            //    m.type = sprite::alpha;
+            //    draw_proc(m);
+            //};
+            //generate_synth_char([&](sprite& m) // U+2580   ▀   Upper half block
+            //{
+            //    m.area = { dot_00, { cellsz.x, std::max(1, cellsz.y / 2) }};
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2581 = cgi_glyphs.emplace_back(buffer_pool); // U+2581   ▁   Lower one eighth block
+            //auto& u2582 = cgi_glyphs.emplace_back(buffer_pool); // U+2582   ▂   Lower one quarter block
+            //auto& u2583 = cgi_glyphs.emplace_back(buffer_pool); // U+2583   ▃   Lower three eighths block
+            //generate_synth_char([&](sprite& m) // U+2584   ▄   Lower half block
+            //{
+            //    m.area = {{ 0, cellsz.y / 2 }, { cellsz.x, std::max(1, cellsz.y - cellsz.y / 2) }};
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2585 = cgi_glyphs.emplace_back(buffer_pool); // U+2585   ▅   Lower five eighths block
+            //auto& u2586 = cgi_glyphs.emplace_back(buffer_pool); // U+2586   ▆   Lower three quarters block
+            //auto& u2587 = cgi_glyphs.emplace_back(buffer_pool); // U+2587   ▇   Lower seven eighths block
+            //generate_synth_char([&](sprite& m) // U+2588   █   Full block
+            //{
+            //    m.area = { dot_00, cellsz };
+            //    m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)), c);
+            //});
+            //auto& u2589 = cgi_glyphs.emplace_back(buffer_pool); // U+2589   ▉   Left seven eighths block
+            //auto& u258A = cgi_glyphs.emplace_back(buffer_pool); // U+258A   ▊   Left three quarters block
+            //auto& u258B = cgi_glyphs.emplace_back(buffer_pool); // U+258B   ▋   Left five eighths block
+            //auto& u258C = cgi_glyphs.emplace_back(buffer_pool); // U+258C   ▌   Left half block
+            //auto& u258D = cgi_glyphs.emplace_back(buffer_pool); // U+258D   ▍   Left three eighths block
+            //auto& u258E = cgi_glyphs.emplace_back(buffer_pool); // U+258E   ▎   Left one quarter block
+            //auto& u258F = cgi_glyphs.emplace_back(buffer_pool); // U+258F   ▏   Left one eighth block
+            //auto& u2590 = cgi_glyphs.emplace_back(buffer_pool); // U+2590   ▐   Right half block
+            //auto& u2591 = cgi_glyphs.emplace_back(buffer_pool); // U+2591   ░   Light shade
+            //auto& u2592 = cgi_glyphs.emplace_back(buffer_pool); // U+2592   ▒   Medium shade
+            //auto& u2593 = cgi_glyphs.emplace_back(buffer_pool); // U+2593   ▓   Dark shade
+            //auto& u2594 = cgi_glyphs.emplace_back(buffer_pool); // U+2594   ▔   Upper one eighth block
+            //auto& u2595 = cgi_glyphs.emplace_back(buffer_pool); // U+2595   ▕   Right one eighth block
+            //auto& u2596 = cgi_glyphs.emplace_back(buffer_pool); // U+2596   ▖   Quadrant lower left
+            //auto& u2597 = cgi_glyphs.emplace_back(buffer_pool); // U+2597   ▗   Quadrant lower right
+            //auto& u2598 = cgi_glyphs.emplace_back(buffer_pool); // U+2598   ▘   Quadrant upper left
+            //auto& u2599 = cgi_glyphs.emplace_back(buffer_pool); // U+2599   ▙   Quadrant upper left and lower left and lower right
+            //auto& u259A = cgi_glyphs.emplace_back(buffer_pool); // U+259A   ▚   Quadrant upper left and lower right
+            //auto& u259B = cgi_glyphs.emplace_back(buffer_pool); // U+259B   ▛   Quadrant upper left and upper right and lower left
+            //auto& u259C = cgi_glyphs.emplace_back(buffer_pool); // U+259C   ▜   Quadrant upper left and upper right and lower right
+            //auto& u259D = cgi_glyphs.emplace_back(buffer_pool); // U+259D   ▝   Quadrant upper right
+            //auto& u259E = cgi_glyphs.emplace_back(buffer_pool); // U+259E   ▞   Quadrant upper right and lower left
+            //auto& u259F = cgi_glyphs.emplace_back(buffer_pool); // U+259F   ▟   Quadrant upper right and lower left and lower right
         }
         void reset()
         {
@@ -6693,7 +6774,7 @@ namespace netxs::gui
         struct incr_transfer_t
         {
             size_t current_pos{};  // Current offset in bytes.
-            text   text_data;      // Local copy.
+            text   data;           // Clipboard temp copy.
             ui32   requester_id{}; // Peer window id.
             ui32   property_id{};  // Peer property id.
             ui32   target_id{};    // Data format id (UTF8_STRING/STRING).
@@ -6709,7 +6790,6 @@ namespace netxs::gui
         ui16                                 master_pointer_id{};    // window: Master mouse device id for mouse capturing/releasing.
         ui16                                 captured_pointer_id{};  // window: Lasted captured master mouse device id.
         bool                                 is_focused_window{};    // window: Master (wm) window has input focus.
-        //bool                                 ignore_first_run{};     // window: Flag to ignore the first MapNotify event.
         twod                                 hidden_coor;            // window: Safe coordinates where hidden windows can be moved.
         flag                                 block_mouse_movement{}; // window: Flag blocking mouse movement event processing (discarding).
         std::unordered_map<ui32, peer_state> recv_buffers;           // window: Buffers for receiving fragmented messages from neighboring windows (multifocus).
@@ -6731,8 +6811,8 @@ namespace netxs::gui
         si32 wm_resized_count{}; // window: Number of requests executed to modify the geometry of wm-layers.
         ui32 last_x11_timestamp{}; // window: The last user input timestamp.
 
-        input::clipdata clipdata{}; // window: X11 clipboard buffer.
-        std::list<incr_transfer_t> incr_transfer; // window: Current INCR transfers.
+        flag                       we_clipboard_owner{}; // window: We are the clipboard owner.
+        std::list<incr_transfer_t> incr_transfer;        // window: Current INCR transfers.
 
         window(auto&& ...Args)
             : winbase{ Args... }
@@ -7582,22 +7662,23 @@ namespace netxs::gui
             }
         }
 
-        void clipboard_set(input::clipdata& new_clipdata)
+        void clipboard_set(input::clipdata& /*new_clipdata*/)
         {
-            session.send_batch([&](auto& batch_buffer)
+            we_clipboard_owner = true;
+            session.send_batch([&](auto& batch_buffer) // Just notify we are the owner.
             {
-                clipdata = new_clipdata; // Assign under the session.mutex.
                 session.accumrq(batch_buffer, x11::req::set_selection_owner{ .owner_id     = (ui32)master.wm_hWnd,
                                                                              .selection_id = session.atom_clipboard,
                                                                              .time         = last_x11_timestamp });
             });
         }
-        void clipboard_get(input::clipdata& empty_clipdata)
+        void clipboard_get(input::clipdata& prev_clipdata)
         {
-            session.get_clipboard(empty_clipdata);
-            empty_clipdata.set();
-            auto lock = std::lock_guard{ session.mutex };
-            clipdata = empty_clipdata; // Assign under the session.mutex.
+            if (!we_clipboard_owner)
+            {
+                prev_clipdata = session.get_clipboard();
+                prev_clipdata.set();
+            }
         }
         bool keybd_test_pressed(si32 virtcod, si32 key_all = 0)
         {
@@ -8228,17 +8309,6 @@ namespace netxs::gui
                 {
                     auto mn = netxs::start_lifetime_as<x11::event::map_notify>(read_buffer.data());
                     if constexpr (debugmode) log("Window mapped event_window_id=0x%% window_id=0x%% override=%%", utf::to_hex(mn.event_window_id), utf::to_hex(mn.window_id), (si32)mn.override);
-                    // It will be restored on focus.
-                    //if (mn.window_id == master.wm_hWnd)
-                    //{
-                    //    if (ignore_first_run)
-                    //    {
-                    //        if constexpr (debugmode) log(ansi::err("winstate::normal"));
-                    //        auto lock_ui = bell::sync();
-                    //        set_state(winstate::normal, true);
-                    //    }
-                    //    ignore_first_run = true;
-                    //}
                 }
                 else if (type == x11::event::UnmapNotify)
                 {
@@ -8586,12 +8656,12 @@ namespace netxs::gui
                         {
                             auto chunk_size = session.max_chunk_bytes();
                             auto& transfer = *iter;
-                            auto remains = transfer.text_data.size() - transfer.current_pos;
+                            auto remains = transfer.data.size() - transfer.current_pos;
                             if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint(" INCR transfer: remains=%%", remains)));
                             if (remains > 0)
                             {
                                 auto send_now = std::min(chunk_size, remains);
-                                auto chunk_view = view{ &transfer.text_data[transfer.current_pos], send_now };
+                                auto chunk_view = view{ &transfer.data[transfer.current_pos], send_now };
                                 session.send_batch([&](auto& batch_buffer)
                                 {
                                     session.accumrq(batch_buffer, x11::req::change_property{ .window_id = transfer.requester_id,
@@ -8691,19 +8761,51 @@ namespace netxs::gui
                 else if (type == x11::event::SelectionClear)
                 {
                     // Clipboard is invalidated (someone takes ownership).
+                    we_clipboard_owner = faux;
+                    if constexpr (debugmode) log(ansi::clr(greenlt, "someone takes clipboard ownership"));
                 }
                 else if (type == x11::event::SelectionRequest)
                 {
                     auto sr = netxs::start_lifetime_as<x11::event::selection_request>(read_buffer.data());
+                    if (!we_clipboard_owner)
+                    {
+                        if constexpr (debugmode) log(ansi::clr(greenlt, "unexpected clipboard request"));
+                        session.sendrq(x11::req::send_event{ .destination_id = sr.requester_window_id,
+                                                             .event_type     = x11::event::SelectionNotify, // SelectionNotify:
+                                                             .originator_id  = sr.time,                     // - time
+                                                             .message_type   = sr.requester_window_id,      // - requester
+                                                             .serial         = sr.selection_id,             // - selection
+                                                             .command        = sr.target_id,                // - target
+                                                             .lParam         = 0 });                        // - property  0: None
+                        continue;
+                    }
+                    auto [clipdata_form, clipdata_utf8] = [&] // Make a safe copy.
+                    {
+                        auto lock = bell::sync();
+                        auto clipdata_lock = stream.s11n::clipdata.freeze();
+                        return sr.target_id == session.atom_targets ? std::pair{ clipdata_lock.thing.form, text{} }
+                                                                    : std::pair{ clipdata_lock.thing.form, clipdata_lock.thing.utf8 };
+                    }();
                     session.send_batch([&](auto& batch_buffer)
                     {
                         auto destination_id = sr.requester_window_id;
                         if (sr.target_id == session.atom_targets) // Supported clipboard formats requested (TARGETS, UTF8_STRING).
                         {
                             if constexpr (debugmode) log(ansi::clr(greenlt, "clipboard formats requested"));
-                            auto targets = std::to_array({ session.atom_targets,
+                            auto targets = std::vector({ session.atom_targets,
                                                            session.atom_utf8_string,
-                                                           session.atom_string });
+                                                           session.atom_string,
+                                                           session.atom_text,               // "TEXT" in current LC encoding. We support UTF-8 only.
+                                                           session.atom_text_plain,         // "text/plain"
+                                                           session.atom_text_plain_utf8 }); // "text/plain;charset=utf-8"
+                            if (clipdata_form == mime::ansitext
+                             || clipdata_form == mime::htmltext
+                             || clipdata_form == mime::richtext)
+                            {
+                                targets.push_back(session.atom_text_ansivt);   // "text/ansivt"
+                                targets.push_back(session.atom_text_html);     // "text/html"
+                                targets.push_back(session.atom_text_richtext); // "text/richtext"
+                            }
                             session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                      .property  = sr.property_id,
                                                                                      .type      = session.atom_atom },
@@ -8715,17 +8817,46 @@ namespace netxs::gui
                             if constexpr (debugmode) log(ansi::err("not implemented: Requested multiple clipboard data forms"));
                             sr.target_id = 0;
                         }
-                        else if (sr.target_id == session.atom_utf8_string || sr.target_id == session.atom_string) // Send clipboard text data.
+                        else
                         {
-                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata.utf8.size())));
-                            if (clipdata.utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            // Make a copy under the session.mutex (session.send_batch).
+                            if (sr.target_id == session.atom_text_html)// || (sr.target_id == session.atom_text_ansivt && clipdata_form == mime::htmltext)) // Gen HTML.
                             {
-                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata.utf8.size(), utf::debase437(clipdata.utf8).substr(0, std::min(clipdata.utf8.size(), (size_t)20)))));
+                                auto post = page{ clipdata_utf8 };
+                                auto [html, code] = post.to_html();
+                                clipdata_utf8 = std::move(code);
+                            }
+                            else if (sr.target_id == session.atom_text_richtext)// || (sr.target_id == session.atom_text_ansivt && clipdata_form == mime::richtext)) // Gen RTF.
+                            {
+                                auto post = page{ clipdata_utf8 };
+                                clipdata_utf8 = post.to_rich();
+                            }
+                            else if (sr.target_id == session.atom_utf8_string // Copy plain text data.
+                                  || sr.target_id == session.atom_string
+                                  || sr.target_id == session.atom_text
+                                  || sr.target_id == session.atom_text_plain
+                                  || sr.target_id == session.atom_text_plain_utf8)
+                            {
+                                if (clipdata_form == mime::richtext
+                                 || clipdata_form == mime::htmltext) // Convert to plain text.
+                                {
+                                    auto post = page{ clipdata_utf8 };
+                                    clipdata_utf8 = post.to_utf8<faux>();
+                                }
+                            }
+                            if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("clipboard data requested by %%. data size=%%", utf::to_hex_0x(sr.requester_window_id), clipdata_utf8.size())));
+                            if (sr.target_id == session.atom_text_ansivt && clipdata_utf8.size()) // Mark our format.
+                            {
+                                clipdata_utf8.push_back((byte)clipdata_form);
+                            }
+                            if (clipdata_utf8.size() <= session.max_chunk_bytes()) // Send directly.
+                            {
+                                if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("  send clipdata directly (%% bytes): '%%...'", clipdata_utf8.size(), utf::debase437(clipdata_utf8).substr(0, std::min(clipdata_utf8.size(), (size_t)20)))));
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
                                                                                          .type      = sr.target_id,
                                                                                          .format    = 8 }, // 8-bit text.
-                                                                                        clipdata.utf8);
+                                                                                        clipdata_utf8);
                             }
                             else // Activate INCR.
                             {
@@ -8750,7 +8881,7 @@ namespace netxs::gui
                                 {
                                     iter = incr_transfer.emplace(iter);
                                 }
-                                iter->text_data    = clipdata.utf8; // Make a copy under the session.mutex (session.send_batch).
+                                iter->data         = std::move(clipdata_utf8);
                                 iter->requester_id = sr.requester_window_id;
                                 iter->property_id  = sr.property_id;
                                 iter->target_id    = sr.target_id;
@@ -8760,7 +8891,7 @@ namespace netxs::gui
                                 session.accumrq(batch_buffer, x11::req::change_property{ .window_id = sr.requester_window_id,
                                                                                          .property  = sr.property_id,
                                                                                          .type      = session.atom_incr }, // "INCR"
-                                                                                    netxs::saturate_cast<ui32>(clipdata.utf8.size()));
+                                                                                    netxs::saturate_cast<ui32>(iter->data.size()));
                             }
                         }
                         // Notify remote window.
