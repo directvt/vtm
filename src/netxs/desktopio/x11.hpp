@@ -2094,8 +2094,9 @@ namespace netxs::x11
 
         std::mutex              sync_mutex;
         sptr<os::ipc::stdcon>   sync_x11connection;        // Parallel sync X11 socket connection.
-        ui16                    sync_sequence_counter = 0; // Sync sent request counter.
+        std::atomic<ui16>       sync_sequence_counter = 1; // Sync sent request counter.
         ui32                    sync_msg_window_id = 0;    // Window for receiving sync messages (=sync_base_id).
+        span                    sync_abort_timeout = 5s;   // Clipboard request timeout.
         text                    sync_buffer;
 
         std::unordered_map<ui16, device_t> input_devices;
@@ -2213,11 +2214,9 @@ namespace netxs::x11
             }
             return sequence_counter;
         }
-        template<class R, class V = qiew, class P = noop>
-        auto syncrq(R request = {}, V payload = {})
+        template<class R, class V = qiew>
+        auto _syncrq(R request = {}, V payload = {})
         {
-            auto lock = std::lock_guard{ sync_mutex };
-            sync_sequence_counter++;
             if constexpr (requires(text packet){ request.serialize(packet, payload); })
             {
                 auto packet = text{};
@@ -2229,13 +2228,18 @@ namespace netxs::x11
                 assert(!payload);
                 sync_x11connection->send(view{ (char*)&request, sizeof(request) });
             }
-            return sync_sequence_counter;
+            return sync_sequence_counter.fetch_add(1, std::memory_order_relaxed);
         }
-        template<class R, class V = qiew, class P = noop>
+        template<class R, class V = qiew>
+        auto syncrq(R request = {}, V payload = {})
+        {
+            auto lock = std::lock_guard{ sync_mutex };
+            return _syncrq(request, payload);
+        }
+        template<class R, class V = qiew>
         auto syncrq(text& buffer, R request = {}, V payload = {})
         {
             //auto lock = std::lock_guard{ sync_mutex };
-            sync_sequence_counter++;
             if constexpr (requires(text packet){ request.serialize(packet, payload); })
             {
                 request.serialize(buffer, payload);
@@ -2245,7 +2249,7 @@ namespace netxs::x11
                 assert(!payload);
                 buffer += view{ (char*)&request, sizeof(request) };
             }
-            return sync_sequence_counter;
+            return sync_sequence_counter.fetch_add(1, std::memory_order_relaxed);
         }
         void send_batch(auto accum_proc)
         {
@@ -2996,10 +3000,28 @@ namespace netxs::x11
             if constexpr (debugmode) log(ansi::clr(yellowlt, utf::fprint("prop_type=%% (%%)", _get_atom_name(prop_type), prop_type)));
             return prop_type;
         }
-        input::clipdata get_clipboard()
+        auto get_clipboard()
         {
-            //todo check if we are the clipboard owner
             auto lock = std::lock_guard{ sync_mutex };
+            auto aborted = flag{};
+            auto timer_mutex = std::mutex{};
+            auto condvar = std::condition_variable_any{};
+            auto jthread = std::jthread{ [&](std::stop_token stop_token)
+            {
+                while (!stop_token.stop_requested())
+                {
+                    auto lock = std::unique_lock{ timer_mutex };
+                    if (!condvar.wait_for(lock, stop_token, sync_abort_timeout, [&]{ return stop_token.stop_requested(); }))
+                    {
+                        aborted = true;
+                        _syncrq(x11::req::change_property{ .window_id = sync_msg_window_id,
+                                                           .property  = atom_vtmx,
+                                                           .type      = atom_cardinal }, 1);
+                        break;
+                    }
+                    if (stop_token.stop_requested()) break;
+                }
+            }};
             auto clipdata = input::clipdata{};
             clipdata.form = mime::textonly;
             clipdata.hash = datetime::now();
@@ -3016,10 +3038,12 @@ namespace netxs::x11
             auto ev = x11::event::any{};
             while (sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
             {
+                if (aborted) return clipdata;
                 auto type = ev.type & 0x7f;
                 if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint(" list recv: type=%% (%%)", event_str(type), type)));
                 if (_sync_filter_unexpected(ev) && type == x11::event::SelectionNotify && ev.sequence == seq_num)
                 {
+                    condvar.notify_one(); // Rearm timer.
                     auto sn = netxs::start_lifetime_as<x11::req::convert_selection::selection_notify>(ev);
                     if (sn.property_id != 0)
                     {
@@ -3037,7 +3061,6 @@ namespace netxs::x11
                     }
                     break;
                 }
-                //if (ev.sequence == seq_num) break;
             }
             auto target_to_request = [&]
             {
@@ -3061,9 +3084,11 @@ namespace netxs::x11
             sync_buffer.clear();
             while (sync_x11connection->recv_all((char*)&ev, sizeof(ev)).size() == sizeof(ev))
             {
+                if (aborted) return clipdata;
                 auto type = ev.type & 0x7f;
                 if (_sync_filter_unexpected(ev) && type == x11::event::SelectionNotify && ev.sequence == seq_num)
                 {
+                    condvar.notify_one(); // Rearm timer.
                     auto sn = netxs::start_lifetime_as<x11::req::convert_selection::selection_notify>(ev);
                     if constexpr (debugmode) log(ansi::clr(greenlt, utf::fprint("Received clipboard reply: seq=%% property_id=0x%%(%%) requester_window_id=0x%% selection_id=0x%%(%%) target_id=0x%%(%%)",
                         sn.sequence, utf::to_hex(sn.property_id), _get_atom_name(sn.property_id),
@@ -3090,6 +3115,11 @@ namespace netxs::x11
                             auto ev_loop = x11::event::any{};
                             while (sync_x11connection->recv_all((char*)&ev_loop, sizeof(ev_loop)).size() == sizeof(ev_loop))
                             {
+                                if (aborted)
+                                {
+                                    clipdata.utf8.clear();
+                                    return clipdata;
+                                }
                                 auto type_loop = ev_loop.type & 0x7f;
                                 if constexpr (debugmode) log(ansi::clr(greenlt,  utf::fprint(" recv: type=%% (%%)", event_str(type_loop), type_loop)));
                                 if (_sync_filter_unexpected(ev_loop) && type_loop == x11::event::PropertyNotify)
@@ -3097,6 +3127,7 @@ namespace netxs::x11
                                     auto pn = netxs::start_lifetime_as<x11::event::property_notify>(&ev_loop);
                                     if (pn.window_id == sync_msg_window_id && pn.atom == sn.property_id && pn.state == 0/*new value*/)
                                     {
+                                        condvar.notify_one(); // Rearm timer.
                                         auto prev_size = clipdata.utf8.size();
                                         if constexpr (debugmode) log("chunk prop type=%%", _sync_get_window_property_type(sync_msg_window_id, sn.property_id));
                                         _sync_get_window_property(sync_msg_window_id, sn.property_id, sn.target_id, true, clipdata.utf8);
@@ -3117,7 +3148,6 @@ namespace netxs::x11
                     }
                     break;
                 }
-                //if (ev.sequence == seq_num) break;
             }
             sync_buffer.clear();
             if (clipdata.form == mime::ansitext && clipdata.utf8.size()) // Update our format type.
