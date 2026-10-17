@@ -4613,17 +4613,21 @@ namespace netxs::gui
         }
         void mouse_press(si32 button, bool pressed)
         {
+            if (mfocus.offer) // Filter any first Ctrl+AnyClick inside the just focused window. The Ctrl+Click do unfocus if focused.
+            {
+                mfocus.offer = faux;
+                if (pressed && keybd_test_pressed(vkey::ctrl))
+                {
+                    if constexpr (debug_foci) log("group focus pressed");
+                    return;
+                }
+            }
             if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
             auto inner_rect = blinky.effective_area;
             auto coord = mouse_get_pos();
             mcoord = coord;
             stream.m.coordxy = (mcoord - fp2d{ inner_rect.coor }) / cellsz;
             auto& mbttns = stream.m.buttons;
-            if (std::exchange(mfocus.offer, faux)) // Ignore any first Ctrl+AnyClick inside the just focused window.
-            {
-                if constexpr (debug_foci) log("group focus pressed");
-                return;
-            }
             if (!mbttns && !master.effective_area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
                 if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
@@ -4848,10 +4852,9 @@ namespace netxs::gui
                 if constexpr (debug_foci) log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    auto ctrl_click = ctrl_pressed() && lbutton_pressed();
                     auto local_target = master.hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
-                    if (ctrl_click && mfocus.update(target_list, local_target)) // Block foreign offers.
+                    if (mfocus.update(target_list, local_target)) // Accept foreign offer.
                     {
                         if constexpr (debug_foci) log("\tGot group focus offer");
                         for (auto target : target_list)
@@ -4900,6 +4903,7 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
+                    if constexpr (debug_foci) log("  send focus::set::on");
                     // Focus event must be sent sync (without queueing). Key press events can precede focus events because they are sent synchronously.
                     base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                     if (!has_layout) // The first focus event - sync keybd layout.
@@ -4961,6 +4965,8 @@ namespace netxs::gui
                 if (new_focus_state)
                 {
                     keybd_read_vkstat(); // It must be called in current thread.
+                    mfocus.offer = !mfocus.buson && keybd_test_pressed(vkey::ctrl); // Track if the focus is activated by the ctrl+click (don't use ctrl_pressed() because keymod is not updated yet).
+                    if constexpr (debug_foci) log("focus_event: read_lbutton=%% test_lbutton=%% read_ctrl_pressed=%% test_ctrl_pressed=%% ctrl_pressed()=%%", keybd_read_pressed(vkey::lbutton), keybd_test_pressed(vkey::lbutton), keybd_read_pressed(vkey::ctrl), keybd_test_pressed(vkey::ctrl), ctrl_pressed());
                     for (auto target : target_list.value())
                     {
                         window_send_command(target, ipc::main_focus, local_target);
@@ -6146,7 +6152,6 @@ namespace netxs::gui
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(vkstat.data());
-            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //keybd_print_vkstat("keybd_read_vkstat");
             tslink.set_focus();
         }
@@ -6387,9 +6392,9 @@ namespace netxs::gui
         void mouse_release_impl()        { ::ReleaseCapture(); }
         void mouse_catch_outside()
         {
-            auto ctrl_click = ctrl_pressed()                        // Detect Ctrl+LeftClick
+            auto ctrl_click = ctrl_pressed()                                  // Detect Ctrl+LeftClick
                            && !master.effective_area.hittest(mouse_get_pos()) // outside our window.
-                           && keybd_read_pressed(vkey::lbutton);    //
+                           && keybd_read_pressed(vkey::lbutton);              //
                            //&& (keybd_read_pressed(vkey::lbutton) || keybd_read_pressed(vkey::rbutton) || keybd_read_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
             {
@@ -7767,7 +7772,6 @@ namespace netxs::gui
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             _keybd_request_state();
-            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //keybd_print_vkstat("keybd_read_vkstat");
             //tslink.set_focus();
         }
@@ -8052,7 +8056,7 @@ namespace netxs::gui
             {
                 while (!stop_token.stop_requested())
                 {
-                    auto lock = std::unique_lock{ timer_mutex };
+                    auto lock = std::unique_lock{ timer_mutex }; //todo ???use auto lock = bell::unique_lock();
                     std::condition_variable_any{}.wait_for(lock, stop_token, timeout, [&]{ return stop_token.stop_requested(); });
                     if (stop_token.stop_requested()) break;
                     timer_event(eventid);
