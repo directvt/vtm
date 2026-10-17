@@ -79,7 +79,7 @@
   <tr>
     <th>Ctrl+LeftClick</th>
     <td colspan="1"></td>
-    <td colspan="7">Assign/clear group keyboard focus</td>
+    <td colspan="7">Assign/clear group keyboard focus or Modify selection if any</td>
     <td></td>
   </tr>
   <tr>
@@ -193,7 +193,7 @@
   </tr>
   <tr>
     <th>Ctrl+LeftClick</th>
-    <td colspan="3">Assign/clear group keyboard focus</td>
+    <td colspan="3">Assign/clear group keyboard focus or Modify selection if any</td>
   </tr>
   <tr>
     <th>DoubleLeftClick</th>
