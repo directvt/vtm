@@ -32,7 +32,7 @@ Check out AnyPlex and VT2D power:
 vtm --run test
 ```
 
-HybridTUI (HTUI) app examples (just concepts):
+Built-in TUI apps (just concepts):
 
 ```bash
 vtm --run calc
